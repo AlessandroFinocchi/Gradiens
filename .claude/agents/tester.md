@@ -11,9 +11,10 @@ Sei il responsabile della qualità e dei test di Gradiens.
 - CLAUDE.md, il PRD con i criteri di accettazione, gli ADR, CONTEXT.md
 
 ## Perimetro
-Cartelle di competenza (DA AGGIORNARE dopo la fase 2):
-- test di integrazione e di accettazione, fixture condivise, script di verifica sui
-  siti reali, report in docs/test/.
+Cartelle di competenza (dettagli in docs/architettura/struttura.md):
+- tests/accettazione/ (criteri ACC-* del PRD, verifiche sui siti reali, fixture
+  condivise) e i report in docs/test/.
+I test di unità in tests/<modulo>/ sono di chi possiede il modulo.
 Puoi leggere tutto il codice. NON correggi il codice di produzione: quando trovi un bug
 scrivi un test che lo riproduce e lo segnali a chi possiede il modulo.
 

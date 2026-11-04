@@ -13,7 +13,8 @@ Sei lo sviluppatore frontend di Gradiens.
 
 ## Perimetro
 - Fase 3: solo la cartella mockup/ (HTML e CSS statici, dati finti, nessun build).
-- Fase 4 (DA AGGIORNARE dopo la fase 2): le cartelle del frontend e i relativi test.
+- Fase 4: src/gradiens/dashboard/ (rotte FastAPI, template Jinja2, CSS, htmx salvato
+  nella repo) e tests/dashboard/. Dettagli in docs/architettura/struttura.md.
 Non modificare il backend: se ti serve un dato o un'API che manca, chiedila al
 backend-engineer.
 

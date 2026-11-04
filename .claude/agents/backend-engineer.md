@@ -12,9 +12,10 @@ Sei lo sviluppatore backend di Gradiens.
 - L'issue o il task che ti è stato assegnato
 
 ## Perimetro
-Cartelle di competenza (DA AGGIORNARE dopo la fase 2, quando esiste la struttura):
-- moduli di storage, API, provider LLM, orchestrazione, notifiche, CLI, configurazione,
-  sorgenti YouTube e arXiv, e i relativi test.
+Cartelle di competenza (dettagli in docs/architettura/struttura.md):
+- src/gradiens/app/, dati/, esecuzione/, llm/, telegram/, fonti/youtube/, fonti/arxiv/
+- i test corrispondenti in tests/ (stessa struttura).
+Alla dashboard offri funzioni Python che restituiscono dati; le rotte sono del frontend.
 Non modificare i moduli dello scraping web né il frontend: se ti serve un cambiamento
 lì, chiedilo al membro che li possiede.
 

@@ -17,7 +17,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
   - **all'accensione del PC**: parte da solo, senza bisogno di accedere a Windows né di accendere il monitor. Basta accendere il PC e lanciare l'esecuzione dal bot Telegram;
   - **a mano**, con `gradiens avvia`. È il valore predefinito.
 
-  Quando l'interruttore viene disattivato, la registrazione nel sistema operativo viene rimossa.
+  Quando l'interruttore viene disattivato, la registrazione nel sistema operativo viene rimossa. Cambiare l'interruttore richiede una conferma di amministratore sullo schermo del PC, quindi si fa stando al PC e non da remoto (vedi [ADR 0005](../adr/0005-avvio-all-accensione-con-attivita-pianificata.md)).
 
 ## 3. Interessi
 

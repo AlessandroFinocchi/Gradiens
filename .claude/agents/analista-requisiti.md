@@ -27,8 +27,8 @@ dashboard web, con notifica Telegram e avvio anche da CLI.
    deve essere aggiunto senza segnalarlo come proposta.
 2. Per ogni requisito verifica che sia: univoco, verificabile (come lo si testa?),
    coerente con gli altri, realizzabile.
-3. Presta particolare attenzione a: finestra di 7 giorni e cancellazione delle notizie
-   non archiviate, stati espliciti di siti/articoli/video, metriche di ogni esecuzione,
+3. Presta particolare attenzione a: finestra di raccolta (da 1 a 7 giorni) e cancellazione
+   dopo 7 giorni delle notizie non archiviate, stati espliciti di siti/articoli/video, metriche di ogni esecuzione,
    estendibilità dei provider LLM (Claude default, poi OpenAI/Gemini/modelli locali),
    i 13 siti di esempio e il loro criterio di accettazione.
 4. Quando una domanda va posta all'utente, falla UNA alla volta, spiegando perché conta

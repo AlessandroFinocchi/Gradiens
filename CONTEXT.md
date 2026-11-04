@@ -13,7 +13,7 @@ Un singolo contenuto con data di pubblicazione proveniente da una fonte: un vide
 _Evitare_: item, contenuto, post (come termine generale)
 
 **Short**:
-Video YouTube in formato breve. È una Notizia di tipo distinto dal video normale, così da poterla filtrare separatamente.
+Video YouTube in formato breve. È una Notizia di tipo distinto dal video normale ("short YT" e "video YT" nei filtri), così da poterla filtrare separatamente.
 _Evitare_: video breve, clip
 
 **Pertinenza**:
@@ -29,24 +29,24 @@ Qualcosa che interessa all'utente. È formato da un nome (usato nei filtri), una
 _Evitare_: tema, categoria, tag
 
 **Raffinamento**:
-Testo associato a un Interesse e separato dalla sua descrizione, che precisa ciò che interessa all'utente sulla base delle notizie con Mi piace. L'utente lo può modificare o azzerare.
+Testo associato a un Interesse e separato dalla sua descrizione, che precisa ciò che interessa all'utente sulla base delle notizie con il Cuore. L'utente lo può modificare o azzerare.
 _Evitare_: descrizione appresa, profilo
 
 **Proposta di raffinamento**:
-Un nuovo testo di Raffinamento, oppure un nuovo Interesse, generato dall'LLM aggregando i Mi piace. Entra in vigore solo se l'utente lo approva.
+Un nuovo testo di Raffinamento, oppure un nuovo Interesse, generato dall'LLM aggregando le notizie con il Cuore. Entra in vigore solo se l'utente lo approva.
 
 **Argomento**:
 Una storia precisa che si sviluppa nel tempo, come un singolo evento e la sua evoluzione (es. "Attacco ransomware alla ASL X", non "attacchi ransomware"). Raggruppa le notizie che ne seguono gli sviluppi e appare come timeline.
 _Evitare_: tema, interesse, cluster, storia
 
-**Preferito**:
-Notizia segnata con la stella dall'utente. Un preferito entra nell'Archivio.
-_Evitare_: salvato, bookmark
-
-**Mi piace**:
-Notizia segnata con il cuore perché è stata interessante. Un mi piace entra nell'Archivio e serve a raffinare gli Interessi.
-_Evitare_: like, cuore (come nome del concetto)
+**Cuore**:
+Segno che l'utente mette su una notizia che gli è interessata. Una notizia con il cuore entra nell'Archivio e contribuisce al Raffinamento degli Interessi.
+_Evitare_: preferito, stella, mi piace, like
 
 **Archivio**:
-L'insieme delle notizie che sono Preferito o Mi piace, conservate senza limite di tempo. Le notizie fuori dall'archivio vengono cancellate dopo 7 giorni.
-_Evitare_: salvate, storico
+L'insieme delle notizie con il Cuore, conservate senza limite di tempo. Le notizie fuori dall'archivio vengono cancellate 7 giorni dopo la pubblicazione.
+_Evitare_: preferiti, salvate, storico
+
+**Finestra di raccolta**:
+Numero di giorni, da 1 a 7, prima di un'Esecuzione: per essere raccolta, una notizia deve essere stata pubblicata in quell'intervallo. È distinta dalla cancellazione, che avviene sempre dopo 7 giorni.
+_Evitare_: periodo, intervallo di ricerca

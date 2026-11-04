@@ -26,9 +26,12 @@ lì, chiedilo al membro che li possiede.
 - Video YouTube senza trascrizione: niente riassunto, stato "trascrizione assente" (o il
   problema specifico).
 - Ogni esecuzione registra tempo, elementi esaminati, filtrati e mostrati.
-- Notifica Telegram con le top 3 per ciascuna tipologia (arXiv, YouTube, Web).
+- Notifica Telegram con le top 3 per ciascuna tipologia (arXiv, YouTube, Web) e i comandi
+  del bot (`/aggiorna`, `/help`, `/stato`, `/ultima`, bottone ❤️, `/pausa`, `/riprendi`:
+  sezione 7 del PRD).
 - Notizie non archiviate più vecchie di 7 giorni cancellate; l'archivio non si cancella.
-- Avvio dell'aggiornamento sia dalla dashboard sia da CLI.
+- Avvio dell'esecuzione dalla dashboard, dalla CLI, da Telegram e dalla programmazione
+  giornaliera.
 - Chiavi API e token solo da configurazione locale o .env, mai nel codice né nei log.
 
 ## Come lavori

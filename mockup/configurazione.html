@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Configurazione iniziale · Gradiens</title>
+<link rel="stylesheet" href="stile.css">
+<script src="app.js"></script>
+</head>
+<body>
+<div class="app" data-senza-sidebar>
+  <main class="procedura">
+    <div class="procedura-testa"><span class="segno">∇</span><div><h1>Benvenuto in Gradiens</h1><div class="sottotitolo">Servono pochi dati prima di iniziare. Puoi cambiarli tutti dopo, nelle Impostazioni.</div></div></div>
+
+    <ol class="passi" aria-label="Passi della configurazione">
+      <li data-passo="interessi">Interessi</li>
+      <li data-passo="fonti">Fonti</li>
+      <li data-passo="modelli">Modelli LLM</li>
+      <li data-passo="telegram">Telegram</li>
+    </ol>
+
+    <!-- 1. Interessi -->
+    <section class="passo-corpo" data-passo="interessi" hidden>
+      <h2>Cosa ti interessa?</h2>
+      <p class="intro">Ogni interesse ha un nome, che userai nei filtri, e una descrizione, che l'LLM usa per scegliere le notizie. Scrivi la descrizione come la spiegheresti a una persona. Serve almeno un interesse.</p>
+      <div class="interesse">
+        <div class="interesse-testa"><strong>Sicurezza informatica</strong><button class="bottone-icona" aria-label="Elimina interesse" data-icona="cestino"></button></div>
+        <label class="etichetta-campo">Descrizione</label>
+        <textarea class="campo" rows="2">Attacchi, vulnerabilità e incidenti, soprattutto in Italia e nella pubblica amministrazione.</textarea>
+      </div>
+      <div class="interesse">
+        <label class="etichetta-campo" for="nuovo-nome" style="margin-top:0">Nome</label>
+        <input class="campo" id="nuovo-nome" placeholder="es. LLM e agenti">
+        <label class="etichetta-campo" for="nuova-desc">Descrizione</label>
+        <textarea class="campo" id="nuova-desc" rows="2" placeholder="Cosa ti interessa e cosa no"></textarea>
+        <div style="margin-top:10px"><button class="bottone secondario piccolo" data-icona="aggiungi">Aggiungi interesse</button></div>
+      </div>
+    </section>
+
+    <!-- 2. Fonti -->
+    <section class="passo-corpo" data-passo="fonti" hidden>
+      <h2>Da dove raccogliere le notizie?</h2>
+      <p class="intro">Serve almeno un canale YouTube, un sito e una categoria arXiv.</p>
+
+      <h3 data-icona="youtube">Canali YouTube</h3>
+      <div class="campo-riga"><input class="campo" placeholder="@nome, /channel/… o il link di un video"><button class="bottone">Aggiungi</button></div>
+      <div class="gettoni"><span class="chip">Lab di Sicurezza ✕</span><span class="chip">Coach Marta ✕</span></div>
+
+      <h3 data-icona="sito">Siti web</h3>
+      <div class="campo-riga"><input class="campo" placeholder="Indirizzo della home o di una sezione"><button class="bottone">Aggiungi</button></div>
+      <ul class="elenco-semplice" style="margin-top:6px">
+        <li><span class="principale">redhotcyber.com<br><span class="descrizione">feed RSS e sitemap · tutto il sito, sottodomini compresi</span></span><span class="stato ok">profilo pronto</span></li>
+        <li><span class="principale">e3rehab.com/articles<br><span class="descrizione">Sto cercando feed, sitemap e pagine della sezione…</span></span><span class="rotella" role="status" aria-label="Analisi in corso"></span></li>
+      </ul>
+
+      <h3 data-icona="arxiv">Categorie arXiv</h3>
+      <div class="campo-riga"><input class="campo" placeholder="es. cs.CR"><button class="bottone">Aggiungi</button></div>
+      <div class="gettoni"><span class="chip">cs.CR ✕</span><span class="chip">cs.CL ✕</span></div>
+    </section>
+
+    <!-- 3. Modelli -->
+    <section class="passo-corpo" data-passo="modelli" hidden>
+      <h2>Quale modello usa Gradiens?</h2>
+      <p class="intro">Il predefinito è Claude con un modello economico, sia per il pre-filtro sia per l'elaborazione. Potrai usare anche un modello locale dalle Impostazioni.</p>
+      <label class="etichetta-campo" for="chiave">Chiave API di Claude</label>
+      <div class="campo-riga"><input class="campo" id="chiave" type="password" value="0000000000000000000000" autocomplete="off"><button class="bottone">Verifica</button></div>
+      <div class="esito ok" data-icona="spunta">Chiave verificata</div>
+      <p class="nota">La chiave viene salvata nel file <code>.env</code> di questa cartella, escluso da git. Non finisce mai nei file versionati né nei log.</p>
+    </section>
+
+    <!-- 4. Telegram, con il tutorial di TG-01 -->
+    <section class="passo-corpo" data-passo="telegram" hidden>
+      <h2>Collega il tuo bot Telegram</h2>
+      <p class="intro">Il bot ti manda le notizie migliori alla fine di ogni esecuzione e accetta comandi come <code>/aggiorna</code>. Ci vogliono due minuti.</p>
+      <ol class="tutorial">
+        <li class="fatto"><span class="numero">✓</span><div>
+          <h4>Crea il bot con BotFather</h4>
+          <ol>
+            <li>In Telegram cerca <strong>@BotFather</strong> (ha la spunta blu) e apri la chat.</li>
+            <li>Scrivi <code>/newbot</code>.</li>
+            <li>Scegli un nome, per esempio "Il mio Gradiens".</li>
+            <li>Scegli uno username che finisca con <code>bot</code>, per esempio <code>mio_gradiens_bot</code>.</li>
+            <li>BotFather risponde con un messaggio che contiene il <strong>token</strong>, una lunga stringa di numeri e lettere.</li>
+          </ol></div></li>
+        <li class="fatto"><span class="numero">✓</span><div>
+          <h4>Incolla qui il token</h4>
+          <p>Il token è segreto come una password: non condividerlo. Viene salvato in <code>.env</code>.</p>
+          <div class="campo-riga" style="margin-top:8px"><input class="campo" type="password" value="0000000000000000000000" aria-label="Token del bot" autocomplete="off"><button class="bottone secondario">Verifica</button></div>
+          <div class="esito ok" data-icona="spunta">Token valido: bot @mio_gradiens_bot</div></div></li>
+        <li class="corrente"><span class="numero">3</span><div>
+          <h4>Scrivi /start al tuo bot</h4>
+          <p>Apri <strong>@mio_gradiens_bot</strong> in Telegram e premi Avvia, oppure scrivi <code>/start</code>. Gradiens riconosce la chat da cui arriva il messaggio.</p>
+          <div class="chat-trovata">
+            <span style="flex:1"><strong>Chat trovata</strong><br><span class="nota">Chat privata · messaggio /start ricevuto alle 10:42</span></span>
+            <button class="bottone">Conferma questa chat</button>
+          </div>
+          <p class="nota" style="margin-top:8px">Il bot risponderà solo a questa chat e ignorerà tutte le altre. Non è la tua? Scrivi di nuovo /start dalla chat giusta.</p></div></li>
+      </ol>
+    </section>
+
+    <div class="navigazione-passi">
+      <button class="bottone secondario" id="indietro">Indietro</button>
+      <span class="nota" id="nota-passo"></span>
+      <button class="bottone" id="avanti">Avanti</button>
+    </div>
+  </main>
+</div>
+
+<script>
+const PASSI = ["interessi", "fonti", "modelli", "telegram"];
+let corrente = PASSI.includes(parametro("passo")) ? parametro("passo") : "interessi";
+
+function mostra(passo) {
+  corrente = passo;
+  const i = PASSI.indexOf(passo);
+  document.querySelectorAll("section[data-passo]").forEach((s) => (s.hidden = s.dataset.passo !== passo));
+  document.querySelectorAll(".passi li").forEach((li, j) => {
+    li.classList.toggle("fatto", j < i);
+    if (j === i) li.setAttribute("aria-current", "step"); else li.removeAttribute("aria-current");
+  });
+  document.getElementById("indietro").style.visibility = i === 0 ? "hidden" : "visible";
+  document.getElementById("avanti").textContent = i === PASSI.length - 1 ? "Inizia a usare Gradiens" : "Avanti";
+  document.getElementById("nota-passo").textContent = `Passo ${i + 1} di ${PASSI.length}`;
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  mostra(corrente);
+  document.getElementById("avanti").addEventListener("click", () => {
+    const i = PASSI.indexOf(corrente);
+    if (i < PASSI.length - 1) mostra(PASSI[i + 1]); else location.href = "home.html";
+  });
+  document.getElementById("indietro").addEventListener("click", () => mostra(PASSI[Math.max(0, PASSI.indexOf(corrente) - 1)]));
+});
+</script>
+</body>
+</html>

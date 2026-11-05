@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Archivio · Gradiens</title>
+<link rel="stylesheet" href="stile.css">
+<script src="app.js"></script>
+</head>
+<body>
+<div class="app" data-pagina="archivio">
+  <main class="pagina">
+    <header class="testata">
+      <div class="testata-riga">
+        <div>
+          <h1>Archivio</h1>
+          <div class="sottotitolo">18 notizie con il cuore, conservate senza limite di tempo. Togliendo il cuore, una notizia torna alla regola dei 7 giorni.</div>
+        </div>
+      </div>
+      <div class="filtri" aria-label="Filtri">
+        <div class="gruppo" role="group" aria-label="Tipo" id="filtro-tipo"></div>
+        <span class="separatore"></span>
+        <select class="selettore" aria-label="Interesse"><option>Tutti gli interessi</option><option>Sicurezza informatica</option><option>LLM e agenti</option><option>Allenamento e riabilitazione</option></select>
+        <select class="selettore" aria-label="Data"><option>Qualsiasi data</option><option>Ultimi 7 giorni</option><option>Ultimo mese</option><option>Ultimo anno</option></select>
+        <select class="selettore" aria-label="Fonte"><option>Tutte le fonti</option></select>
+        <span class="separatore"></span>
+        <select class="selettore" aria-label="Ordinamento"><option>Data ↓</option><option>Data ↑</option><option>Pertinenza ↓</option><option>Pertinenza ↑</option></select>
+      </div>
+    </header>
+    <ul class="elenco" id="elenco"></ul>
+  </main>
+</div>
+
+<script>
+const ARCHIVIO = [
+  NOTIZIE[0],
+  { tipo: "sito", fonte: "redhotcyber.com", data: "29 ott", cuore: true,
+    titolo: "Pacchetti npm compromessi: il registro revoca 2.000 token",
+    riassunto: "Dopo la scoperta del pacchetto malevolo, il registro npm ha revocato i token di pubblicazione esposti e chiede ai manutentori di attivare l'autenticazione a due fattori. Sono coinvolti 2.000 account.",
+    interessi: [["Sicurezza informatica", 88]], argomento: "Pacchetti npm compromessi di ottobre" },
+  { tipo: "arxiv", fonte: "cs.AI", data: "20 ott", cuore: true,
+    titolo: "Perché gli agenti sbagliano a usare gli strumenti: analisi di 40 casi",
+    originale: "Why Agents Misuse Tools: An Analysis of 40 Failure Cases",
+    riassunto: "Lo studio classifica 40 errori di agenti basati su LLM. Le cause principali sono descrizioni ambigue degli strumenti e risultati troppo lunghi che l'agente non legge fino in fondo. Gli autori propongono cinque regole per scrivere gli strumenti.",
+    interessi: [["LLM e agenti", 93]] },
+  { tipo: "video", fonte: "Coach Marta · 18 min", data: "15 ott", cuore: true,
+    titolo: "Isometria per il ginocchio: un protocollo in quattro settimane",
+    riassunto: "Il video presenta un protocollo di esercizi isometrici per il dolore al tendine rotuleo: tre sedute a settimana, tenute da 45 secondi, con un test del dolore per decidere quando aumentare il carico.",
+    interessi: [["Allenamento e riabilitazione", 85]] },
+];
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("filtro-tipo").innerHTML = Object.values(TIPI).map(([i, n]) => `<button class="chip" aria-pressed="false">${ic(i)}${n}</button>`).join("");
+  document.getElementById("elenco").outerHTML = parametro("vuoto") !== null
+    ? `<div class="vuoto-pagina">${ic("archivio")}<h2>L'archivio è vuoto</h2><p>Metti il cuore a una notizia per conservarla qui senza limite di tempo. Le notizie con il cuore servono anche a raffinare i tuoi interessi.</p><a class="bottone secondario" href="notizie.html">Vai alle notizie</a></div>`
+    : `<ul class="elenco">${ARCHIVIO.map(rigaNotizia).join("")}</ul>`;
+});
+</script>
+</body>
+</html>

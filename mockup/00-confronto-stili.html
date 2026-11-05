@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gradiens – confronto stili</title>
+<style>
+/* ---------- Pagina di confronto (non fa parte del design) ---------- */
+* { box-sizing: border-box; }
+body { margin: 0; background: #E9E9EC; color: #222; font: 15px/1.5 system-ui, "Segoe UI", sans-serif; }
+.intro { max-width: 1100px; margin: 0 auto; padding: 28px 16px 8px; }
+.intro h1 { margin: 0 0 6px; font-size: 22px; }
+.intro p { margin: 0 0 10px; color: #555; }
+.indice { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
+.indice a { display: inline-block; padding: 6px 12px; border-radius: 999px; background: #fff; color: #222; text-decoration: none; border: 1px solid #d5d5da; }
+.variante { padding: 24px 16px 8px; }
+.variante > h2 { max-width: 1100px; margin: 0 auto 4px; font-size: 18px; }
+.variante > p { max-width: 1100px; margin: 0 auto 14px; color: #555; }
+.coppia { display: grid; gap: 16px; grid-template-columns: 1fr; }
+@media (min-width: 1700px) { .coppia { grid-template-columns: 1fr 1fr; } }
+.etichetta { font-size: 13px; font-weight: 600; color: #444; margin: 0 0 6px 2px; }
+
+/* ---------- Gettoni di colore: stile x tema ---------- */
+.frame { container-type: inline-size; height: 820px; border-radius: 12px; overflow: hidden; border: 1px solid #c9c9cf; box-shadow: 0 6px 24px rgb(0 0 0 / .08); }
+
+.frame[data-stile="claude"].tema-chiaro {
+  color-scheme: light;
+  --bg: #FAF9F5; --pannello: #FFFFFF; --sidebar: #F0EEE6; --hover: #E9E6DC;
+  --testo: #1F1E1D; --tenue: #6B6963; --bordo: #E3DFD3;
+  --accento: #B4512F; --su-accento: #FFFFFF; --accento-testo: #A44A2B; --accento-tenue: #F6E5DC;
+  --stato-bg: #F3EAD3; --stato-testo: #6E5310; --ombra: 0 1px 2px rgb(60 50 30 / .06);
+}
+.frame[data-stile="claude"].tema-scuro {
+  color-scheme: dark;
+  --bg: #262624; --pannello: #30302D; --sidebar: #1E1E1C; --hover: #3A3A36;
+  --testo: #F0EEE6; --tenue: #A9A69C; --bordo: #403F3A;
+  --accento: #B4512F; --su-accento: #FFFFFF; --accento-testo: #EE9C7D; --accento-tenue: #46302A;
+  --stato-bg: #3E3624; --stato-testo: #E6C77E; --ombra: none;
+}
+.frame[data-stile="linear"].tema-chiaro {
+  color-scheme: light;
+  --bg: #FCFCFD; --pannello: #FFFFFF; --sidebar: #F4F5F7; --hover: #EDEEF1;
+  --testo: #16171A; --tenue: #6A6E77; --bordo: #E3E4E8;
+  --accento: #5E6AD2; --su-accento: #FFFFFF; --accento-testo: #4752BC; --accento-tenue: #EDEFFD;
+  --stato-bg: #FFF3DD; --stato-testo: #7F5300; --ombra: none;
+}
+.frame[data-stile="linear"].tema-scuro {
+  color-scheme: dark;
+  --bg: #101113; --pannello: #16171A; --sidebar: #0B0C0E; --hover: #1D1E22;
+  --testo: #EBECEF; --tenue: #8C909A; --bordo: #25272C;
+  --accento: #5E6AD2; --su-accento: #FFFFFF; --accento-testo: #A6ADFF; --accento-tenue: #1F2240;
+  --stato-bg: #2E2614; --stato-testo: #EBBE55; --ombra: none;
+}
+
+/* ---------- Caratteri e forme per stile ---------- */
+.frame[data-stile="claude"] {
+  --font: system-ui, "Segoe UI", sans-serif;
+  --font-titoli: "Iowan Old Style", "Palatino Linotype", Georgia, ui-serif, serif;
+  --raggio: 12px; --raggio-piccolo: 8px; --spaziatura-lettere: 0;
+}
+.frame[data-stile="linear"] {
+  --font: "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-titoli: var(--font);
+  --raggio: 8px; --raggio-piccolo: 5px; --spaziatura-lettere: -0.011em;
+}
+
+/* ---------- Applicazione ---------- */
+.app { height: 100%; display: grid; grid-template-columns: auto 1fr; background: var(--bg); color: var(--testo); font-family: var(--font); letter-spacing: var(--spaziatura-lettere); }
+.app button, .app select { font: inherit; color: inherit; letter-spacing: inherit; }
+.app :focus-visible { outline: 2px solid var(--accento-testo); outline-offset: 2px; }
+.icona { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+/* Sidebar */
+.sidebar { width: 216px; background: var(--sidebar); border-right: 1px solid var(--bordo); display: flex; flex-direction: column; padding: 14px 10px; gap: 2px; transition: width .15s; }
+.app.chiusa .sidebar { width: 58px; }
+.marchio { display: flex; align-items: center; gap: 10px; padding: 4px 8px 16px; font-family: var(--font-titoli); font-size: 18px; font-weight: 600; white-space: nowrap; overflow: hidden; }
+.marchio .segno { width: 24px; height: 24px; border-radius: 7px; background: var(--accento); color: var(--su-accento); display: grid; place-items: center; font: 600 15px/1 var(--font); flex: none; }
+.voce { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: var(--raggio-piccolo); color: var(--tenue); text-decoration: none; white-space: nowrap; overflow: hidden; }
+.voce:hover { background: var(--hover); color: var(--testo); }
+.voce[aria-current="page"] { background: var(--hover); color: var(--testo); font-weight: 600; }
+.app.chiusa .voce span, .app.chiusa .marchio span.nome { display: none; }
+.sidebar .basso { margin-top: auto; }
+.bottone-icona { display: grid; place-items: center; width: 36px; height: 36px; border: 0; background: none; border-radius: var(--raggio-piccolo); color: var(--tenue); cursor: pointer; }
+.bottone-icona:hover { background: var(--hover); color: var(--testo); }
+
+/* Contenuto */
+.contenuto { overflow-y: auto; min-width: 0; }
+.testata { position: sticky; top: 0; z-index: 1; background: var(--bg); border-bottom: 1px solid var(--bordo); }
+.testata-riga { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.testata-riga > div { flex: 1 1 260px; min-width: 0; }
+.testata h1 { margin: 0; font-family: var(--font-titoli); font-weight: 600; }
+.sottotitolo { color: var(--tenue); font-size: 13px; }
+.spinta { margin-left: auto; }
+.bottone { display: inline-flex; align-items: center; gap: 8px; border: 0; cursor: pointer; background: var(--accento); color: var(--su-accento); border-radius: var(--raggio-piccolo); font-weight: 600; white-space: nowrap; }
+.bottone .icona { fill: currentColor; stroke: none; width: 14px; height: 14px; }
+
+.filtri { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.gruppo { display: flex; gap: 4px; flex-wrap: wrap; }
+.chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--bordo); background: var(--pannello); color: var(--tenue); border-radius: 999px; cursor: pointer; white-space: nowrap; }
+.chip .icona { width: 14px; height: 14px; }
+.chip[aria-pressed="true"] { background: var(--accento-tenue); color: var(--accento-testo); border-color: transparent; font-weight: 600; }
+.selettore { border: 1px solid var(--bordo); background: var(--pannello); border-radius: var(--raggio-piccolo); padding: 4px 8px; color: var(--testo); }
+.separatore { width: 1px; align-self: stretch; background: var(--bordo); margin: 2px 4px; }
+
+/* Notizie */
+.elenco { list-style: none; margin: 0; padding: 0; }
+.notizia { display: grid; grid-template-columns: 1fr auto; gap: 0 12px; }
+.n-corpo { display: grid; min-width: 0; }
+.n-meta { grid-area: meta; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--tenue); font-size: 12.5px; }
+.n-meta .icona { width: 15px; height: 15px; }
+.n-titolo { grid-area: titolo; margin: 0; font-family: var(--font-titoli); font-weight: 600; }
+.n-titolo a { color: inherit; text-decoration: none; }
+.n-titolo a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.n-originale { grid-area: originale; margin: 0; color: var(--tenue); font-size: 12.5px; font-style: italic; }
+.n-riassunto { grid-area: riassunto; margin: 0; }
+.n-piede { grid-area: piede; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12.5px; }
+.punteggio { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 999px; background: var(--hover); color: var(--testo); white-space: nowrap; }
+.punteggio b { font-variant-numeric: tabular-nums; }
+.punteggio.alto { background: var(--accento-tenue); color: var(--accento-testo); }
+.stato { padding: 1px 7px; border-radius: 999px; background: var(--stato-bg); color: var(--stato-testo); font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+.argomento, .originale-link { color: var(--tenue); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.argomento:hover, .originale-link:hover { color: var(--testo); }
+.argomento .icona, .originale-link .icona { width: 14px; height: 14px; }
+.cuore { align-self: start; }
+.cuore[aria-pressed="true"] { color: var(--accento-testo); }
+.cuore[aria-pressed="true"] .icona { fill: currentColor; }
+
+/* ---------- Densità: ariosa ---------- */
+[data-densita="ariosa"] .testata { padding: 28px 40px 18px; }
+[data-densita="ariosa"] .testata h1 { font-size: 30px; }
+[data-densita="ariosa"] .filtri { margin-top: 18px; }
+[data-densita="ariosa"] .chip { padding: 5px 12px; font-size: 13.5px; }
+[data-densita="ariosa"] .bottone { padding: 10px 16px; font-size: 14px; }
+[data-densita="ariosa"] .elenco { padding: 24px 40px 40px; display: grid; gap: 16px; max-width: 900px; }
+[data-densita="ariosa"] .notizia { background: var(--pannello); border: 1px solid var(--bordo); border-radius: var(--raggio); padding: 22px 22px 18px 26px; box-shadow: var(--ombra); }
+[data-densita="ariosa"] .n-corpo { grid-template-areas: "meta" "titolo" "originale" "riassunto" "piede"; row-gap: 8px; }
+[data-densita="ariosa"] .n-titolo { font-size: 20px; line-height: 1.3; }
+[data-densita="ariosa"] .n-riassunto { font-size: 15.5px; line-height: 1.65; }
+[data-densita="ariosa"] .n-piede { margin-top: 6px; }
+[data-stile="linear"][data-densita="ariosa"] .n-titolo { font-size: 17px; }
+[data-stile="linear"][data-densita="ariosa"] .n-riassunto { font-size: 14.5px; line-height: 1.6; color: var(--tenue); }
+[data-stile="linear"][data-densita="ariosa"] .notizia { background: transparent; }
+[data-stile="linear"][data-densita="ariosa"] .testata h1 { font-size: 22px; }
+
+/* ---------- Densità: compatta ---------- */
+[data-densita="compatta"] .testata { padding: 14px 20px 12px; }
+[data-densita="compatta"] .testata h1 { font-size: 20px; }
+[data-densita="compatta"] .filtri { margin-top: 10px; }
+[data-densita="compatta"] .chip { padding: 2px 9px; font-size: 12.5px; }
+[data-densita="compatta"] .bottone { padding: 6px 12px; font-size: 13px; }
+[data-densita="compatta"] .selettore { padding: 2px 6px; font-size: 12.5px; }
+[data-densita="compatta"] .notizia { padding: 12px 20px; border-bottom: 1px solid var(--bordo); }
+[data-densita="compatta"] .notizia:hover { background: var(--hover); }
+[data-densita="compatta"] .n-corpo { grid-template-columns: 1fr auto; grid-template-areas: "titolo piede" "originale originale" "meta meta" "riassunto riassunto"; column-gap: 16px; row-gap: 3px; }
+[data-densita="compatta"] .n-titolo { font-size: 15.5px; line-height: 1.35; }
+[data-densita="compatta"] .n-piede { justify-content: flex-end; align-self: start; }
+[data-densita="compatta"] .n-piede .argomento, [data-densita="compatta"] .n-piede .originale-link { display: none; }
+[data-densita="compatta"] .n-meta .meta-arg { display: inline-flex; gap: 6px; }
+[data-densita="compatta"] .n-riassunto { font-size: 13.5px; line-height: 1.5; color: var(--tenue); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+[data-densita="compatta"] .cuore { width: 30px; height: 30px; }
+[data-stile="linear"][data-densita="compatta"] .n-titolo { font-size: 14px; font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+[data-stile="linear"][data-densita="compatta"] .n-riassunto { -webkit-line-clamp: 1; font-size: 13px; }
+[data-stile="linear"][data-densita="compatta"] .notizia { padding: 9px 20px; }
+[data-stile="linear"][data-densita="compatta"] .punteggio { border-radius: var(--raggio-piccolo); padding: 1px 6px; }
+.meta-arg { display: none; }
+
+/* ---------- Riquadri stretti (telefono) ---------- */
+@container (max-width: 700px) {
+  .sidebar { width: 58px !important; }
+  .voce span, .marchio span.nome { display: none; }
+  [data-densita] .testata { padding: 16px; }
+  [data-densita] .elenco { padding: 12px; }
+  [data-densita="compatta"] .elenco { padding: 0; }
+  [data-densita="compatta"] .n-corpo { grid-template-columns: 1fr; grid-template-areas: "titolo" "originale" "meta" "piede" "riassunto"; }
+  [data-densita="compatta"] .n-piede { justify-content: flex-start; }
+  .separatore { display: none; }
+}
+</style>
+</head>
+<body>
+
+<header class="intro">
+  <h1>Gradiens – confronto stili della pagina Notizie</h1>
+  <p>Quattro varianti, ciascuna in modalità giorno e notte. I dati sono finti. Puoi provare il cuore, i filtri per tipo e il bottone in basso nella sidebar, che la apre e la chiude.</p>
+  <ul class="indice">
+    <li><a href="#claude-ariosa">1. Claude ariosa</a></li>
+    <li><a href="#claude-compatta">2. Claude compatta</a></li>
+    <li><a href="#linear-ariosa">3. Linear ariosa</a></li>
+    <li><a href="#linear-compatta">4. Linear compatta</a></li>
+  </ul>
+</header>
+
+<main id="varianti"></main>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-notizie" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8.5h10M7 12h10M7 15.5h6"/></symbol>
+  <symbol id="i-archivio" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M10 13h4"/></symbol>
+  <symbol id="i-timeline" viewBox="0 0 24 24"><path d="M12 3v18"/><circle cx="12" cy="7" r="2"/><circle cx="12" cy="17" r="2"/><path d="M14 7h6M4 17h6"/></symbol>
+  <symbol id="i-impostazioni" viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></symbol>
+  <symbol id="i-aiuto" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.6.3-1 .8-1 1.5v.6"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-cuore" viewBox="0 0 24 24"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7a4.3 4.3 0 0 1 7.5 2.8C19.5 15.4 12 20 12 20z"/></symbol>
+  <symbol id="i-esterno" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
+  <symbol id="i-sito" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+  <symbol id="i-arxiv" viewBox="0 0 24 24"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M8 13h8M8 17h6"/></symbol>
+  <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3z"/></symbol>
+  <symbol id="i-short" viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="m11 10 3 2-3 2z"/></symbol>
+  <symbol id="i-avvia" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></symbol>
+  <symbol id="i-pannello" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></symbol>
+  <symbol id="i-argomento" viewBox="0 0 24 24"><path d="M5 4v10a4 4 0 0 0 4 4h10M15 14l4 4-4 4"/></symbol>
+</svg>
+
+<script>
+const VARIANTI = [
+  { id: "claude-ariosa", stile: "claude", densita: "ariosa", nome: "1. Claude ariosa",
+    nota: "Schede bianche su fondo caldo, titoli con grazie, riassunto intero. Sidebar aperta." },
+  { id: "claude-compatta", stile: "claude", densita: "compatta", nome: "2. Claude compatta",
+    nota: "Stessi colori e caratteri, ma elenco a righe: punteggi accanto al titolo, riassunto su due righe. Sidebar chiusa." },
+  { id: "linear-ariosa", stile: "linear", densita: "ariosa", nome: "3. Linear ariosa",
+    nota: "Grigi neutri, accento indaco, caratteri senza grazie più piccoli, bordi sottili. Sidebar aperta." },
+  { id: "linear-compatta", stile: "linear", densita: "compatta", nome: "4. Linear compatta",
+    nota: "Righe dense come un elenco di attività: titolo su una riga, riassunto su una riga. Sidebar chiusa." },
+];
+
+const TIPI = { sito: ["i-sito", "Sito"], arxiv: ["i-arxiv", "arXiv"], video: ["i-video", "Video YT"], short: ["i-short", "Short YT"] };
+
+const NOTIZIE = [
+  { tipo: "sito", fonte: "redhotcyber.com", data: "5 nov, 09:12", cuore: true,
+    titolo: "Ransomware all'ASL Valle Verde: il gruppo pubblica i primi 40 GB di dati",
+    riassunto: "Il gruppo che ha colpito l'ASL Valle Verde ha pubblicato sul proprio sito un primo archivio con documenti amministrativi e referti. L'azienda sanitaria conferma l'esfiltrazione e dice che le prenotazioni torneranno attive entro venerdì.",
+    interessi: [["Sicurezza informatica", 94]], argomento: "Attacco ransomware all'ASL Valle Verde" },
+  { tipo: "arxiv", fonte: "cs.CL", data: "4 nov",
+    titolo: "Modelli linguistici piccoli come pre-filtri nelle pipeline di recupero",
+    originale: "Small Language Models as Pre-filters in Retrieval Pipelines",
+    riassunto: "Gli autori usano un modello da un miliardo di parametri per scartare i documenti irrilevanti prima del modello principale. Su tre benchmark il costo scende del 70% con una perdita di accuratezza sotto il 2%.",
+    interessi: [["LLM e agenti", 91], ["Sicurezza informatica", 62]] },
+  { tipo: "video", fonte: "Lab di Sicurezza · 24 min", data: "3 nov",
+    titolo: "Supply chain npm: anatomia di un pacchetto compromesso",
+    riassunto: "Il video ricostruisce passo per passo come un pacchetto molto usato è stato sostituito da una versione che rubava i token di accesso, e mostra tre controlli da aggiungere alla pipeline di build.",
+    interessi: [["Sicurezza informatica", 86]], argomento: "Pacchetti npm compromessi di ottobre" },
+  { tipo: "sito", fonte: "e3rehab.com", data: "3 nov", stato: "data incerta",
+    titolo: "Tendinopatia rotulea: cosa dice la ricerca sul carico progressivo",
+    originale: "Patellar Tendinopathy: What the Research Says About Progressive Loading",
+    riassunto: "L'articolo riassume gli studi sugli esercizi isometrici e a carico lento: funzionano meglio del riposo, ma servono almeno 12 settimane. Propone una progressione in quattro fasi, con i criteri per passare alla successiva.",
+    interessi: [["Allenamento e riabilitazione", 79]] },
+  { tipo: "short", fonte: "Coach Marta · 52 s", data: "4 nov",
+    titolo: "Squat bulgaro: l'errore che sposta il carico sul ginocchio",
+    riassunto: "Il piede anteriore troppo vicino alla panca fa avanzare il ginocchio. Il consiglio è misurare la distanza con un passo e mezzo prima di iniziare la serie.",
+    interessi: [["Allenamento e riabilitazione", 72]] },
+  { tipo: "sito", fonte: "ilsoftware.it", data: "2 nov, 17:40", stato: "contenuto parziale",
+    titolo: "Windows 11, patch d'emergenza per un errore di autenticazione Kerberos",
+    riassunto: "L'aggiornamento corregge un difetto introdotto il mese scorso che impediva l'accesso ai controller di dominio. Il testo è stato estratto solo in parte: il riassunto copre l'inizio dell'articolo.",
+    interessi: [["Sicurezza informatica", 66]] },
+];
+
+const ic = (id) => `<svg class="icona" aria-hidden="true"><use href="#${id}"/></svg>`;
+
+function notizia(n) {
+  const [icona, tipo] = TIPI[n.tipo];
+  const argomento = n.argomento ? `<a class="argomento" href="#" title="Apri la timeline dell'argomento">${ic("i-argomento")}${n.argomento}</a>` : "";
+  return `<li class="notizia">
+    <div class="n-corpo">
+      <div class="n-meta">${ic(icona)}<span>${tipo}</span>·<span>${n.fonte}</span>·<span>${n.data}</span>
+        ${n.stato ? `<span class="stato">${n.stato}</span>` : ""}${argomento ? `<span class="meta-arg">· ${argomento}</span>` : ""}</div>
+      <h3 class="n-titolo"><a href="#">${n.titolo}</a></h3>
+      ${n.originale ? `<p class="n-originale">Titolo originale: ${n.originale}</p>` : ""}
+      <p class="n-riassunto">${n.riassunto}</p>
+      <div class="n-piede">
+        ${n.interessi.map(([nome, p]) => `<span class="punteggio${p >= 80 ? " alto" : ""}">${nome} <b>${p}</b></span>`).join("")}
+        ${argomento}
+        <a class="originale-link" href="#">${ic("i-esterno")}Apri l'originale</a>
+      </div>
+    </div>
+    <button class="bottone-icona cuore" aria-pressed="${!!n.cuore}" aria-label="${n.cuore ? "Togli il cuore" : "Metti il cuore"}">${ic("i-cuore")}</button>
+  </li>`;
+}
+
+function pagina(v) {
+  const voci = [["i-home", "Home"], ["i-notizie", "Notizie"], ["i-archivio", "Archivio"], ["i-timeline", "Timeline"], ["i-impostazioni", "Impostazioni"], ["i-aiuto", "Aiuto"]];
+  return `<div class="app${v.densita === "compatta" ? " chiusa" : ""}">
+    <nav class="sidebar" aria-label="Pagine">
+      <div class="marchio"><span class="segno">∇</span><span class="nome">Gradiens</span></div>
+      ${voci.map(([i, n]) => `<a class="voce" href="#" title="${n}" ${n === "Notizie" ? 'aria-current="page"' : ""}>${ic(i)}<span>${n}</span></a>`).join("")}
+      <div class="basso"><button class="bottone-icona apri-chiudi" aria-label="Apri o chiudi la barra laterale">${ic("i-pannello")}</button></div>
+    </nav>
+    <div class="contenuto">
+      <header class="testata">
+        <div class="testata-riga">
+          <div>
+            <h1>Notizie</h1>
+            <div class="sottotitolo">42 notizie negli ultimi 7 giorni · ultima esecuzione oggi alle 07:30, durata 3 min 12 s</div>
+          </div>
+          <button class="bottone spinta">${ic("i-avvia")}Avvia esecuzione</button>
+        </div>
+        <div class="filtri" aria-label="Filtri">
+          <div class="gruppo" role="group" aria-label="Tipo">
+            ${Object.values(TIPI).map(([i, n]) => `<button class="chip" aria-pressed="false">${ic(i)}${n}</button>`).join("")}
+          </div>
+          <span class="separatore"></span>
+          <select class="selettore" aria-label="Interesse"><option>Tutti gli interessi</option><option>Sicurezza informatica</option><option>LLM e agenti</option><option>Allenamento e riabilitazione</option></select>
+          <select class="selettore" aria-label="Data"><option>Ultimi 7 giorni</option><option>Oggi</option><option>Ultimi 3 giorni</option></select>
+          <select class="selettore" aria-label="Fonte"><option>Tutte le fonti</option></select>
+          <button class="chip" aria-pressed="false">${ic("i-cuore")}Con il cuore</button>
+          <span class="separatore"></span>
+          <select class="selettore" aria-label="Ordinamento"><option>Pertinenza ↓</option><option>Pertinenza ↑</option><option>Data ↓</option><option>Data ↑</option></select>
+        </div>
+      </header>
+      <ul class="elenco">${NOTIZIE.map(notizia).join("")}</ul>
+    </div>
+  </div>`;
+}
+
+document.getElementById("varianti").innerHTML = VARIANTI.map((v) => `
+  <section class="variante" id="${v.id}">
+    <h2>${v.nome}</h2>
+    <p>${v.nota}</p>
+    <div class="coppia">
+      ${["chiaro", "scuro"].map((t) => `<div>
+        <p class="etichetta">${t === "chiaro" ? "Giorno (chiaro)" : "Notte (scuro)"}</p>
+        <div class="frame tema-${t}" data-stile="${v.stile}" data-densita="${v.densita}">${pagina(v)}</div>
+      </div>`).join("")}
+    </div>
+  </section>`).join("");
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("button, a");
+  if (!b) return;
+  if (b.tagName === "A") { e.preventDefault(); return; }
+  if (b.classList.contains("apri-chiudi")) { b.closest(".app").classList.toggle("chiusa"); return; }
+  if (b.hasAttribute("aria-pressed")) {
+    const on = b.getAttribute("aria-pressed") !== "true";
+    b.setAttribute("aria-pressed", on);
+    if (b.classList.contains("cuore")) b.setAttribute("aria-label", on ? "Togli il cuore" : "Metti il cuore");
+  }
+});
+</script>
+</body>
+</html>

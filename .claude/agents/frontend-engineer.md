@@ -1,6 +1,6 @@
 ---
 name: frontend-engineer
-description: Sviluppatore frontend di Gradiens. Usalo per le preview HTML delle schermate (fase 3) e poi per implementare la dashboard web - homepage, notizie con filtri combinabili e cuore, archivio, timeline per argomento, impostazioni con configurazione iniziale guidata, sidebar a icone espandibile, pagina Aiuto.
+description: Sviluppatore frontend di Gradiens. Usalo per le preview HTML delle schermate (fase 3) e poi per implementare la dashboard web - homepage, notizie con filtri combinabili e cuore, archivio, timeline per argomento, impostazioni con configurazione iniziale guidata, sidebar a icone che si espande al passaggio del puntatore, pagina della notizia, pagina Aiuto.
 tools: Read, Write, Edit, Bash, Grep, Glob, WebFetch
 model: sonnet
 ---
@@ -24,15 +24,22 @@ backend-engineer.
    gli interessi), filtri combinabili per tipo (arXiv, sito, video YT, short YT),
    interesse, data, fonte e cuore, ordinamento per pertinenza o data, stati visibili
    (es. "data incerta", "contenuto parziale").
-3. Archivio: notizie con il cuore, persistenti nel tempo.
-4. Timeline: notizie raggruppate per argomento, ordinate nel tempo (ultimi 7 giorni più
-   archivio).
-5. Impostazioni, in stile Claude Code: interessi (nome, descrizione) da aggiungere,
+3. Timeline: elenco compatto degli argomenti (nome, metadati, bottoni); ogni argomento apre
+   la sua pagina con tutta la timeline (ultimi 7 giorni più archivio). Vedi UI-09.
+4. Archivio: notizie con il cuore, persistenti nel tempo.
+5. Impostazioni: finestra sopra la pagina, aperta dall'ingranaggio, con le sezioni a
+   sinistra e i loro segnali (UI-10, UI-14). Contengono interessi (nome, descrizione) da aggiungere,
    modificare e cancellare; canali YouTube; siti con il loro profilo modificabile;
    provider LLM; Telegram. Se mancano le informazioni necessarie va compilata all'avvio
    (elenco completo in UI-11 del PRD, compreso il tutorial per creare il bot Telegram).
 6. Aiuto: pagina statica che spiega l'uso dell'intera applicazione.
-- Sidebar sempre visibile con le icone delle pagine, espandibile per mostrarne i nomi.
+7. Pagina della notizia specifica (UI-13): riassunto completo e dati che l'elenco accorcia,
+   con indirizzo proprio e link all'originale.
+- Sidebar sempre visibile con le icone delle pagine; al passaggio del puntatore (o con il
+  focus da tastiera) si espande sopra il contenuto mostrando i nomi. Aiuto e Impostazioni
+  stanno in basso, Aiuto sopra e Impostazioni sotto.
+- Stile: app Claude, tema chiaro e scuro, notizie in elenco compatto con riassunto a due
+  righe (variante 2 di mockup/00-confronto-stili.html).
 
 ## Come lavori
 1. Interfaccia in italiano, chiara e leggibile velocemente: è un'app per leggere.

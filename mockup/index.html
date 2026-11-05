@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preview · Gradiens</title>
+<link rel="stylesheet" href="stile.css">
+<script src="app.js"></script>
+<style>
+  .indice-preview { max-width: 760px; margin: 0 auto; padding: 40px 16px; }
+  .indice-preview h1 { font-size: 26px; margin-bottom: 6px; }
+  .indice-preview h2 { font-size: 15px; margin: 28px 0 8px; color: var(--tenue); font-weight: 600; }
+  .indice-preview ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+  .indice-preview li { border: 1px solid var(--bordo); border-radius: 10px; background: var(--pannello); padding: 12px 16px; }
+  .indice-preview li > a { font-weight: 600; text-decoration: none; }
+  .indice-preview li > a:hover { text-decoration: underline; }
+  .indice-preview .descrizione { display: block; color: var(--tenue); font-size: 13.5px; }
+  .indice-preview .varianti { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .indice-preview .varianti a { font-size: 12.5px; }
+</style>
+</head>
+<body>
+<main class="indice-preview">
+  <h1>Gradiens · preview</h1>
+  <p class="sottotitolo">Fase 3. HTML statico con dati finti: si apre con un doppio clic, senza server. Il tema si cambia dalle Impostazioni (ingranaggio in basso nella sidebar) → Aspetto.</p>
+
+  <h2>Pagine</h2>
+  <ul>
+    <li><a href="home.html">Home</a><span class="descrizione">Ultima esecuzione, avvisi, in evidenza, storico.</span>
+      <span class="varianti"><a class="chip" href="home.html?esecuzione=in-corso">esecuzione in corso</a><a class="chip" href="home.html?esecuzione=fallita">esecuzione fallita</a></span></li>
+    <li><a href="resoconto.html">Resoconto di un'esecuzione</a><span class="descrizione">Metriche per fonte, token e costo, stato di siti e canali, video senza trascrizione, notizie escluse.</span></li>
+    <li><a href="notizie.html">Notizie</a><span class="descrizione">Elenco compatto, filtri, ordinamento, cuore, link all'originale.</span>
+      <span class="varianti"><a class="chip" href="notizie.html?vuoto=filtri">nessun risultato con i filtri</a><a class="chip" href="notizie.html?vuoto=tutto">nessuna notizia</a></span></li>
+    <li><a href="notizia.html">Notizia specifica</a><span class="descrizione">Riassunto completo, pertinenza, argomento, "Leggi l'originale".</span></li>
+    <li><a href="timeline.html">Timeline</a><span class="descrizione">Elenco compatto degli argomenti: nome, metadati, rinomina, unisci, elimina.</span>
+      <span class="varianti"><a class="chip" href="timeline.html?vuoto">nessun argomento</a></span></li>
+    <li><a href="argomento.html">Pagina dell'argomento</a><span class="descrizione">Tutta la timeline di un argomento, notizia per notizia.</span></li>
+    <li><a href="archivio.html">Archivio</a><span class="descrizione">Notizie con il cuore, senza limite di tempo.</span>
+      <span class="varianti"><a class="chip" href="archivio.html?vuoto">archivio vuoto</a></span></li>
+    <li><a href="aiuto.html">Aiuto</a><span class="descrizione">Come si usa l'intera applicazione.</span></li>
+  </ul>
+
+  <h2>Impostazioni</h2>
+  <ul>
+    <li><a href="notizie.html#impostazioni/interessi">Finestra delle Impostazioni</a><span class="descrizione">Si apre dall'ingranaggio sopra la pagina corrente.</span>
+      <span class="varianti">
+        <a class="chip" href="notizie.html#impostazioni/interessi">Interessi ●</a><a class="chip" href="notizie.html#impostazioni/canali-youtube">Canali YouTube</a><a class="chip" href="notizie.html#impostazioni/siti-web">Siti web ⚠</a><a class="chip" href="notizie.html#impostazioni/arxiv">arXiv ●</a>
+        <a class="chip" href="notizie.html#impostazioni/modelli">Modelli LLM</a><a class="chip" href="notizie.html#impostazioni/esecuzione">Esecuzione</a><a class="chip" href="notizie.html#impostazioni/avvio">Avvio</a><a class="chip" href="notizie.html#impostazioni/telegram">Telegram</a><a class="chip" href="notizie.html#impostazioni/aspetto">Aspetto</a>
+      </span></li>
+  </ul>
+
+  <h2>Configurazione iniziale</h2>
+  <ul>
+    <li><a href="configurazione.html">Procedura guidata</a><span class="descrizione">Si apre al primo avvio, o quando mancano dati obbligatori. Senza sidebar finché non è completa.</span>
+      <span class="varianti"><a class="chip" href="configurazione.html?passo=fonti">Fonti</a><a class="chip" href="configurazione.html?passo=modelli">Modelli LLM</a><a class="chip" href="configurazione.html?passo=telegram">Telegram (tutorial)</a></span></li>
+  </ul>
+
+  <h2>Confronti già decisi</h2>
+  <ul>
+    <li><a href="00-confronto-stili.html">Confronto stili</a><span class="descrizione">Scelta: variante 2, Claude compatta.</span></li>
+  </ul>
+</main>
+</body>
+</html>

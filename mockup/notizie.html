@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notizie · Gradiens</title>
+<link rel="stylesheet" href="stile.css">
+<script src="app.js"></script>
+</head>
+<body>
+<div class="app" data-pagina="notizie">
+  <main class="pagina">
+    <header class="testata">
+      <div class="testata-riga">
+        <div>
+          <h1>Notizie</h1>
+          <div class="sottotitolo">42 notizie negli ultimi 7 giorni · ultima esecuzione oggi alle 07:30, durata 3 min 12 s</div>
+        </div>
+        <button class="bottone" id="avvia"></button>
+      </div>
+      <div class="filtri" aria-label="Filtri">
+        <div class="gruppo" role="group" aria-label="Tipo" id="filtro-tipo"></div>
+        <span class="separatore"></span>
+        <select class="selettore" aria-label="Interesse"><option>Tutti gli interessi</option><option>Sicurezza informatica</option><option>LLM e agenti</option><option>Allenamento e riabilitazione</option></select>
+        <select class="selettore" aria-label="Data"><option>Ultimi 7 giorni</option><option>Oggi</option><option>Ultimi 3 giorni</option></select>
+        <select class="selettore" aria-label="Fonte"><option>Tutte le fonti</option><option>redhotcyber.com</option><option>e3rehab.com</option><option>ilsoftware.it</option><option>Lab di Sicurezza</option></select>
+        <button class="chip" aria-pressed="false" id="filtro-cuore"></button>
+        <span class="separatore"></span>
+        <select class="selettore" aria-label="Ordinamento"><option>Pertinenza ↓</option><option>Pertinenza ↑</option><option>Data ↓</option><option>Data ↑</option></select>
+      </div>
+    </header>
+    <ul class="elenco" id="elenco"></ul>
+  </main>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("avvia").innerHTML = `${ic("avvia")}Avvia esecuzione`;
+  document.getElementById("filtro-tipo").innerHTML = Object.values(TIPI).map(([i, n]) => `<button class="chip" aria-pressed="false">${ic(i)}${n}</button>`).join("");
+  document.getElementById("filtro-cuore").innerHTML = `${ic("cuore")}Con il cuore`;
+  const vuoto = {
+    filtri: `<div class="vuoto-pagina">${ic("notizie")}<h2>Nessuna notizia con questi filtri</h2><p>Prova a togliere qualche filtro o ad allargare l'intervallo di date.</p><button class="bottone secondario">Azzera i filtri</button></div>`,
+    tutto: `<div class="vuoto-pagina">${ic("notizie")}<h2>Nessuna notizia negli ultimi 7 giorni</h2><p>Avvia un'esecuzione per raccogliere le notizie dalle tue fonti, oppure aspetta quella programmata di domani alle 07:30.</p><button class="bottone">${ic("avvia")}Avvia esecuzione</button></div>`,
+  }[parametro("vuoto")];
+  if (vuoto) document.getElementById("elenco").outerHTML = vuoto;
+  else document.getElementById("elenco").innerHTML = NOTIZIE.map(rigaNotizia).join("");
+});
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 # Gradiens – Documento dei requisiti (PRD)
 
-Versione 1.1 del 4 novembre 2026. Questo documento riunisce in un unico testo il [prompt originale](prompt-originale.md) e le 33 decisioni del [registro dell'intervista](decisioni-intervista.md). Se c'è un contrasto con il prompt originale, vale questo documento. I termini in grassetto sono definiti in [CONTEXT.md](../../CONTEXT.md).
+Versione 1.2 del 5 novembre 2026. Questo documento riunisce in un unico testo il [prompt originale](prompt-originale.md) e le 39 decisioni del [registro dell'intervista](decisioni-intervista.md). Se c'è un contrasto con il prompt originale, vale questo documento. I termini in grassetto sono definiti in [CONTEXT.md](../../CONTEXT.md).
 
 Ogni requisito ha un codice (es. `ESE-03`). I test e le verifiche citano questi codici.
 
@@ -163,7 +163,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 - `ESE-03` Si raccolgono solo le notizie pubblicate nella **finestra di raccolta**, che si configura nelle Impostazioni da 1 a 7 giorni (valore predefinito 7). Per le notizie con data incerta conta la data di scoperta.
 - `ESE-04` **Pre-filtro**: l'LLM legge a blocchi titolo e sommario delle notizie nuove e scarta quelle fuori tema e quelle escluse (vedi `WEB-22` e `WEB-23`).
 - `ESE-05` **Valutazione completa**: per le notizie che passano il pre-filtro si scarica il testo completo o la trascrizione. L'LLM assegna un punteggio di pertinenza da 0 a 100 per ogni interesse pertinente, quindi una notizia può corrispondere a più interessi. Nella stessa fase l'LLM:
-  - scrive il riassunto in italiano;
+  - scrive il riassunto in italiano. Il riassunto deve essere corretto e completo: riporta solo ciò che c'è nel contenuto, senza aggiunte, e ne copre tutti i punti principali, non solo l'inizio. Se il contenuto è parziale, il riassunto lo dice;
   - traduce il titolo in italiano, se la notizia è in un'altra lingua;
   - assegna la notizia a un argomento, oppure a nessuno.
 - `ESE-06` Una notizia viene mostrata se almeno uno dei suoi punteggi supera la soglia. La soglia si configura nelle Impostazioni e per default vale 60.
@@ -232,9 +232,9 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 
 ## 8. Dashboard
 
-Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dashboard.
+Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dashboard. Tutta la dashboard segue lo stile delle app Claude, con tema chiaro e scuro e notizie mostrate come elenco compatto (variante 2 di [mockup/00-confronto-stili.html](../../mockup/00-confronto-stili.html)).
 
-- `UI-01` **Sidebar**: mostra sempre le icone di tutte le pagine e si può espandere per mostrarne anche i nomi. Le pagine sono Home, Notizie, Archivio, Timeline, Impostazioni e Aiuto.
+- `UI-01` **Sidebar**: mostra sempre le icone di tutte le pagine. Quando ci si passa sopra con il puntatore, o la si raggiunge con la tastiera, si espande sopra il contenuto e mostra anche i nomi. In alto ci sono le pagine Home, Notizie, Timeline e Archivio, in quest'ordine. In basso, separate, ci sono Aiuto e, sotto, l'icona a ingranaggio delle Impostazioni. L'ingranaggio mostra un segnale quando almeno una sezione delle Impostazioni ne ha uno (`UI-10`).
 - `UI-02` **Home**, organizzata in quattro blocchi:
   1. ultima esecuzione, con ora di avvio, durata, metriche, errori, bottone "Avvia esecuzione" e avanzamento se un'esecuzione è in corso; prossima esecuzione programmata, oppure "programmazione in pausa";
   2. "In evidenza", con le 3 notizie a pertinenza più alta per ogni tipo di fonte;
@@ -248,16 +248,16 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
   - i video senza trascrizione;
   - le notizie escluse;
   - la segnalazione del tetto arXiv, se è stato raggiunto.
-- `UI-04` **Notizie**: mostra le notizie degli ultimi 7 giorni che superano la soglia. Per ogni notizia mostra:
+- `UI-04` **Pagina Notizie**: è l'elenco di tutte le notizie. Mostra le notizie degli ultimi 7 giorni che superano la soglia. Per ogni notizia mostra:
   - titolo originale, e la traduzione italiana se la notizia è in un'altra lingua;
   - fonte, tipo e data;
   - interessi con il loro punteggio;
   - argomento;
   - stato;
-  - riassunto;
+  - riassunto, tagliato a due righe;
   - link.
 
-  Da qui si avvia un'esecuzione con un bottone.
+  Da qui si avvia un'esecuzione con un bottone. Cliccando una notizia si apre la pagina della notizia specifica (`UI-13`).
 - `UI-05` Il **cuore** mette una notizia in archivio e contribuisce al raffinamento degli interessi. Se si toglie il cuore, la notizia torna alla regola dei 7 giorni.
 - `UI-06` **Filtri** della pagina Notizie:
   - tipo: arXiv, sito, video YT, short YT;
@@ -272,26 +272,41 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
   - data di pubblicazione: per le notizie con data incerta conta la data di scoperta.
 - `UI-08` **Archivio**: tutte le notizie con il cuore. Non vengono mai cancellate e hanno gli stessi filtri e ordinamenti della pagina Notizie.
 - `UI-09` **Timeline**:
-  - per ogni argomento mostra le sue notizie in ordine di tempo, cioè quelle degli ultimi 7 giorni e quelle in archivio;
-  - compaiono solo gli argomenti con almeno 2 notizie;
-  - l'utente può rinominare, unire ed eliminare gli argomenti.
-- `UI-10` **Impostazioni**, con stile simile a Claude Code (l'aspetto si definisce nella fase 3). Contengono:
-  - canali YouTube;
-  - siti web con il loro profilo;
-  - categorie arXiv con il tetto di paper;
-  - interessi con raffinamenti e proposte da approvare;
-  - provider e modelli per i due ruoli;
-  - soglia di pertinenza;
-  - finestra di raccolta (da 1 a 7 giorni);
-  - interruttori di esclusione;
-  - orario dell'esecuzione programmata e la sua pausa;
-  - avvio all'accensione o a mano;
-  - Telegram.
+  - è un elenco compatto di argomenti: per ognuno mostra solo il nome, i metadati (numero di notizie, periodo, ultimo aggiornamento, notizie in archivio, notizie arrivate con l'ultima esecuzione) e i bottoni per rinominare, unire ed eliminare;
+  - compaiono solo gli argomenti con almeno 2 notizie, prima quelli aggiornati più di recente;
+  - cliccando un argomento si apre la **pagina dell'argomento**, con un indirizzo proprio, che mostra tutte le sue notizie in ordine di tempo, cioè quelle degli ultimi 7 giorni e quelle in archivio. Ogni notizia apre la pagina della notizia specifica (`UI-13`). Anche qui si può rinominare, unire ed eliminare l'argomento.
+- `UI-10` **Impostazioni**: si aprono dall'ingranaggio come finestra sopra la pagina corrente, nello stile delle impostazioni delle app Claude, e si chiudono con la X o con Esc. Sul telefono occupano tutto lo schermo. A sinistra c'è l'elenco delle sezioni, ognuna con la sua icona; a destra il contenuto della sezione scelta. Le sezioni sono:
+  - **Interessi**: interessi con raffinamenti e proposte da approvare;
+  - **Canali YouTube**;
+  - **Siti web**, con il loro profilo;
+  - **arXiv**: categorie e tetto di paper;
+  - **Modelli LLM**: provider e modello per i due ruoli, chiavi API;
+  - **Esecuzione**: soglia di pertinenza, finestra di raccolta (da 1 a 7 giorni), interruttori di esclusione, orario dell'esecuzione programmata e sua pausa;
+  - **Avvio**: all'accensione o a mano;
+  - **Telegram**;
+  - **Aspetto**: tema chiaro, scuro oppure come il sistema operativo, che è il valore predefinito.
+
+  Le Impostazioni si possono aprire direttamente su una sezione, per esempio da un avviso della Home.
+- `UI-14` **Segnali delle sezioni delle Impostazioni**: a destra del nome di una sezione compare un'icona quando la sezione richiede attenzione. Passandoci sopra si legge il motivo, e dentro la sezione è evidenziata la voce interessata. Ci sono due tipi di segnale:
+  - **avvertimento** (triangolo), per problemi e dati mancanti:
+    - Interessi, Canali YouTube, Siti web, arXiv: dati obbligatori mancanti (`UI-11`);
+    - Canali YouTube: un canale non è più raggiungibile;
+    - Siti web: un sito è in stato di errore ("accesso bloccato", "richiede JavaScript", "nessuna strategia funzionante") oppure un feed aggiunto a mano ha smesso di funzionare;
+    - Modelli LLM: chiave API mancante o rifiutata, oppure modello locale non raggiungibile;
+    - Telegram: bot non collegato o token non più valido;
+    - Avvio: la registrazione dell'avvio all'accensione è fallita o non è più valida;
+  - **novità** (pallino), per cose da guardare o approvare:
+    - Interessi: proposte di raffinamento da approvare;
+    - Siti web: un profilo è stato rigenerato e le differenze sono da guardare (`WEB-25`), oppure ci sono siti collegati proposti e non ancora attivati (`WEB-07`);
+    - arXiv: nell'ultima esecuzione è stato raggiunto il tetto di paper;
+    - Esecuzione: la programmazione è in pausa.
+
+  Se una sezione ha entrambi i tipi di segnale, si mostra l'avvertimento. Il segnale sparisce da solo quando la causa viene risolta.
 - `UI-11` **Configurazione iniziale**: si apre all'avvio se mancano dati obbligatori, e la dashboard non si usa finché non è completa. I dati obbligatori sono:
   - almeno un canale YouTube, un sito, un interesse e una categoria arXiv;
   - la chiave di Claude, se Claude è usato in almeno un ruolo;
   - bot Telegram, collegato con il tutorial di `TG-01`.
-- `UI-12` **Aiuto**: una pagina statica che spiega come usare l'intera applicazione:
+- `UI-12` **Aiuto**: si apre dall'icona in basso nella sidebar. È una pagina statica che spiega come usare l'intera applicazione:
   - fonti e profili dei siti;
   - interessi e raffinamento;
   - il cuore;
@@ -299,6 +314,7 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
   - stati;
   - avvio all'accensione;
   - comandi della CLI e di Telegram.
+- `UI-13` **Pagina della notizia specifica**: ogni notizia ha una pagina sua, con un indirizzo proprio, che si apre da Notizie, Archivio e Timeline, anche in una nuova scheda del browser. Mostra per intero tutto ciò che l'elenco accorcia: titolo originale e traduzione, fonte, tipo, data, stato, riassunto completo, tutti gli interessi con il loro punteggio, argomento con il link alla pagina dell'argomento e cuore. Il testo integrale non viene salvato né mostrato: per leggerlo c'è un link ben visibile all'originale, che si apre in una nuova scheda.
 
 ## 9. CLI
 
@@ -358,3 +374,4 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
 - `ACC-11` Con la finestra di raccolta impostata a N giorni, l'esecuzione non raccoglie notizie pubblicate prima di N giorni fa.
 - `ACC-12` Premendo ❤️ su una notizia del messaggio Telegram, la notizia compare con il cuore nell'Archivio della dashboard. Premendolo di nuovo, il cuore viene tolto.
 - `ACC-13` Dopo `/pausa`, all'orario programmato non parte nessuna esecuzione, anche dopo un riavvio, mentre `/aggiorna` funziona. Dopo `/riprendi` l'esecuzione programmata riparte.
+- `ACC-14` Su un campione di 10 notizie di tipi diversi, confrontando il riassunto con l'originale: il riassunto non contiene affermazioni assenti nell'originale e ne copre i punti principali (verifica manuale).

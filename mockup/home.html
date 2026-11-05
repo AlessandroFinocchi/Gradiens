@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home · Gradiens</title>
+<link rel="stylesheet" href="stile.css">
+<script src="app.js"></script>
+</head>
+<body>
+<div class="app" data-pagina="home">
+  <main class="pagina">
+    <header class="testata">
+      <div class="testata-riga">
+        <div>
+          <h1>Home</h1>
+          <div class="sottotitolo">Prossima esecuzione programmata domani alle 07:30</div>
+        </div>
+        <button class="bottone" id="avvia" data-icona="avvia">Avvia esecuzione</button>
+      </div>
+    </header>
+
+    <div class="contenitore">
+      <div class="griglia-home">
+        <!-- 1. Ultima esecuzione (tre varianti: conclusa, in corso, fallita) -->
+        <section class="blocco" id="esecuzione" aria-labelledby="t-esecuzione"></section>
+
+        <!-- 3. Avvisi -->
+        <section class="blocco" aria-labelledby="t-avvisi">
+          <h2 id="t-avvisi">Avvisi</h2>
+          <ul class="avvisi">
+            <li><a href="#" data-impostazioni="interessi">
+              <span class="segnale novita"></span>
+              <span><strong>1 proposta di raffinamento</strong><br><span class="descrizione">LLM e agenti · da 4 notizie con il cuore</span></span></a></li>
+            <li><a href="#" data-impostazioni="siti-web">
+              <span class="segnale avvertimento" data-icona="avvertimento"></span>
+              <span><strong>projectdiscovery.io</strong><br><span class="descrizione">Nessuna strategia funzionante da 2 esecuzioni</span></span></a></li>
+            <li><a href="#" data-impostazioni="siti-web">
+              <span class="segnale novita"></span>
+              <span><strong>acn.gov.it: profilo rigenerato</strong><br><span class="descrizione">Guarda le differenze e il sito collegato proposto</span></span></a></li>
+            <li><a href="argomento.html">
+              <span class="icona-argomento" data-icona="argomento"></span>
+              <span><strong>Attacco ransomware all'ASL Valle Verde</strong><br><span class="descrizione">2 notizie nuove nell'argomento</span></span></a></li>
+          </ul>
+        </section>
+
+        <!-- 2. In evidenza -->
+        <section class="blocco largo" aria-labelledby="t-evidenza">
+          <h2 id="t-evidenza">In evidenza <a class="link spinta" href="notizie.html">Tutte le notizie</a></h2>
+          <div class="colonne-evidenza">
+            <div>
+              <h3 data-icona="sito">Siti web</h3>
+              <ol>
+                <li><a href="notizia.html">Ransomware all'ASL Valle Verde: il gruppo pubblica i primi 40 GB di dati</a><div class="riga-info"><span>redhotcyber.com</span><span class="punteggio alto">Sicurezza informatica <b>94</b></span></div></li>
+                <li><a href="notizia.html">Tendinopatia rotulea: cosa dice la ricerca sul carico progressivo</a><div class="riga-info"><span>e3rehab.com</span><span class="punteggio">Allenamento e riabilitazione <b>79</b></span></div></li>
+                <li><a href="notizia.html">Windows 11, patch d'emergenza per un errore di autenticazione Kerberos</a><div class="riga-info"><span>ilsoftware.it</span><span class="punteggio">Sicurezza informatica <b>66</b></span></div></li>
+              </ol>
+            </div>
+            <div>
+              <h3 data-icona="youtube">YouTube</h3>
+              <ol>
+                <li><a href="notizia.html">Supply chain npm: anatomia di un pacchetto compromesso</a><div class="riga-info"><span>Lab di Sicurezza · video</span><span class="punteggio alto">Sicurezza informatica <b>86</b></span></div></li>
+                <li><a href="notizia.html">Squat bulgaro: l'errore che sposta il carico sul ginocchio</a><div class="riga-info"><span>Coach Marta · short</span><span class="punteggio">Allenamento e riabilitazione <b>72</b></span></div></li>
+              </ol>
+              <p class="nota">Solo 2 notizie YouTube in questa esecuzione.</p>
+            </div>
+            <div>
+              <h3 data-icona="arxiv">arXiv</h3>
+              <ol>
+                <li><a href="notizia.html">Modelli linguistici piccoli come pre-filtri nelle pipeline di recupero</a><div class="riga-info"><span>cs.CL</span><span class="punteggio alto">LLM e agenti <b>91</b></span></div></li>
+                <li><a href="notizia.html">Rilevare l'iniezione di prompt negli agenti con un classificatore leggero</a><div class="riga-info"><span>cs.CR</span><span class="punteggio alto">LLM e agenti <b>84</b></span></div></li>
+                <li><a href="notizia.html">Un benchmark per la scoperta automatica di vulnerabilità nei firmware</a><div class="riga-info"><span>cs.CR</span><span class="punteggio">Sicurezza informatica <b>71</b></span></div></li>
+              </ol>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. Storico delle esecuzioni -->
+        <section class="blocco largo" aria-labelledby="t-storico">
+          <h2 id="t-storico">Storico delle esecuzioni</h2>
+          <div class="tabella-scorre">
+            <table>
+              <thead><tr><th>Avvio</th><th>Avviata da</th><th class="num">Durata</th><th class="num">Esaminate</th><th class="num">Mostrate</th><th class="num">Errori</th><th class="num">Costo</th><th>Esito</th></tr></thead>
+              <tbody>
+                <tr class="cliccabile"><td><a href="resoconto.html">oggi, 07:30</a></td><td>programmazione</td><td class="num">3 min 12 s</td><td class="num">312</td><td class="num">42</td><td class="num">1</td><td class="num">$0,18</td><td><span class="stato ok">completata</span></td></tr>
+                <tr class="cliccabile"><td><a href="resoconto.html">ieri, 21:04</a></td><td>Telegram</td><td class="num">2 min 47 s</td><td class="num">96</td><td class="num">11</td><td class="num">0</td><td class="num">$0,06</td><td><span class="stato ok">completata</span></td></tr>
+                <tr class="cliccabile"><td><a href="resoconto.html">ieri, 07:30</a></td><td>programmazione</td><td class="num">1 min 05 s</td><td class="num">140</td><td class="num">—</td><td class="num">—</td><td class="num">$0,02</td><td><span class="stato">interrotta</span></td></tr>
+                <tr class="cliccabile"><td><a href="resoconto.html">3 nov, 07:30</a></td><td>programmazione</td><td class="num">0 min 08 s</td><td class="num">0</td><td class="num">0</td><td class="num">1</td><td class="num">$0,00</td><td><span class="stato errore">fallita</span></td></tr>
+                <tr class="cliccabile"><td><a href="resoconto.html">2 nov, 15:22</a></td><td>dashboard</td><td class="num">3 min 40 s</td><td class="num">355</td><td class="num">38</td><td class="num">2</td><td class="num">$0,21</td><td><span class="stato ok">completata</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const VARIANTI_ESECUZIONE = {
+  conclusa: `
+    <h2 id="t-esecuzione">Ultima esecuzione <a class="link spinta" href="resoconto.html">Apri il resoconto</a></h2>
+    <div class="riga-info"><span><strong>oggi alle 07:30</strong></span><span>avviata dalla programmazione</span><span>durata 3 min 12 s</span><span class="stato ok">completata</span></div>
+    <div class="cifre">
+      <div class="cifra"><b>312</b><span>esaminate</span></div>
+      <div class="cifra"><b>42</b><span>mostrate</span></div>
+      <div class="cifra"><b>1</b><span>errore</span></div>
+      <div class="cifra"><b>$0,18</b><span>costo stimato</span></div>
+    </div>
+    <div class="riga-info"><span>YouTube 2 · arXiv 23 · siti web 17 mostrate</span></div>`,
+  "in-corso": `
+    <h2 id="t-esecuzione">Esecuzione in corso</h2>
+    <div class="riga-info"><span><strong>avviata alle 07:30</strong></span><span>dalla programmazione</span><span>da 1 min 48 s</span></div>
+    <div class="avanzamento" role="progressbar" aria-valuenow="60" aria-valuemin="0" aria-valuemax="100" aria-label="Avanzamento"><span style="width:60%"></span></div>
+    <ol class="fasi">
+      <li class="fatta">${ic("spunta")}Raccolta: 312 notizie nuove da 3 canali, 3 categorie e 13 siti</li>
+      <li class="fatta">${ic("spunta")}Pre-filtro: 97 notizie passano</li>
+      <li class="corrente"><span class="rotella"></span>Valutazione completa e riassunti: 58 di 97</li>
+      <li><span class="vuoto"></span>Argomenti e messaggio Telegram</li>
+    </ol>`,
+  fallita: `
+    <h2 id="t-esecuzione">Ultima esecuzione <a class="link spinta" href="resoconto.html">Apri il resoconto</a></h2>
+    <div class="riga-info"><span><strong>oggi alle 07:30</strong></span><span>avviata dalla programmazione</span><span class="stato errore">fallita</span></div>
+    <div class="errore-riquadro">${ic("avvertimento")}<div><strong>La chiave API di Claude è stata rifiutata.</strong><br>Nessuna notizia è stata elaborata. Controlla la chiave e riprova.
+      <div style="margin-top:8px"><a class="bottone piccolo" href="#" data-impostazioni="modelli">Apri Modelli LLM</a></div></div></div>`,
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+  const variante = VARIANTI_ESECUZIONE[parametro("esecuzione")] ? parametro("esecuzione") : "conclusa";
+  document.getElementById("esecuzione").innerHTML = VARIANTI_ESECUZIONE[variante];
+  if (variante === "in-corso") {
+    const b = document.getElementById("avvia");
+    b.disabled = true; b.style.opacity = .55; b.style.cursor = "not-allowed";
+    b.lastChild.textContent = "Esecuzione in corso";
+  }
+});
+</script>
+</body>
+</html>

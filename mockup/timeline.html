@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Timeline · Gradiens</title>
+<link rel="stylesheet" href="stile.css">
+<script src="app.js"></script>
+</head>
+<body>
+<div class="app" data-pagina="timeline">
+  <main class="pagina">
+    <header class="testata">
+      <h1>Timeline</h1>
+      <div class="sottotitolo">Argomenti con almeno 2 notizie, dagli ultimi 7 giorni e dall'archivio. Prima quelli aggiornati più di recente. Apri un argomento per scorrere la sua timeline.</div>
+    </header>
+    <ul class="elenco-argomenti" id="argomenti"></ul>
+  </main>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const elenco = document.getElementById("argomenti");
+  if (parametro("vuoto") !== null) {
+    elenco.outerHTML = `<div class="vuoto-pagina">${ic("timeline")}<h2>Ancora nessun argomento</h2><p>Un argomento compare qui quando almeno 2 notizie seguono lo stesso evento, per esempio lo stesso attacco o la stessa vulnerabilità.</p><a class="bottone secondario" href="notizie.html">Vai alle notizie</a></div>`;
+    return;
+  }
+  elenco.innerHTML = ARGOMENTI.map((a, i) => `<li class="riga-argomento">
+    <div>
+      <h2><a href="argomento.html?n=${i}">${a.nome}</a></h2>
+      <div class="riga-info"><span>${metadatiArgomento(a)}</span>${a.nuove ? `<span class="stato">${a.nuove} nuove</span>` : ""}</div>
+    </div>
+    ${azioniArgomento(a)}
+  </li>`).join("");
+});
+</script>
+</body>
+</html>

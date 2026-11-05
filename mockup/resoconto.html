@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resoconto dell'esecuzione · Gradiens</title>
+<link rel="stylesheet" href="stile.css">
+<script src="app.js"></script>
+</head>
+<body>
+<div class="app" data-pagina="home">
+  <main class="pagina">
+    <header class="testata">
+      <a class="indietro" href="home.html" data-icona="indietro">Home</a>
+      <div class="testata-riga" style="margin-top:6px">
+        <div>
+          <h1>Esecuzione di oggi alle 07:30</h1>
+          <div class="riga-info" style="margin-top:4px"><span>avviata dalla programmazione</span><span>durata 3 min 12 s</span><span class="stato ok">completata</span></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="contenitore">
+      <section class="blocco" aria-labelledby="t-metriche">
+        <h2 id="t-metriche">Metriche per tipo di fonte</h2>
+        <div class="tabella-scorre">
+          <table>
+            <thead><tr><th>Fonte</th><th class="num">Durata</th><th class="num">Esaminate</th><th class="num">Scartate dal pre-filtro</th><th class="num">Scartate dalla valutazione</th><th class="num">Escluse</th><th class="num">Mostrate</th><th class="num">Errori</th></tr></thead>
+            <tbody>
+              <tr><td>YouTube</td><td class="num">48 s</td><td class="num">14</td><td class="num">7</td><td class="num">5</td><td class="num">0</td><td class="num">2</td><td class="num">0</td></tr>
+              <tr><td>arXiv</td><td class="num">1 min 10 s</td><td class="num">83</td><td class="num">33</td><td class="num">27</td><td class="num">0</td><td class="num">23</td><td class="num">0</td></tr>
+              <tr><td>Siti web</td><td class="num">1 min 14 s</td><td class="num">215</td><td class="num">160</td><td class="num">31</td><td class="num">7</td><td class="num">17</td><td class="num">1</td></tr>
+              <tr class="totale"><td>Totale</td><td class="num">3 min 12 s</td><td class="num">312</td><td class="num">200</td><td class="num">63</td><td class="num">7</td><td class="num">42</td><td class="num">1</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="errore-riquadro" style="background:var(--accento-tenue)"><span class="segnale novita" style="margin-top:7px"></span><div><strong>arXiv: tetto raggiunto.</strong> Sono stati elaborati i 50 paper più recenti su 83. <a class="link" href="#" data-impostazioni="arxiv">Cambia il tetto</a></div></div>
+      </section>
+
+      <section class="blocco" aria-labelledby="t-costi">
+        <h2 id="t-costi">Token e costo stimato</h2>
+        <div class="tabella-scorre">
+          <table>
+            <thead><tr><th>Ruolo</th><th>Modello</th><th class="num">Token in ingresso</th><th class="num">Token in uscita</th><th class="num">Costo stimato</th></tr></thead>
+            <tbody>
+              <tr><td>Pre-filtro</td><td>Claude · claude-haiku-5-5</td><td class="num">61.400</td><td class="num">4.900</td><td class="num">$0,05</td></tr>
+              <tr><td>Elaborazione</td><td>Claude · claude-haiku-5-5</td><td class="num">142.800</td><td class="num">21.300</td><td class="num">$0,13</td></tr>
+              <tr class="totale"><td>Totale</td><td></td><td class="num">204.200</td><td class="num">26.200</td><td class="num">$0,18</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="nota" style="margin:8px 0 0">Per i modelli locali si mostrano solo i token.</p>
+      </section>
+
+      <section class="blocco" aria-labelledby="t-fonti">
+        <h2 id="t-fonti">Stato di siti e canali</h2>
+        <ul class="elenco-semplice">
+          <li><span class="principale">projectdiscovery.io/blog<br><span class="descrizione">La pagina non elenca articoli leggibili. Se il sito ha un feed, inseriscilo nel profilo.</span></span><span class="stato errore">nessuna strategia funzionante</span><a class="link" href="#" data-impostazioni="siti-web">Profilo</a></li>
+          <li><span class="principale">acn.gov.it/portale/notizie<br><span class="descrizione">Il feed rispondeva con una pagina HTML: profilo rigenerato, ora si usa la sitemap.</span></span><span class="stato">profilo rigenerato</span><a class="link" href="#" data-impostazioni="siti-web">Differenze</a></li>
+          <li><span class="principale">redhotcyber.com</span><span class="descrizione">12 articoli nuovi</span><span class="stato ok">ok</span></li>
+          <li><span class="principale">e3rehab.com/articles</span><span class="descrizione">nessun articolo nuovo</span><span class="stato ok">ok</span></li>
+          <li><span class="principale">ilsoftware.it</span><span class="descrizione">9 articoli nuovi</span><span class="stato ok">ok</span></li>
+          <li><span class="principale">Canale Lab di Sicurezza</span><span class="descrizione">4 video, 2 short</span><span class="stato ok">ok</span></li>
+          <li><span class="principale">Canale AI Explained Italia</span><span class="descrizione">2 video senza trascrizione</span><span class="stato">trascrizione assente</span></li>
+        </ul>
+        <p class="nota" style="margin:8px 0 0">Altri 9 siti e 1 canale: ok.</p>
+      </section>
+
+      <section class="blocco" aria-labelledby="t-trascrizione">
+        <h2 id="t-trascrizione">Video senza trascrizione</h2>
+        <ul class="elenco-semplice">
+          <li><span class="principale">Agenti che scrivono codice: demo dal vivo<br><span class="descrizione">AI Explained Italia · 4 nov</span></span><span class="stato">trascrizione assente</span><a class="bottone-icona" href="#" target="_blank" rel="noopener" aria-label="Apri il video in una nuova scheda" data-icona="esterno"></a></li>
+          <li><span class="principale">Domande e risposte di novembre<br><span class="descrizione">AI Explained Italia · 3 nov</span></span><span class="stato">trascrizione assente</span><a class="bottone-icona" href="#" target="_blank" rel="noopener" aria-label="Apri il video in una nuova scheda" data-icona="esterno"></a></li>
+        </ul>
+      </section>
+
+      <section class="blocco" aria-labelledby="t-escluse">
+        <h2 id="t-escluse">Notizie escluse</h2>
+        <ul class="elenco-semplice">
+          <li><span class="principale">Corso di ethical hacking: sconto del 40% fino a domenica<br><span class="descrizione">redhotcyber.com</span></span><span class="stato">sponsorizzato o offerta</span><a class="bottone-icona" href="#" target="_blank" rel="noopener" aria-label="Apri l'originale in una nuova scheda" data-icona="esterno"></a></li>
+          <li><span class="principale">Il nuovo regolamento europeo sulla cybersicurezza spiegato punto per punto<br><span class="descrizione">ilsoftware.it</span></span><span class="stato">a pagamento</span><a class="bottone-icona" href="#" target="_blank" rel="noopener" aria-label="Apri l'originale in una nuova scheda" data-icona="esterno"></a></li>
+        </ul>
+        <p class="nota" style="margin:8px 0 0">Altre 5 notizie escluse.</p>
+      </section>
+    </div>
+  </main>
+</div>
+</body>
+</html>

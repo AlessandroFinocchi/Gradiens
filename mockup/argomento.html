@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Argomento · Gradiens</title>
+<link rel="stylesheet" href="stile.css">
+<script src="app.js"></script>
+</head>
+<body>
+<div class="app" data-pagina="timeline">
+  <main class="pagina-argomento" id="argomento"></main>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const a = ARGOMENTI[Number(parametro("n")) || 0];
+  document.title = `${a.nome} · Gradiens`;
+  document.getElementById("argomento").innerHTML = `
+    <a class="indietro" href="timeline.html">${ic("indietro")}Timeline</a>
+    <div class="argomento-testa">
+      <div><h1>${a.nome}</h1><div class="riga-info" style="margin-top:4px"><span>${metadatiArgomento(a)}</span>${a.nuove ? `<span class="stato">${a.nuove} nuove</span>` : ""}</div></div>
+      ${azioniArgomento(a)}
+    </div>
+    <ol class="linea-tempo">
+      ${a.notizie.map(([quando, titolo, tipo, fonte, cuore], i) => `<li class="${i === 0 ? "recente" : ""}">
+        <span class="quando">${quando}</span><span class="asse"></span>
+        <div class="voce-tempo"><a href="notizia.html">${titolo}</a>
+          <div class="n-meta">${ic(TIPI[tipo][0])}<span>${TIPI[tipo][1]}</span>·<span>${fonte}</span>${i < (a.nuove || 0) ? `<span class="stato">nuova</span>` : ""}${cuore ? `<span class="in-archivio">${ic("cuore")}in archivio</span>` : ""}</div></div>
+      </li>`).join("")}
+    </ol>`;
+});
+</script>
+</body>
+</html>

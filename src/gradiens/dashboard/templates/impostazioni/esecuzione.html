@@ -18,5 +18,20 @@
       </select>
     </div>
   </div>
+  <h3>Esclusioni</h3>
+  <div class="riga">
+    <div class="testo">
+      <div class="titolo">Escludi contenuti sponsorizzati e offerte</div>
+      <div class="descrizione">Il pre-filtro scarta pubblicità, contenuti sponsorizzati e offerte commerciali.</div>
+    </div>
+    <div class="controllo"><input type="checkbox" role="switch" class="interruttore" name="escludi_sponsorizzati" value="true"{% if imp.escludi_sponsorizzati %} checked{% endif %} aria-label="Escludi contenuti sponsorizzati e offerte"></div>
+  </div>
+  <div class="riga">
+    <div class="testo">
+      <div class="titolo">Escludi articoli a pagamento</div>
+      <div class="descrizione">Se lo disattivi, gli articoli a pagamento si mostrano con il riassunto della sola parte pubblica e lo stato "contenuto parziale (paywall)".</div>
+    </div>
+    <div class="controllo"><input type="checkbox" role="switch" class="interruttore" name="escludi_pagamento" value="true"{% if imp.escludi_pagamento %} checked{% endif %} aria-label="Escludi articoli a pagamento"></div>
+  </div>
   <div style="margin-top: 12px"><button class="bottone piccolo">Salva</button></div>
 </form>

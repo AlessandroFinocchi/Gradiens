@@ -1,14 +1,13 @@
 """Comandi da terminale: gradiens avvia | esegui | stato | spegni (PRD CLI-01..04)."""
 
 import argparse
-import os
-import subprocess
 import sys
 import time
 from datetime import datetime
 
 import httpx
 
+from gradiens.app.avvio_sistema import lancia_staccato
 from gradiens.app.configurazione import Configurazione, configurazione
 
 ATTESA_MASSIMA = 20  # secondi per l'avvio o lo spegnimento
@@ -37,18 +36,7 @@ def _attendi(condizione, secondi: float = ATTESA_MASSIMA) -> bool:
 def _avvia_staccato(conf: Configurazione) -> None:
     """Lancia il servizio come processo indipendente dal terminale (e dalla sessione SSH)."""
     conf.cartella_log.mkdir(parents=True, exist_ok=True)
-    comando = [sys.executable, "-m", "gradiens", "avvia", "--primo-piano"]
-    with open(conf.cartella_log / "avvio.log", "ab") as errori:
-        opzioni = dict(stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=errori, close_fds=True)
-        if os.name != "nt":
-            subprocess.Popen(comando, start_new_session=True, **opzioni)
-            return
-        base = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
-        try:
-            # Esce dal "job" della sessione SSH, che altrimenti chiuderebbe Gradiens all'uscita.
-            subprocess.Popen(comando, creationflags=base | subprocess.CREATE_BREAKAWAY_FROM_JOB, **opzioni)
-        except OSError:
-            subprocess.Popen(comando, creationflags=base, **opzioni)
+    lancia_staccato([sys.executable, "-m", "gradiens", "avvia", "--primo-piano"], conf.cartella_log / "avvio.log")
 
 
 def avvia(conf: Configurazione, primo_piano: bool) -> int:
@@ -99,12 +87,14 @@ def _riepilogo(ultima: dict) -> str:
     if ultima.get("motivo"):
         righe.append(f"Motivo: {ultima['motivo']}")
     m = ultima.get("metriche") or {}
-    if a := m.get("arxiv"):
+    nomi = {"arxiv": "arXiv", "youtube": "YouTube", "siti": "Siti web"}
+    for fonte, c in (m.get("fonti") or {}).items():
         righe.append(
-            f"arXiv: {a['esaminate']} esaminate, {a['scartate_prefiltro']} scartate dal pre-filtro, "
-            f"{a['oltre_tetto']} oltre il tetto, {a['scartate_valutazione']} scartate dalla valutazione, "
-            f"{a['mostrate']} mostrate, {a['errori']} errori."
+            f"{nomi.get(fonte, fonte)}: {c['esaminate']} esaminate, {c['scartate_prefiltro']} scartate dal pre-filtro, "
+            f"{c['oltre_tetto']} oltre il tetto, {c.get('escluse', 0)} escluse, {c['senza_contenuto']} senza contenuto, "
+            f"{c['scartate_valutazione']} scartate dalla valutazione, {c['mostrate']} mostrate, {c['errori']} errori."
         )
+        righe += [f"  - {p.get('titolo') or p['fonte']}: {p['stato']}" for p in c.get("problemi", [])]
     if t := m.get("token"):
         righe.append("Token: " + ", ".join(f"{r} {v['ingresso']} in ingresso e {v['uscita']} in uscita" for r, v in t.items()))
     if "durata_s" in m:
@@ -134,7 +124,7 @@ def esegui(conf: Configurazione) -> int:
         avanzamento = dati["avanzamento"]
         if avanzamento is None or avanzamento["esecuzione_id"] != id:
             break
-        messaggio = f"  {avanzamento['fase']}: {avanzamento['fatti']} di {avanzamento['totale']}"
+        messaggio = f"  {avanzamento['fase']}" + (f": {avanzamento['fatti']} di {avanzamento['totale']}" if avanzamento["totale"] else "…")
         if messaggio != ultimo_messaggio:
             print(messaggio, flush=True)
             ultimo_messaggio = messaggio

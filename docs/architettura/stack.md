@@ -7,7 +7,7 @@ Riepilogo delle scelte della fase 2. Le decisioni difficili da invertire hanno u
 | Linguaggio | Python 3.14 | [ADR 0002](../adr/0002-python-come-linguaggio.md) |
 | Dashboard | FastAPI + Jinja2 + htmx, un unico processo con bot e programmazione | [ADR 0003](../adr/0003-dashboard-generata-dal-server.md) |
 | Database | SQLite con SQLAlchemy 2.0 e migrazioni Alembic | [ADR 0004](../adr/0004-sqlite-con-sqlalchemy-e-alembic.md) |
-| Avvio all'accensione | Attività pianificata di Windows in modalità S4U | [ADR 0005](../adr/0005-avvio-all-accensione-con-attivita-pianificata.md) |
+| Avvio all'accensione | Windows: attività pianificata in modalità S4U. Linux: servizio utente di systemd con lingering | [ADR 0005](../adr/0005-avvio-all-accensione-con-attivita-pianificata.md), [ADR 0007](../adr/0007-avvio-all-accensione-su-linux-con-systemd.md) |
 
 ## Librerie
 
@@ -27,7 +27,7 @@ Riepilogo delle scelte della fase 2. Le decisioni difficili da invertire hanno u
 | Programmazione giornaliera | ciclo `asyncio` del progetto (un orario al giorno più la pausa) | `APScheduler`: troppo per un solo orario |
 | Test | `pytest`, con pagine e feed salvati come file di prova; `httpx2` per il client di test di Starlette | — |
 
-Tutte le librerie hanno pacchetti pronti per Python 3.14 su Windows (verificato il 4 novembre 2026).
+Tutte le librerie hanno pacchetti pronti per Python 3.14 su Windows (verificato il 4 novembre 2026) e su Linux. `uv.lock` vale per entrambi i sistemi.
 
 ## Note
 

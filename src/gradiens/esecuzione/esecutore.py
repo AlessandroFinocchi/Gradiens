@@ -1,4 +1,4 @@
-"""Un'esecuzione: raccolta, pre-filtro, tetto, valutazione, salvataggio, metriche (PRD sezione 5).
+"""Un'esecuzione: raccolta, pre-filtro, tetto, contenuto, valutazione, salvataggio, metriche (PRD sezione 5).
 
 Gira dentro il processo del servizio, una sola alla volta (ESE-02). Ogni notizia si salva appena
 valutata, così un'interruzione (spegnimento, quota esaurita) non perde il lavoro già fatto (ESE-12, LLM-06).
@@ -6,27 +6,29 @@ valutata, così un'interruzione (spegnimento, quota esaurita) non perde il lavor
 
 import asyncio
 import contextlib
+import json
 import logging
 import time
-from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import asdict, dataclass, field
 from datetime import timedelta
 
 import httpx
 from sqlalchemy.orm import Session, sessionmaker
 
 from gradiens.dati import esecuzioni, impostazioni, interessi, notizie
+from gradiens.dati import siti as dati_siti
 from gradiens.dati.modelli import Notizia, Pertinenza
 from gradiens.esecuzione import prompt
-from gradiens.fonti import Candidata, arxiv
+from gradiens.fonti import Candidata, ContenutoAssente, NonAncoraDisponibile, arxiv, siti, youtube
 from gradiens.llm import crea_provider
 from gradiens.llm.base import ErroreLLM, Provider, QuotaEsaurita
 
 log = logging.getLogger(__name__)
 
 BLOCCO_PREFILTRO = 30  # notizie per chiamata di pre-filtro (ADR 0006)
-
-Raccolta = Callable[[httpx.AsyncClient, list[str], object], Awaitable[list[Candidata]]]
+MAX_CONTENUTO = 60_000  # caratteri (~15.000 token): oltre, la notizia è "contenuto parziale"
+FONTE_DI_TIPO = {"arxiv": "arxiv", "video": "youtube", "short": "youtube", "sito": "siti"}
 
 
 class GiaInCorso(Exception):
@@ -42,16 +44,29 @@ class Avanzamento:
 
 
 @dataclass
-class Metriche:
-    """ESE-11, per un tipo di fonte, più i token per ruolo."""
+class Contatori:
+    """ESE-11 per un tipo di fonte. `problemi` va nel resoconto (UI-03): fonti irraggiungibili,
+    notizie senza contenuto (es. "trascrizione assente", YT-05)."""
 
     esaminate: int = 0
     scartate_prefiltro: int = 0
     oltre_tetto: int = 0
+    escluse: int = 0  # es. articoli a pagamento con l'esclusione attiva (WEB-23)
+    senza_contenuto: int = 0
     scartate_valutazione: int = 0
     mostrate: int = 0
     errori: int = 0
+    problemi: list[dict] = field(default_factory=list)
+
+
+@dataclass
+class Metriche:
+    fonti: dict[str, Contatori] = field(default_factory=dict)
     token: dict = field(default_factory=lambda: {r: {"ingresso": 0, "uscita": 0} for r in ("prefiltro", "elaborazione")})
+
+    def di(self, tipo: str) -> Contatori:
+        """Contatori della fonte di un tipo di notizia (video e short sono entrambi "youtube")."""
+        return self.fonti.setdefault(FONTE_DI_TIPO.get(tipo, tipo), Contatori())
 
     def conta_token(self, ruolo: str, risposta) -> None:
         self.token[ruolo]["ingresso"] += risposta.token_ingresso
@@ -63,11 +78,11 @@ class Esecutore:
         self,
         sessioni: sessionmaker[Session],
         fabbrica_provider: Callable[[str], Provider] = crea_provider,
-        raccogli_arxiv: Raccolta = arxiv.raccogli,
+        fonti: dict | None = None,
     ):
         self._sessioni = sessioni
         self._fabbrica_provider = fabbrica_provider
-        self._raccogli_arxiv = raccogli_arxiv
+        self._fonti = fonti or {"arxiv": arxiv, "youtube": youtube, "siti": siti}  # moduli con raccogli (e completa)
         self.avanzamento: Avanzamento | None = None
         self._compito: asyncio.Task | None = None
 
@@ -111,7 +126,7 @@ class Esecutore:
         finally:
             dati = {
                 "durata_s": round(time.monotonic() - inizio, 1),
-                "arxiv": {k: v for k, v in vars(metriche).items() if k != "token"},
+                "fonti": {nome: asdict(c) for nome, c in metriche.fonti.items()},
                 "token": metriche.token,
             }
             with self._sessioni() as s:
@@ -119,79 +134,164 @@ class Esecutore:
             self.avanzamento = None
             log.info("Esecuzione %s %s %s", id, stato, motivo or "")
 
+    async def _raccogli(self, client: httpx.AsyncClient, s: Session, dal, m: Metriche) -> list[Candidata]:
+        """Tutte le fonti in parallelo: una fonte irraggiungibile non ferma le altre."""
+        compiti = []  # (tipo, nome per il resoconto, coroutine)
+        if categorie := impostazioni.categorie_arxiv(s):
+            compiti.append(("arxiv", "arXiv", self._fonti["arxiv"].raccogli(client, categorie, dal)))
+        for canale in impostazioni.canali_youtube(s):
+            compiti.append(("video", canale.nome,
+                            self._fonti["youtube"].raccogli(client, youtube.Canale(canale.id, canale.nome), dal)))
+        for sito in dati_siti.elenca(s):
+            compiti.append(("sito", sito.url, self._raccogli_sito(client, s, sito.id, sito.profilo, dal, m)))
+        if not compiti:
+            raise ValueError("Serve almeno una fonte: un sito, un canale YouTube o una categoria arXiv (Impostazioni).")
+
+        trovate: list[Candidata] = []
+        risultati = await asyncio.gather(*(c for _, _, c in compiti), return_exceptions=True)
+        for (tipo, nome, _), risultato in zip(compiti, risultati):
+            if isinstance(risultato, Exception):
+                log.warning("Raccolta da %s fallita: %s", nome, risultato)
+                m.di(tipo).errori += 1
+                m.di(tipo).problemi.append({"fonte": nome, "stato": f"non raggiungibile: {risultato}"})
+            elif isinstance(risultato, BaseException):
+                raise risultato
+            else:
+                trovate += risultato
+        if all(isinstance(r, BaseException) for r in risultati):
+            raise RuntimeError("Nessuna fonte raggiungibile.")
+        return trovate
+
+    async def _raccogli_sito(self, client: httpx.AsyncClient, s: Session, id: int, profilo_json: str, dal,
+                             m: Metriche) -> list[Candidata]:
+        """Un sito: raccolta, stato (WEB-26), guasti consecutivi e rigenerazione del profilo dopo 3 (WEB-24)."""
+        fonte = self._fonti["siti"]
+        profilo = siti.Profilo.da_dict(json.loads(profilo_json))
+        try:
+            esito = await fonte.raccogli(client, profilo, dal)
+        except Exception as errore:  # un sito con un errore imprevisto non ferma gli altri
+            log.warning("Raccolta da %s fallita: %s", profilo.url, errore)
+            esito = siti.EsitoSito([], "errore di lettura", True, str(errore))
+        guasti = dati_siti.registra_esito(s, id, esito.stato, esito.dettaglio, esito.guasto)
+        conta = m.di("sito")
+        if esito.guasto:
+            conta.errori += 1
+        if esito.stato not in ("ok", "nessun articolo nuovo"):
+            conta.problemi.append({"fonte": profilo.dominio, "stato": esito.stato, "dettaglio": esito.dettaglio})
+        if guasti >= dati_siti.GUASTI_PER_RIGENERARE:
+            try:
+                nuovo = await fonte.rigenera(client, profilo)
+            except Exception as errore:
+                log.warning("Rigenerazione del profilo di %s fallita: %s", profilo.url, errore)
+            else:
+                dati_siti.salva_rigenerato(s, id, nuovo.come_dict())
+                conta.problemi.append({"fonte": profilo.dominio, "stato": "profilo rigenerato",
+                                       "dettaglio": "Dopo 3 guasti di fila il profilo è stato ricreato; le tue modifiche restano."})
+        return esito.candidate
+
     async def _pipeline(self, s: Session, m: Metriche) -> None:
         imp = impostazioni.leggi(s)
         elenco_interessi = interessi.elenca(s)
-        categorie = impostazioni.categorie_arxiv(s)
-        if not elenco_interessi or not categorie:
-            raise ValueError("Servono almeno un interesse e una categoria arXiv (Impostazioni).")
+        if not elenco_interessi:
+            raise ValueError("Serve almeno un interesse (Impostazioni).")
         prefiltro = self._fabbrica_provider(imp.provider_prefiltro)
         elaborazione = self._fabbrica_provider(imp.provider_elaborazione)
-
-        # Raccolta (ESE-03): solo la finestra, senza le notizie già viste (ESE-07) né i doppioni.
         dal = notizie.adesso() - timedelta(days=imp.finestra_giorni)
-        async with httpx.AsyncClient(follow_redirects=True) as client:
-            trovate = await self._raccogli_arxiv(client, categorie, dal)
-        viste = notizie.gia_viste(s, [c.url for c in trovate])
-        nuove = list({c.url: c for c in trovate if c.url not in viste}.values())
-        m.esaminate = len(nuove)
 
-        # Pre-filtro a blocchi (ESE-04, ARX-02).
+        async with httpx.AsyncClient(follow_redirects=True) as client:
+            # Raccolta (ESE-03): solo la finestra, senza le notizie già viste (ESE-07) né i doppioni.
+            trovate = await self._raccogli(client, s, dal, m)
+            viste = notizie.gia_viste(s, [c.url for c in trovate])
+            nuove = list({c.url: c for c in trovate if c.url not in viste}.values())
+            for c in nuove:
+                m.di(c.tipo).esaminate += 1
+
+            passate = await self._prefiltra(s, nuove, prefiltro, prompt.sistema_prefiltro(elenco_interessi, imp.escludi_sponsorizzati),
+                                            imp.modello_prefiltro, m)
+
+            # Tetto arXiv (ARX-03): si elaborano i paper più recenti; gli altri si considerano visti.
+            paper = sorted((c for c in passate if c.tipo == "arxiv"), key=lambda c: c.pubblicata_il, reverse=True)
+            oltre = paper[imp.tetto_arxiv:]
+            passate = [c for c in passate if c.tipo != "arxiv"] + paper[:imp.tetto_arxiv]
+            if paper:
+                m.di("arxiv").oltre_tetto = len(oltre)
+            notizie.segna_viste(s, [c.url for c in oltre])
+            s.commit()
+
+            # Contenuto e valutazione completa (ESE-05): ogni notizia si salva appena valutata.
+            self._fase("valutazione", len(passate))
+            sistema = prompt.sistema_valutazione(elenco_interessi)
+            ids_validi = {i.id for i in elenco_interessi}
+
+            async def elabora(c: Candidata) -> None:
+                try:
+                    c = await self._completa(client, c)
+                    if imp.escludi_pagamento and c.stato and "paywall" in c.stato:  # WEB-23: niente quota sprecata
+                        notizie.segna_viste(s, [c.url])
+                        s.commit()
+                        m.di(c.tipo).escluse += 1
+                        return
+                    risposta = await elaborazione.chiedi(sistema=sistema, messaggio=prompt.messaggio_valutazione(c),
+                                                         schema=prompt.SCHEMA_VALUTAZIONE,
+                                                         modello=imp.modello_elaborazione)
+                except QuotaEsaurita:
+                    raise
+                except ContenutoAssente as stato:  # YT-05: non diventa notizia, compare nel resoconto
+                    notizie.segna_viste(s, [c.url])
+                    s.commit()
+                    m.di(c.tipo).senza_contenuto += 1
+                    m.di(c.tipo).problemi.append({"fonte": c.fonte, "titolo": c.titolo, "url": c.url, "stato": str(stato)})
+                    return
+                except NonAncoraDisponibile:  # YT-04: si riprende alla prossima esecuzione
+                    return
+                except Exception as errore:  # rete o LLM: non si segna come vista, si riprova la volta dopo
+                    log.warning("Elaborazione fallita per %s: %s", c.url, errore)
+                    m.di(c.tipo).errori += 1
+                    return
+                finally:
+                    self.avanzamento.fatti += 1
+                m.conta_token("elaborazione", risposta)
+                self._salva(s, c, risposta.dati, ids_validi, imp.soglia, m)
+
+            await _tutti(elabora(c) for c in passate)
+
+    async def _prefiltra(self, s: Session, nuove: list[Candidata], prefiltro: Provider, sistema: str,
+                         modello: str, m: Metriche) -> list[Candidata]:
+        """Pre-filtro a blocchi (ESE-04, ARX-02); le notizie scartate entrano nel registro delle viste."""
         blocchi = [nuove[i:i + BLOCCO_PREFILTRO] for i in range(0, len(nuove), BLOCCO_PREFILTRO)]
         self._fase("pre-filtro", len(blocchi))
-        sistema = prompt.sistema_prefiltro(elenco_interessi)
 
         async def filtra(blocco: list[Candidata]) -> list[Candidata]:
             try:
                 risposta = await prefiltro.chiedi(sistema=sistema, messaggio=prompt.messaggio_prefiltro(blocco),
-                                                  schema=prompt.SCHEMA_PREFILTRO, modello=imp.modello_prefiltro)
+                                                  schema=prompt.SCHEMA_PREFILTRO, modello=modello)
             except QuotaEsaurita:
                 raise
             except ErroreLLM as errore:  # il blocco non si segna come visto: ci si riprova la volta dopo
                 log.warning("Pre-filtro fallito per un blocco di %s notizie: %s", len(blocco), errore)
-                m.errori += 1
+                for c in blocco:
+                    m.di(c.tipo).errori += 1
                 return []
             finally:
                 self.avanzamento.fatti += 1
             m.conta_token("prefiltro", risposta)
             indici = {i for i in risposta.dati.get("pertinenti", []) if isinstance(i, int) and 0 <= i < len(blocco)}
-            scartate = [c.url for n, c in enumerate(blocco) if n not in indici]
-            notizie.segna_viste(s, scartate)
+            scartate = [c for n, c in enumerate(blocco) if n not in indici]
+            notizie.segna_viste(s, [c.url for c in scartate])
             s.commit()
-            m.scartate_prefiltro += len(scartate)
+            for c in scartate:
+                m.di(c.tipo).scartate_prefiltro += 1
             return [blocco[i] for i in sorted(indici)]
 
-        passate = [c for blocco in await _tutti(filtra(b) for b in blocchi) for c in blocco]
+        return [c for blocco in await _tutti(filtra(b) for b in blocchi) for c in blocco]
 
-        # Tetto arXiv (ARX-03): si elaborano i più recenti; gli altri si considerano visti.
-        passate.sort(key=lambda c: c.pubblicata_il, reverse=True)
-        oltre = passate[imp.tetto_arxiv:]
-        passate = passate[:imp.tetto_arxiv]
-        m.oltre_tetto = len(oltre)
-        notizie.segna_viste(s, [c.url for c in oltre])
-        s.commit()
-
-        # Valutazione completa (ESE-05): ogni notizia si salva appena valutata.
-        self._fase("valutazione", len(passate))
-        sistema = prompt.sistema_valutazione(elenco_interessi)
-        ids_validi = {i.id for i in elenco_interessi}
-
-        async def valuta(c: Candidata) -> None:
-            try:
-                risposta = await elaborazione.chiedi(sistema=sistema, messaggio=prompt.messaggio_valutazione(c),
-                                                     schema=prompt.SCHEMA_VALUTAZIONE, modello=imp.modello_elaborazione)
-            except QuotaEsaurita:
-                raise
-            except ErroreLLM as errore:  # la notizia non si segna come vista: ci si riprova la volta dopo
-                log.warning("Valutazione fallita per %s: %s", c.url, errore)
-                m.errori += 1
-                return
-            finally:
-                self.avanzamento.fatti += 1
-            m.conta_token("elaborazione", risposta)
-            self._salva(s, c, risposta.dati, ids_validi, imp.soglia, m)
-
-        await _tutti(valuta(c) for c in passate)
+    async def _completa(self, client: httpx.AsyncClient, c: Candidata) -> Candidata:
+        fonte = self._fonti.get(FONTE_DI_TIPO[c.tipo])
+        if hasattr(fonte, "completa"):
+            c = await fonte.completa(client, c)
+        if len(c.contenuto) > MAX_CONTENUTO:  # es. trascrizione di un video di due ore
+            c.contenuto, c.stato = c.contenuto[:MAX_CONTENUTO], c.stato or "contenuto parziale"
+        return c
 
     def _fase(self, fase: str, totale: int) -> None:
         self.avanzamento.fase, self.avanzamento.fatti, self.avanzamento.totale = fase, 0, totale
@@ -206,7 +306,7 @@ class Esecutore:
                 punteggi[interesse] = max(0, min(100, valore))
         notizie.segna_viste(s, [c.url])
         if not punteggi or max(punteggi.values()) < soglia:  # ESE-06
-            m.scartate_valutazione += 1
+            m.di(c.tipo).scartate_valutazione += 1
             s.commit()
             return
         titolo_it = (dati.get("titolo_it") or "").strip()
@@ -218,7 +318,7 @@ class Esecutore:
             pertinenze=[Pertinenza(interesse_id=i, punteggio=v) for i, v in punteggi.items() if v > 0],
         ))
         s.commit()
-        m.mostrate += 1
+        m.di(c.tipo).mostrate += 1
 
 
 async def _tutti(coroutine) -> list:

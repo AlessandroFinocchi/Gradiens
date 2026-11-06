@@ -5,7 +5,7 @@ import re
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from gradiens.dati.modelli import TEMI, CategoriaArxiv, Impostazioni
+from gradiens.dati.modelli import TEMI, CanaleYoutube, CategoriaArxiv, Impostazioni
 
 # Codici arXiv: archivio e, facoltativa, sottocategoria (cs.CR, math.PR, hep-th, astro-ph.GA).
 FORMATO_CATEGORIA = re.compile(r"^[a-z][a-z-]*(\.[A-Za-z-]+)?$")
@@ -26,13 +26,15 @@ def salva_tema(sessione: Session, tema: str) -> None:
     sessione.commit()
 
 
-def salva_esecuzione(sessione: Session, soglia: int, finestra_giorni: int) -> None:
+def salva_esecuzione(sessione: Session, soglia: int, finestra_giorni: int,
+                     escludi_sponsorizzati: bool = True, escludi_pagamento: bool = True) -> None:
     if not 0 <= soglia <= 100:
         raise ImpostazioneNonValida("La soglia va da 0 a 100.")
     if not 1 <= finestra_giorni <= 7:
         raise ImpostazioneNonValida("La finestra di raccolta va da 1 a 7 giorni.")
     imp = leggi(sessione)
     imp.soglia, imp.finestra_giorni = soglia, finestra_giorni
+    imp.escludi_sponsorizzati, imp.escludi_pagamento = escludi_sponsorizzati, escludi_pagamento
     sessione.commit()
 
 
@@ -62,4 +64,22 @@ def rimuovi_categoria(sessione: Session, codice: str) -> None:
         raise ImpostazioneNonValida("Deve esserci almeno una categoria arXiv.")  # ARX-01
     if categoria is not None:
         sessione.delete(categoria)
+        sessione.commit()
+
+
+def canali_youtube(sessione: Session) -> list[CanaleYoutube]:
+    return list(sessione.scalars(select(CanaleYoutube).order_by(CanaleYoutube.nome)))
+
+
+def aggiungi_canale(sessione: Session, id: str, nome: str) -> None:
+    """Il canale arriva già risolto e validato da `fonti.youtube.risolvi_canale`."""
+    if sessione.get(CanaleYoutube, id) is None:
+        sessione.add(CanaleYoutube(id=id, nome=nome))
+        sessione.commit()
+
+
+def rimuovi_canale(sessione: Session, id: str) -> None:
+    canale = sessione.get(CanaleYoutube, id)
+    if canale is not None:
+        sessione.delete(canale)
         sessione.commit()

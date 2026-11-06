@@ -32,7 +32,7 @@ scrivi un test che lo riproduce e lo segnali a chi possiede il modulo.
 
 ## Regole sui test
 - I test automatici non chiamano API LLM a pagamento né siti reali: usano provider finti
-  e fixture registrate. Devono essere veloci e ripetibili, anche su Windows.
+  e fixture registrate. Devono essere veloci e ripetibili, sia su Windows sia su Linux.
 - Le verifiche sui siti reali sono uno script separato, lanciato a mano, che rispetta i
   limiti di richieste e produce un report datato in docs/test/.
 - Testa il comportamento osservabile, non i dettagli interni.

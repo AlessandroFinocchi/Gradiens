@@ -3,7 +3,9 @@ App per raccogliere, filtrare con LLM e riassumere notizie da YouTube, arXiv e s
 in base agli interessi dell'utente. Requisiti: docs/requisiti/prd.md (prevale sul prompt
 originale docs/requisiti/prompt-originale.md). Glossario: CONTEXT.md.
 Stack: docs/architettura/stack.md. Cartelle e proprietari: docs/architettura/struttura.md.
-Ambiente Python con uv (`uv sync`, `uv run pytest`, `uv run gradiens avvia|stato|spegni`).
+Ambiente Python con uv (`uv sync`, `uv run pytest`, `uv run gradiens avvia|esegui|stato|spegni`).
+Gira su Windows e su Linux: niente codice specifico di un sistema fuori da `app/avvio_sistema.py`
+(ADR 0007); i test girano su entrambi (`.github/workflows/test.yml`).
 
 ## Regole di lavoro
 - Lavora SOLO dentro questa cartella.

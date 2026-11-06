@@ -1,0 +1,64 @@
+{% from "icone.html" import icona with context %}
+<h2>Siti web</h2>
+<p class="intro">Basta l'indirizzo della home, per seguire tutto il sito, o di una sezione, per seguire solo quella. Gradiens analizza il sito e crea il suo profilo, che puoi modificare: le tue modifiche restano anche quando il profilo viene rigenerato.</p>
+<form class="campo-riga" hx-post="/impostazioni/siti" hx-target="#impostazioni" hx-disabled-elt="find button" hx-indicator="#analisi-sito">
+  <input class="campo" name="indirizzo" placeholder="https://…" aria-label="Indirizzo del sito" required>
+  <button class="bottone">Aggiungi</button>
+</form>
+<p id="analisi-sito" class="nota indicatore"><span class="rotella"></span> Analisi del sito in corso: può richiedere fino a un minuto.</p>
+
+<h3>Siti seguiti</h3>
+{% for sito, p in siti %}
+{% set problema = sito.stato and sito.stato not in ("ok", "nessun articolo nuovo") %}
+<div class="riga{% if problema and sito.stato != 'profilo rigenerato' %} evidenziata{% elif sito.stato == 'profilo rigenerato' %} proposta{% endif %}" style="display: block">
+  <div style="display: flex; gap: 12px; align-items: flex-start">
+    <div class="testo">
+      <div class="titolo">{{ p.perimetro or sito.url }}</div>
+      <div class="descrizione">
+        {% if sito.stato %}<span class="stato{% if sito.stato == 'ok' %} ok{% elif problema and sito.stato != 'profilo rigenerato' %} errore{% endif %}">{{ sito.stato }}</span>{% else %}<span class="nota">mai raccolto</span>{% endif %}
+        {% if sito.dettaglio %} {{ sito.dettaglio }}{% endif %}
+      </div>
+    </div>
+    <div class="controllo">
+      <button type="button" class="bottone secondario piccolo" hx-post="/impostazioni/siti/{{ sito.id }}/rigenera" hx-target="#impostazioni"
+              hx-disabled-elt="this" hx-indicator="#analisi-sito">Rigenera profilo</button>
+      <button type="button" class="bottone-icona" hx-post="/impostazioni/siti/{{ sito.id }}/rimuovi" hx-target="#impostazioni"
+              hx-confirm="Smettere di seguire {{ sito.url }}?" aria-label="Rimuovi {{ sito.url }}" title="Rimuovi">{{ icona("cestino") }}</button>
+    </div>
+  </div>
+  <details class="profilo-sito">
+    <summary>Profilo{% if p.strategie %}: {{ p.strategie | join(", ") }}{% endif %}{% if p.piattaforma %} · {{ p.piattaforma }}{% endif %}</summary>
+    <dl>
+      <dt>Feed</dt><dd>{% for f in p.feed %}<code>{{ f }}</code> {% else %}nessuno{% endfor %}</dd>
+      <dt>Sitemap</dt><dd>{% for f in p.sitemap %}<code>{{ f }}</code> {% else %}nessuna{% endfor %}</dd>
+      <dt>Esclusi</dt><dd>{% for e in p.esclusi %}<code>{{ e }}</code> {% else %}nessuno{% endfor %}</dd>
+      {% if p.modificati %}<dt>Modificati a mano</dt><dd>{{ p.modificati | join(", ") }}</dd>{% endif %}
+    </dl>
+    {% if p.siti_collegati %}
+    <p class="etichetta-campo">Siti collegati trovati nell'analisi (disattivati finché non li attivi)</p>
+    {% for dominio, attivo in p.siti_collegati.items() %}
+    <label class="collegato"><input type="checkbox" name="attivo" value="true"{% if attivo %} checked{% endif %}
+           hx-post="/impostazioni/siti/{{ sito.id }}/collegato" hx-vals='{{ {"dominio": dominio} | tojson }}' hx-target="#impostazioni"> {{ dominio }}</label>
+    {% endfor %}
+    {% endif %}
+    <form class="campo-riga" hx-post="/impostazioni/siti/{{ sito.id }}/feed" hx-target="#impostazioni">
+      <input class="campo" name="indirizzo" placeholder="Indirizzo di un feed RSS o Atom" aria-label="Aggiungi un feed" required>
+      <button class="bottone secondario piccolo">Aggiungi feed</button>
+    </form>
+    <form class="campo-riga" hx-post="/impostazioni/siti/{{ sito.id }}/tetti" hx-target="#impostazioni" style="margin: 6px 0">
+      <label class="nota" style="align-self: center">Per esecuzione, al massimo</label>
+      <input class="campo" type="number" name="pagine" min="1" max="500" value="{{ p.pagine_massime }}" style="width: 80px; flex: none" aria-label="Pagine per esecuzione">
+      <span class="nota" style="align-self: center">pagine e</span>
+      <input class="campo" type="number" name="articoli" min="1" max="1000" value="{{ p.articoli_massimi }}" style="width: 80px; flex: none" aria-label="Articoli per esecuzione">
+      <span class="nota" style="align-self: center">articoli</span>
+      <button class="bottone secondario piccolo">Salva</button>
+    </form>
+    <form class="campo-riga" hx-post="/impostazioni/siti/{{ sito.id }}/escludi" hx-target="#impostazioni" style="margin-top: 6px">
+      <input class="campo" name="indirizzo" placeholder="Indirizzo di una sezione o di un percorso da escludere" aria-label="Escludi un percorso" required>
+      <button class="bottone secondario piccolo">Escludi</button>
+    </form>
+  </details>
+</div>
+{% else %}
+<p class="nota">Nessun sito.</p>
+{% endfor %}

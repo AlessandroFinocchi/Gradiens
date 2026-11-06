@@ -98,3 +98,69 @@ def test_avanzamento_dell_esecuzione(dati):
     finita = dati.get("/esecuzione/avanzamento")
     assert "esecuzione-finita" in finita.headers["HX-Trigger"]
     assert "Avvia esecuzione" in finita.text
+
+
+def test_impostazioni_canali_youtube(dati, monkeypatch):
+    from gradiens.fonti import youtube
+
+    async def risolvi(indirizzo):
+        if "example" in indirizzo:
+            raise ValueError("Non è un indirizzo di YouTube")
+        return youtube.Canale(id="UC" + "x" * 22, nome="Lab <b>di</b> Sicurezza")
+
+    monkeypatch.setattr(youtube, "risolvi_canale", risolvi)
+    finestra = dati.post("/impostazioni/youtube", data={"indirizzo": "@lab"}, headers=HTMX).text
+    assert "Lab &lt;b&gt;di&lt;/b&gt; Sicurezza" in finestra  # nome dal web: escapato
+    assert "Non è un indirizzo di YouTube" in dati.post("/impostazioni/youtube", data={"indirizzo": "https://example.org"}, headers=HTMX).text
+    assert "Nessun canale" in dati.post("/impostazioni/youtube/rimuovi", data={"id": "UC" + "x" * 22}, headers=HTMX).text
+
+
+def test_impostazioni_siti(dati, monkeypatch):
+    import json
+
+    from gradiens.dati.modelli import Sito
+    from gradiens.fonti import siti
+
+    async def analizza(client, indirizzo):
+        if "rotto" in indirizzo:
+            raise ValueError("indirizzo non valido")
+        return siti.Profilo(url="https://redhotcyber.com/", perimetro="redhotcyber.com", strategie=["feed"],
+                            siti_collegati={"esterno.example": False})
+
+    monkeypatch.setattr(siti, "analizza", analizza)
+    finestra = dati.post("/impostazioni/siti", data={"indirizzo": "redhotcyber.com"}, headers=HTMX).text
+    assert "redhotcyber.com" in finestra and "mai raccolto" in finestra
+    assert "già tra quelli seguiti" in dati.post("/impostazioni/siti", data={"indirizzo": "redhotcyber.com"}, headers=HTMX).text
+    assert "Indirizzo non valido" in dati.post("/impostazioni/siti", data={"indirizzo": "rotto"}, headers=HTMX).text
+
+    with dati.app.state.sessioni() as s:
+        id = s.query(Sito).one().id
+    assert "Serve un indirizzo completo" in dati.post(f"/impostazioni/siti/{id}/feed", data={"indirizzo": "javascript:alert(1)"}, headers=HTMX).text
+    dati.post(f"/impostazioni/siti/{id}/feed", data={"indirizzo": "https://redhotcyber.com/feed/gn"}, headers=HTMX)
+    dati.post(f"/impostazioni/siti/{id}/collegato", data={"dominio": "esterno.example", "attivo": "true"}, headers=HTMX)
+    with dati.app.state.sessioni() as s:
+        profilo = json.loads(s.get(Sito, id).profilo)
+    assert profilo["feed"] == ["https://redhotcyber.com/feed/gn"]
+    assert profilo["siti_collegati"] == {"esterno.example": True}
+    assert set(profilo["modificati"]) == {"feed", "siti_collegati"}  # conservati dalla rigenerazione (WEB-25)
+    assert "Nessun sito" in dati.post(f"/impostazioni/siti/{id}/rimuovi", headers=HTMX).text
+
+
+def test_tetti_del_sito_e_interruttori_di_esclusione(dati, monkeypatch):
+    import json
+
+    from gradiens.dati import siti as dati_siti
+    from gradiens.dati.modelli import Sito
+    from gradiens.fonti import siti
+
+    with dati.app.state.sessioni() as s:
+        id = dati_siti.aggiungi(s, "https://hwupgrade.it/", siti.Profilo(url="https://hwupgrade.it/").come_dict()).id
+    assert "da 1 a 500" in dati.post(f"/impostazioni/siti/{id}/tetti", data={"pagine": 0, "articoli": 10}, headers=HTMX).text
+    dati.post(f"/impostazioni/siti/{id}/tetti", data={"pagine": 120, "articoli": 400}, headers=HTMX)
+    dati.post("/impostazioni/esecuzione", data={"soglia": 60, "finestra_giorni": 7, "escludi_sponsorizzati": "true"}, headers=HTMX)
+    with dati.app.state.sessioni() as s:
+        profilo = json.loads(s.get(Sito, id).profilo)
+        imp = impostazioni.leggi(s)
+    assert (profilo["pagine_massime"], profilo["articoli_massimi"]) == (120, 400)
+    assert {"pagine_massime", "articoli_massimi"} <= set(profilo["modificati"])
+    assert (imp.escludi_sponsorizzati, imp.escludi_pagamento) == (True, False)  # casella non spuntata = disattivo

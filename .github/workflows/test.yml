@@ -1,0 +1,25 @@
+# Test automatici su Linux e su Windows (PRD AMB-03, ADR 0007).
+# I test non usano rete, chiavi né quota di Claude: non servono segreti.
+name: Test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Ambiente con le versioni di uv.lock (Python 3.14 compreso)
+        run: uv sync --locked
+      - name: Test
+        run: uv run pytest

@@ -32,6 +32,8 @@ class Impostazioni(Base):
     modello_prefiltro: Mapped[str] = mapped_column(String(60), default="haiku")
     provider_elaborazione: Mapped[str] = mapped_column(String(20), default="claude-code")
     modello_elaborazione: Mapped[str] = mapped_column(String(60), default="haiku")
+    escludi_sponsorizzati: Mapped[bool] = mapped_column(default=True)  # WEB-23
+    escludi_pagamento: Mapped[bool] = mapped_column(default=True)  # WEB-23
 
 
 class Interesse(Base):
@@ -41,6 +43,27 @@ class Interesse(Base):
     nome: Mapped[str] = mapped_column(String(80), unique=True)
     descrizione: Mapped[str] = mapped_column(Text)
     raffinamento: Mapped[str | None] = mapped_column(Text)
+
+
+class CanaleYoutube(Base):
+    __tablename__ = "canali_youtube"
+
+    id: Mapped[str] = mapped_column(String(24), primary_key=True)  # UC…
+    nome: Mapped[str] = mapped_column(String(200))
+
+
+class Sito(Base):
+    """Un sito seguito, con il suo profilo (WEB-02) e lo stato dell'ultima raccolta (WEB-26)."""
+
+    __tablename__ = "siti"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    url: Mapped[str] = mapped_column(String(1000), unique=True)
+    profilo: Mapped[str] = mapped_column(Text)  # JSON di fonti.siti.Profilo
+    profilo_precedente: Mapped[str | None] = mapped_column(Text)  # dopo una rigenerazione, per le differenze (WEB-25)
+    stato: Mapped[str | None] = mapped_column(String(40))
+    dettaglio: Mapped[str | None] = mapped_column(Text)
+    guasti_consecutivi: Mapped[int] = mapped_column(default=0)  # 3 di fila: si rigenera il profilo (WEB-24)
 
 
 class CategoriaArxiv(Base):

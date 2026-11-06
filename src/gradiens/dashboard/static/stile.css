@@ -404,3 +404,13 @@ dialog.finestra::backdrop { background: var(--velo); }
 .chip:has(input:focus-visible) { outline: 2px solid var(--accento-testo); outline-offset: 2px; }
 .avanzamento-esecuzione { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; font-size: 13.5px; color: var(--tenue); }
 .sezione-contenuto .errore-riquadro { margin-top: 0; }
+
+/* ---------- Dashboard: profilo dei siti ---------- */
+.indicatore { display: none; align-items: center; gap: 8px; margin: 8px 0 0; }
+.indicatore.htmx-request { display: flex; }
+.profilo-sito { margin-top: 10px; font-size: 13.5px; }
+.profilo-sito summary { cursor: pointer; color: var(--tenue); }
+.profilo-sito dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 10px 0; }
+.profilo-sito dt { color: var(--tenue); }
+.profilo-sito dd { margin: 0; overflow-wrap: anywhere; }
+.collegato { display: inline-flex; align-items: center; gap: 6px; margin: 0 12px 6px 0; }

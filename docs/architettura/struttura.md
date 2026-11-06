@@ -8,7 +8,7 @@ gradiens/
 ├─ .env  (escluso da git)             chiavi API e token
 ├─ .gradiens/  (escluso da git)       database, configurazione, cache, log (PER-02)
 ├─ src/gradiens/
-│  ├─ app/          avvio unico, CLI, avvio_windows.py        backend-engineer
+│  ├─ app/          avvio unico, CLI, avvio_sistema.py        backend-engineer
 │  ├─ dati/         modelli SQLAlchemy e migrazioni Alembic    backend-engineer
 │  ├─ esecuzione/   orchestrazione, filtro, argomenti, duplicati,
 │  │                metriche, pulizia, programmazione          backend-engineer
@@ -34,7 +34,7 @@ gradiens/
 - **Nomi in italiano.** Moduli, classi e funzioni usano i termini di [CONTEXT.md](../../CONTEXT.md) (`notizia`, `esecuzione`, `interesse`, `argomento`…), così codice, PRD e dashboard parlano la stessa lingua. Restano in inglese solo i nomi imposti dalle librerie.
 - **Confine dashboard / backend.** Il backend espone funzioni Python che restituiscono dati (es. "notizie con questi filtri"). Il frontend possiede tutta `dashboard/`, rotte comprese: con htmx ogni rotta restituisce un pezzo di HTML, quindi rotta e template stanno nelle stesse mani. La dashboard non scrive SQL e non chiama direttamente i provider LLM.
 - **Confine fonti / esecuzione.** Ogni fonte (`youtube/`, `arxiv/`, `siti/`) restituisce notizie candidate in un formato comune. La normalizzazione degli indirizzi di un sito sta in `siti/`. Il riconoscimento dei duplicati tra fonti diverse (`DUP-*`) sta in `esecuzione/`.
-- **Codice specifico per Windows** solo in `app/avvio_windows.py` ([ADR 0005](../adr/0005-avvio-all-accensione-con-attivita-pianificata.md)).
+- **Codice specifico di un sistema operativo** solo in `app/avvio_sistema.py`, con un ramo per Windows ([ADR 0005](../adr/0005-avvio-all-accensione-con-attivita-pianificata.md)) e uno per Linux ([ADR 0007](../adr/0007-avvio-all-accensione-su-linux-con-systemd.md)). Il resto del codice usa `pathlib` e la libreria standard, e i test girano su entrambi i sistemi (`.github/workflows/test.yml`).
 - **Dati a runtime** solo in `.gradiens/` e `.env`, entrambi esclusi da git (`PER-02`, `PER-03`). In `.env` vanno i segreti e le opzioni di avvio (prefisso `GRADIENS_`, es. `GRADIENS_PORTA`); le impostazioni che si cambiano dalla dashboard stanno nel database.
 - **Sicurezza della dashboard**: risponde solo ai nomi host in `GRADIENS_HOST_CONSENTITI` (difesa dal DNS rebinding); le richieste che modificano qualcosa devono avere l'intestazione `HX-Request` (htmx) o `X-Gradiens-Cli` (CLI), che un altro sito non può aggiungere (difesa CSRF); lo spegnimento si accetta solo da `127.0.0.1`.
 - **Comandi di sviluppo** con `uv` ([stack](stack.md)): `uv sync` crea l'ambiente `.venv` dentro la repo; `uv run pytest` esegue i test.
@@ -43,10 +43,10 @@ gradiens/
 
 Regole fissate nella fetta 1 che le fette successive rispettano senza cambiarle.
 
-**Fonti** (`fonti/__init__.py`). Ogni fonte espone `async def raccogli(client: httpx.AsyncClient, ..., dal: datetime) -> list[Candidata]`:
+**Fonti** (`fonti/__init__.py`). Ogni fonte espone `async def raccogli(client: httpx.AsyncClient, ..., dal: datetime) -> list[Candidata]` e, se il contenuto costa richieste in più, `async def completa(client, candidata) -> Candidata`. L'esecuzione chiama `completa` solo per le notizie che passano pre-filtro e tetto; se il contenuto non esiste, `completa` solleva `ContenutoAssente` con lo stato per il resoconto (es. "trascrizione assente"). Regole:
 - `url` è l'indirizzo canonico, sempre `https://`: è la chiave del registro delle notizie viste e diventa un link nella dashboard, quindi la fonte scarta tutto ciò che non è un indirizzo web valido;
 - le date sono in UTC senza fuso orario; con la data incerta si usa quella di scoperta e `data_incerta=True` (`WEB-15`);
-- `sommario` serve al pre-filtro e viene accorciato a 1.500 caratteri; `contenuto` serve alla valutazione: testo pulito, senza HTML;
+- `sommario` serve al pre-filtro e viene accorciato a 1.500 caratteri; `contenuto` serve alla valutazione: testo pulito, senza HTML, vuoto finché `completa` non lo riempie;
 - `tipo` è uno di `arxiv`, `sito`, `video`, `short`; `stato` contiene stati come "contenuto parziale";
 - le richieste usano `fonti.USER_AGENT`, generico e senza dati personali (`WEB-18`).
 

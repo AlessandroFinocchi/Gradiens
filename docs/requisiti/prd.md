@@ -1,6 +1,6 @@
 # Gradiens – Documento dei requisiti (PRD)
 
-Versione 1.3 del 6 novembre 2026. Questo documento riunisce in un unico testo il [prompt originale](prompt-originale.md) e le 42 decisioni del [registro dell'intervista](decisioni-intervista.md). Se c'è un contrasto con il prompt originale, vale questo documento. I termini in grassetto sono definiti in [CONTEXT.md](../../CONTEXT.md).
+Versione 1.4 del 6 novembre 2026. Questo documento riunisce in un unico testo il [prompt originale](prompt-originale.md) e le 43 decisioni del [registro dell'intervista](decisioni-intervista.md). Se c'è un contrasto con il prompt originale, vale questo documento. I termini in grassetto sono definiti in [CONTEXT.md](../../CONTEXT.md).
 
 Ogni requisito ha un codice (es. `ESE-03`). I test e le verifiche citano questi codici.
 
@@ -10,14 +10,14 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 
 ## 2. Ambiente
 
-- `AMB-01` L'applicazione gira sul PC di casa (Windows 11, RTX 3070 8 GB). Da fuori casa si raggiunge tramite Tailscale. Vedi [ADR 0001](../adr/0001-esecuzione-sul-pc-di-casa.md).
+- `AMB-01` L'applicazione gira sul PC di casa (Windows 11, RTX 3070 8 GB). Gira anche su Linux, con le stesse funzioni. Da fuori casa si raggiunge tramite Tailscale. Vedi [ADR 0001](../adr/0001-esecuzione-sul-pc-di-casa.md).
 - `AMB-02` L'applicazione non è esposta su internet: è raggiungibile solo dalla rete locale e da Tailscale.
-- `AMB-03` Il codice non usa dipendenze specifiche di Windows, così si può spostare su un server. Fa eccezione solo la registrazione dell'avvio all'accensione (`AMB-04`).
+- `AMB-03` Il codice funziona su Windows e su Linux e non usa dipendenze specifiche di un sistema operativo, così si può spostare su un server. Fa eccezione solo la registrazione dell'avvio all'accensione (`AMB-04`), che ha un ramo per ciascun sistema. I test automatici girano su entrambi.
 - `AMB-04` Nelle Impostazioni un interruttore decide come si avvia Gradiens:
-  - **all'accensione del PC**: parte da solo, senza bisogno di accedere a Windows né di accendere il monitor. Basta accendere il PC e lanciare l'esecuzione dal bot Telegram;
+  - **all'accensione del PC**: parte da solo, senza bisogno di accedere al sistema né di accendere il monitor. Basta accendere il PC e lanciare l'esecuzione dal bot Telegram;
   - **a mano**, con `gradiens avvia`. È il valore predefinito.
 
-  Quando l'interruttore viene disattivato, la registrazione nel sistema operativo viene rimossa. Cambiare l'interruttore richiede una conferma di amministratore sullo schermo del PC, quindi si fa stando al PC e non da remoto (vedi [ADR 0005](../adr/0005-avvio-all-accensione-con-attivita-pianificata.md)).
+  Quando l'interruttore viene disattivato, la registrazione nel sistema operativo viene rimossa. Su Windows cambiare l'interruttore richiede una conferma di amministratore sullo schermo del PC, quindi si fa stando al PC e non da remoto (vedi [ADR 0005](../adr/0005-avvio-all-accensione-con-attivita-pianificata.md)). Su Linux si usa un servizio utente di systemd; se il sistema chiede la password di amministratore per farlo partire senza accesso, la dashboard mostra il comando da lanciare in un terminale (vedi [ADR 0007](../adr/0007-avvio-all-accensione-su-linux-con-systemd.md)).
 
 ## 3. Interessi
 
@@ -370,7 +370,7 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
 - `ACC-06` Dopo aver messo il cuore a 3 notizie dello stesso interesse, alla fine dell'esecuzione successiva compare una proposta di raffinamento. La descrizione dell'interesse resta invariata finché l'utente non approva.
 - `ACC-07` Un messaggio al bot da una chat diversa da quella configurata non produce nessun effetto.
 - `ACC-08` Nessuna chiave o token compare nei file tracciati da git.
-- `ACC-09` Con l'avvio all'accensione attivo, si accende il PC senza accedere a Windows e si manda `/aggiorna` al bot: l'esecuzione parte e il messaggio di fine esecuzione arriva.
+- `ACC-09` Con l'avvio all'accensione attivo, sia su Windows sia su Linux, si accende il PC senza accedere al sistema e si manda `/aggiorna` al bot: l'esecuzione parte e il messaggio di fine esecuzione arriva.
 - `ACC-10` Dopo una configurazione completa e un'esecuzione, si verificano tre cose:
   - nessun file dell'app è stato scritto fuori dalla cartella della repository, salvo la registrazione di `AMB-04` e i file propri di Claude Code;
   - `git status` non mostra file di configurazione o di dati;

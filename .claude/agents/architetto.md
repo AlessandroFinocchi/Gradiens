@@ -29,7 +29,7 @@ capire per un principiante, ma con punti di estensione dove i requisiti li richi
 - Funzionamento completo dalla dashboard e avvio dell'aggiornamento anche da CLI.
 - Metriche di ogni esecuzione (tempo, esaminati, filtrati, mostrati) e stati espliciti.
 - Persistenza: archivio permanente; notizie non archiviate cancellate dopo 7 giorni.
-- Gira su Windows senza passaggi complicati.
+- Gira su Windows e su Linux senza passaggi complicati (ADR 0007).
 
 ## Come lavori
 1. Per ogni scelta presenta 2-3 alternative con pro, contro, costo di apprendimento e

@@ -1,0 +1,22 @@
+<h2>Esecuzione</h2>
+<form hx-post="/impostazioni/esecuzione" hx-target="#impostazioni">
+  <div class="riga">
+    <div class="testo">
+      <div class="titolo">Soglia di pertinenza</div>
+      <div class="descrizione">Una notizia si mostra se almeno uno dei suoi punteggi la raggiunge (da 0 a 100).</div>
+    </div>
+    <div class="controllo"><input class="campo" type="number" name="soglia" min="0" max="100" value="{{ imp.soglia }}" style="width: 90px" aria-label="Soglia di pertinenza"></div>
+  </div>
+  <div class="riga">
+    <div class="testo">
+      <div class="titolo">Finestra di raccolta</div>
+      <div class="descrizione">Si raccolgono le notizie pubblicate negli ultimi giorni indicati. Le notizie senza cuore si cancellano comunque dopo 7 giorni.</div>
+    </div>
+    <div class="controllo">
+      <select class="selettore" name="finestra_giorni" aria-label="Finestra di raccolta">
+        {% for g in range(7, 0, -1) %}<option value="{{ g }}"{% if imp.finestra_giorni == g %} selected{% endif %}>{{ g }} {{ "giorno" if g == 1 else "giorni" }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+  <div style="margin-top: 12px"><button class="bottone piccolo">Salva</button></div>
+</form>

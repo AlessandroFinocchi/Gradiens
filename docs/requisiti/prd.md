@@ -1,6 +1,6 @@
 # Gradiens – Documento dei requisiti (PRD)
 
-Versione 1.3 del 6 novembre 2026. Questo documento riunisce in un unico testo il [prompt originale](prompt-originale.md) e le 41 decisioni del [registro dell'intervista](decisioni-intervista.md). Se c'è un contrasto con il prompt originale, vale questo documento. I termini in grassetto sono definiti in [CONTEXT.md](../../CONTEXT.md).
+Versione 1.3 del 6 novembre 2026. Questo documento riunisce in un unico testo il [prompt originale](prompt-originale.md) e le 42 decisioni del [registro dell'intervista](decisioni-intervista.md). Se c'è un contrasto con il prompt originale, vale questo documento. I termini in grassetto sono definiti in [CONTEXT.md](../../CONTEXT.md).
 
 Ogni requisito ha un codice (es. `ESE-03`). I test e le verifiche citano questi codici.
 
@@ -57,7 +57,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 
 - `ARX-01` L'utente sceglie le categorie arXiv nelle Impostazioni (es. `cs.CR`, `cs.AI`). Deve esserci almeno una categoria.
 - `ARX-02` Tutti i paper nuovi delle categorie scelte passano dal pre-filtro.
-- `ARX-03` Un tetto configurabile limita il numero di paper elaborati per esecuzione. Se il tetto viene superato si elaborano i paper più recenti e il resoconto segnala "tetto raggiunto".
+- `ARX-03` Un tetto configurabile limita il numero di paper elaborati per esecuzione. Se il tetto viene superato si elaborano i paper più recenti e il resoconto segnala "tetto raggiunto". I paper oltre il tetto entrano nel registro delle notizie già viste e non si riprendono nelle esecuzioni successive.
 - `ARX-04` Per un paper, il contenuto che l'LLM valuta e riassume è l'abstract restituito dall'API di arXiv, insieme al titolo. Il PDF non si scarica. Per leggere il paper intero c'è il link all'originale.
 
 ### 4.3 Siti web
@@ -167,7 +167,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
   - scrive il riassunto in italiano. Il riassunto deve essere corretto e completo: riporta solo ciò che c'è nel contenuto, senza aggiunte, e ne copre tutti i punti principali, non solo l'inizio. Se il contenuto è parziale, il riassunto lo dice;
   - traduce il titolo in italiano, se la notizia è in un'altra lingua;
   - assegna la notizia a un argomento, oppure a nessuno.
-- `ESE-06` Una notizia viene mostrata se almeno uno dei suoi punteggi supera la soglia. La soglia si configura nelle Impostazioni e per default vale 60.
+- `ESE-06` Una notizia viene mostrata se almeno uno dei suoi punteggi raggiunge o supera la soglia. La soglia si configura nelle Impostazioni e per default vale 60.
 - `ESE-07` Delle notizie scartate si conserva solo l'indirizzo, nel registro delle notizie già viste.
 
 **Argomenti**

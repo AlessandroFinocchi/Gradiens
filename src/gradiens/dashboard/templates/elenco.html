@@ -1,0 +1,52 @@
+{% from "icone.html" import icona with context %}
+{# Elenco delle notizie: il testo viene dalle fonti, quindi non è mai inserito come HTML grezzo. #}
+<div id="elenco">
+  {% if notizie %}
+  <ul class="elenco">
+    {% for n in notizie %}
+    <li class="notizia">
+      <div class="n-corpo">
+        <h3 class="n-titolo"><a href="/notizie/{{ n.id }}">{{ n.titolo_it or n.titolo }}</a></h3>
+        {% if n.titolo_it %}<p class="n-originale">Titolo originale: {{ n.titolo }}</p>{% endif %}
+        <div class="n-meta">
+          {{ icona(TIPI[n.tipo][0]) }}<span>{{ TIPI[n.tipo][1] }}</span>·<span>{{ n.fonte }}</span>·<span>{{ n.pubblicata_il|data_breve }}</span>
+          {% if n.data_incerta %}<span class="stato">data incerta</span>{% endif %}
+          {% if n.stato %}<span class="stato">{{ n.stato }}</span>{% endif %}
+        </div>
+        <p class="n-riassunto">{{ n.riassunto }}</p>
+        <div class="n-piede">
+          {% for p in n.pertinenze if archivio or p.punteggio >= soglia %}
+          <span class="punteggio{% if p.punteggio >= 80 %} alto{% endif %}">{{ p.interesse.nome }} <b>{{ p.punteggio }}</b></span>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="n-azioni">
+        <a class="bottone-icona" href="{{ n.url }}" target="_blank" rel="noopener noreferrer"
+           aria-label="Apri l'originale in una nuova scheda" title="Apri l'originale">{{ icona("esterno") }}</a>
+        {% include "cuore.html" %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% elif filtrata %}
+  <div class="vuoto-pagina">
+    {{ icona("notizie") }}
+    <h2>Nessuna notizia con questi filtri</h2>
+    <p>Prova a togliere qualche filtro o ad allargare l'intervallo di date.</p>
+    <a class="bottone secondario" href="{{ '/archivio' if archivio else '/notizie' }}">Azzera i filtri</a>
+  </div>
+  {% elif archivio %}
+  <div class="vuoto-pagina">
+    {{ icona("archivio") }}
+    <h2>L'archivio è vuoto</h2>
+    <p>Metti il cuore a una notizia per conservarla qui senza limite di tempo.</p>
+    <a class="bottone secondario" href="/notizie">Vai alle notizie</a>
+  </div>
+  {% else %}
+  <div class="vuoto-pagina">
+    {{ icona("notizie") }}
+    <h2>Nessuna notizia negli ultimi 7 giorni</h2>
+    <p>Avvia un'esecuzione per raccogliere le notizie dalle tue fonti. Interessi e categorie arXiv si scelgono nelle Impostazioni.</p>
+  </div>
+  {% endif %}
+</div>

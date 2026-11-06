@@ -1,7 +1,9 @@
-"""Il processo unico di Gradiens: dashboard e, nelle fette successive, programmazione e bot (ADR 0003)."""
+"""Il processo unico di Gradiens: dashboard, esecuzioni e, nelle fette successive, programmazione e bot (ADR 0003)."""
 
+import json
 import logging
 import sys
+from contextlib import asynccontextmanager
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 
@@ -12,7 +14,9 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from gradiens.app.configurazione import Configurazione
 from gradiens.dashboard import rotte as dashboard
+from gradiens.dati import esecuzioni
 from gradiens.dati.database import crea_motore, fabbrica_sessioni, migra
+from gradiens.esecuzione.esecutore import Esecutore, GiaInCorso
 
 METODI_SICURI = {"GET", "HEAD", "OPTIONS"}
 # Intestazioni che un altro sito non può aggiungere a una richiesta senza il permesso CORS,
@@ -40,12 +44,44 @@ def spegni(request: Request) -> JSONResponse:
     return JSONResponse({"ok": True})
 
 
+@controllo.post("/esegui")
+async def esegui(request: Request) -> JSONResponse:
+    """Avvio di un'esecuzione dalla CLI (CLI-02). `async`: l'esecuzione parte nel ciclo del servizio."""
+    try:
+        id = request.app.state.esecutore.avvia("cli")
+    except GiaInCorso as errore:
+        return JSONResponse({"errore": str(errore)}, status_code=409)
+    return JSONResponse({"esecuzione_id": id})
+
+
+@controllo.get("/esecuzione")
+def esecuzione(request: Request) -> dict:
+    """Avanzamento dell'esecuzione in corso e ultima esecuzione registrata."""
+    avanzamento = request.app.state.esecutore.avanzamento
+    with request.app.state.sessioni() as s:
+        u = esecuzioni.ultima(s)
+        ultima = None if u is None else {
+            "id": u.id, "stato": u.stato, "motivo": u.motivo, "metriche": json.loads(u.metriche or "null"),
+        }
+    return {"avanzamento": vars(avanzamento) if avanzamento else None, "ultima": ultima}
+
+
+@asynccontextmanager
+async def ciclo_di_vita(app: FastAPI):
+    yield
+    await app.state.esecutore.ferma()  # allo spegnimento: esecuzione interrotta e registrata (ESE-12)
+
+
 def crea_app(conf: Configurazione) -> FastAPI:
     motore = crea_motore(conf.percorso_database)
     migra(motore)
 
-    app = FastAPI(title="Gradiens", docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(title="Gradiens", docs_url=None, redoc_url=None, openapi_url=None, lifespan=ciclo_di_vita)
     app.state.sessioni = fabbrica_sessioni(motore)
+    with app.state.sessioni() as s:
+        if interrotte := esecuzioni.segna_interrotte(s):  # ESE-12: spento durante un'esecuzione
+            log.warning("%s esecuzioni segnate come interrotte", interrotte)
+    app.state.esecutore = Esecutore(app.state.sessioni)
     app.state.avviato_alle = datetime.now()
 
     @app.middleware("http")

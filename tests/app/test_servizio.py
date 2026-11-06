@@ -51,3 +51,14 @@ def test_spegnimento_solo_dal_pc_stesso(conf):
     assert da_fuori.post("/api/spegni", headers={"X-Gradiens-Cli": "1"}).status_code == 403
     locale = TestClient(app, base_url="http://127.0.0.1", client=("127.0.0.1", 50000))
     assert locale.post("/api/spegni", headers={"X-Gradiens-Cli": "1"}).status_code == 200
+
+
+def test_api_esecuzione_rifiuta_la_seconda_e_mostra_l_avanzamento(client):
+    from gradiens.esecuzione.esecutore import Avanzamento
+
+    client.app.state.esecutore.avanzamento = Avanzamento(esecuzione_id=7, fase="valutazione", fatti=2, totale=5)
+    cli = {"X-Gradiens-Cli": "1"}
+    assert client.post("/api/esegui", headers=cli).status_code == 409  # ESE-02
+    dati = client.get("/api/esecuzione").json()
+    assert dati["avanzamento"]["fase"] == "valutazione"
+    assert dati["ultima"] is None

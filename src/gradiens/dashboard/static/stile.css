@@ -398,3 +398,9 @@ dialog.finestra::backdrop { background: var(--velo); }
 @media (max-width: 700px) {
   dialog.finestra { width: 100%; height: 100%; margin: 0; }
 }
+
+/* ---------- Dashboard: filtri a gettone con caselle native, avanzamento ---------- */
+.chip:has(input:checked) { background: var(--accento-tenue); color: var(--accento-testo); border-color: transparent; font-weight: 600; }
+.chip:has(input:focus-visible) { outline: 2px solid var(--accento-testo); outline-offset: 2px; }
+.avanzamento-esecuzione { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; font-size: 13.5px; color: var(--tenue); }
+.sezione-contenuto .errore-riquadro { margin-top: 0; }

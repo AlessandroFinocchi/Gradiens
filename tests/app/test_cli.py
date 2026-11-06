@@ -9,3 +9,18 @@ def test_stato_senza_servizio(conf, capsys):
 def test_spegni_senza_servizio(conf, capsys):
     assert cli.spegni(conf) == 0
     assert "non è in esecuzione" in capsys.readouterr().out
+
+
+def test_esegui_quando_il_servizio_smette_di_rispondere(conf, monkeypatch, capsys):
+    import httpx
+
+    monkeypatch.setattr(cli, "leggi_stato", lambda c: {"avviato_alle": "x"})
+    monkeypatch.setattr(cli.time, "sleep", lambda s: None)
+    monkeypatch.setattr(cli.httpx, "post", lambda *a, **k: httpx.Response(200, json={"esecuzione_id": 1}, request=httpx.Request("POST", "http://x")))
+
+    def non_risponde(*a, **k):
+        raise httpx.ConnectError("rifiutata")
+
+    monkeypatch.setattr(cli.httpx, "get", non_risponde)
+    assert cli.esegui(conf) == 1
+    assert "non risponde più" in capsys.readouterr().err

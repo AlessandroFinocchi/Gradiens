@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% from "icone.html" import icona with context %}
+{# Pagina Notizie (UI-04) e Archivio (UI-08): stesso elenco, filtri e ordinamenti (UI-06, UI-07). #}
+{% set titolo = "Archivio" if archivio else "Notizie" %}
+{% block titolo %}{{ titolo }}{% endblock %}
+{% block contenuto %}
+<main class="pagina">
+  <header class="testata">
+    <div class="testata-riga">
+      <div>
+        <h1>{{ titolo }}</h1>
+        <div class="sottotitolo">
+          {% if archivio %}Notizie con il cuore, conservate senza limite di tempo. Togliendo il cuore, una notizia torna alla regola dei 7 giorni.
+          {% else %}Ultimi 7 giorni{% if ultima %} · ultima esecuzione {{ ultima.avviata_il|data_relativa }}{% if ultima.stato != "completata" %} ({{ ultima.stato }}){% endif %}{% endif %}
+          {% endif %}
+        </div>
+      </div>
+      {% if not archivio %}{% include "avanzamento.html" %}{% endif %}
+    </div>
+    <form class="filtri" aria-label="Filtri" hx-get="{{ '/archivio' if archivio else '/notizie' }}" hx-trigger="change"
+          hx-target="#elenco" hx-select="#elenco" hx-swap="outerHTML" hx-push-url="true">
+      <div class="gruppo" role="group" aria-label="Tipo">
+        {% for valore, (nome_icona, nome) in TIPI.items() %}
+        <label class="chip"><input class="nascosto" type="checkbox" name="tipo" value="{{ valore }}"{% if valore in filtri.tipi %} checked{% endif %}>{{ icona(nome_icona) }}{{ nome }}</label>
+        {% endfor %}
+      </div>
+      <span class="separatore"></span>
+      <select class="selettore" name="interesse" aria-label="Interesse">
+        <option value="">Tutti gli interessi</option>
+        {% for i in interessi %}<option value="{{ i.id }}"{% if filtri.interesse_id == i.id %} selected{% endif %}>{{ i.nome }}</option>{% endfor %}
+      </select>
+      <select class="selettore" name="giorni" aria-label="Data">
+        {% for valore, nome in ([("", "Qualsiasi data"), ("7", "Ultimi 7 giorni"), ("30", "Ultimo mese"), ("365", "Ultimo anno")] if archivio
+                                else [("", "Ultimi 7 giorni"), ("1", "Oggi"), ("3", "Ultimi 3 giorni")]) %}
+        <option value="{{ valore }}"{% if (filtri.giorni or "")|string == valore %} selected{% endif %}>{{ nome }}</option>
+        {% endfor %}
+      </select>
+      <select class="selettore" name="fonte" aria-label="Fonte">
+        <option value="">Tutte le fonti</option>
+        {% for f in fonti %}<option{% if filtri.fonte == f %} selected{% endif %}>{{ f }}</option>{% endfor %}
+      </select>
+      {% if not archivio %}
+      <label class="chip"><input class="nascosto" type="checkbox" name="cuore" value="1"{% if filtri.solo_cuore %} checked{% endif %}>{{ icona("cuore") }}Con il cuore</label>
+      {% endif %}
+      <span class="separatore"></span>
+      {% set ordine_attuale = filtri.ordine ~ ("-asc" if filtri.crescente else "-desc") %}
+      <select class="selettore" name="ordine" aria-label="Ordinamento">
+        {% for valore, nome in [("pertinenza-desc", "Pertinenza ↓"), ("pertinenza-asc", "Pertinenza ↑"), ("data-desc", "Data ↓"), ("data-asc", "Data ↑")] %}
+        <option value="{{ valore }}"{% if ordine_attuale == valore %} selected{% endif %}>{{ nome }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </header>
+  {% include "elenco.html" %}
+</main>
+{% endblock %}

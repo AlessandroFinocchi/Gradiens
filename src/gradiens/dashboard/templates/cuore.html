@@ -1,0 +1,7 @@
+{% from "icone.html" import icona with context %}
+{# Cuore (UI-05): il server cambia lo stato e restituisce il bottone aggiornato. #}
+<button type="button" class="{{ 'bottone secondario' if con_testo else 'bottone-icona' }} cuore"
+        hx-post="/notizie/{{ n.id }}/cuore{{ '?testo=1' if con_testo else '' }}" hx-swap="outerHTML"
+        aria-pressed="{{ 'true' if n.cuore else 'false' }}" aria-label="{{ 'Togli il cuore' if n.cuore else 'Metti il cuore' }}">
+  {{- icona("cuore") -}}{% if con_testo %}<span>{{ "Ha il cuore" if n.cuore else "Metti il cuore" }}</span>{% endif -%}
+</button>

@@ -1,9 +1,16 @@
-"""Tabelle del database. Ogni modifica qui richiede una migrazione in `migrazioni/versions/`."""
+"""Tabelle del database. Ogni modifica qui richiede una migrazione in `migrazioni/versions/`.
 
-from sqlalchemy import CheckConstraint, String
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+Le date sono salvate in UTC senza fuso orario; la dashboard le mostra nell'ora locale.
+"""
+
+from datetime import datetime
+
+from sqlalchemy import CheckConstraint, ForeignKey, String, Text
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 TEMI = ("auto", "light", "dark")
+TIPI_NOTIZIA = ("arxiv", "sito", "video", "short")
+STATI_ESECUZIONE = ("in_corso", "completata", "interrotta", "fallita")
 
 
 class Base(DeclarativeBase):
@@ -18,3 +25,80 @@ class Impostazioni(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     tema: Mapped[str] = mapped_column(String(5), default="auto")
+    soglia: Mapped[int] = mapped_column(default=60)  # ESE-06
+    finestra_giorni: Mapped[int] = mapped_column(default=7)  # ESE-03
+    tetto_arxiv: Mapped[int] = mapped_column(default=50)  # ARX-03
+    provider_prefiltro: Mapped[str] = mapped_column(String(20), default="claude-code")  # LLM-03
+    modello_prefiltro: Mapped[str] = mapped_column(String(60), default="haiku")
+    provider_elaborazione: Mapped[str] = mapped_column(String(20), default="claude-code")
+    modello_elaborazione: Mapped[str] = mapped_column(String(60), default="haiku")
+
+
+class Interesse(Base):
+    __tablename__ = "interessi"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nome: Mapped[str] = mapped_column(String(80), unique=True)
+    descrizione: Mapped[str] = mapped_column(Text)
+    raffinamento: Mapped[str | None] = mapped_column(Text)
+
+
+class CategoriaArxiv(Base):
+    __tablename__ = "categorie_arxiv"
+
+    codice: Mapped[str] = mapped_column(String(32), primary_key=True)  # es. cs.CR
+
+
+class Esecuzione(Base):
+    __tablename__ = "esecuzioni"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    avviata_il: Mapped[datetime]
+    finita_il: Mapped[datetime | None]
+    avviata_da: Mapped[str] = mapped_column(String(20))  # dashboard, cli, telegram, programmazione
+    stato: Mapped[str] = mapped_column(String(10), default="in_corso")
+    motivo: Mapped[str | None] = mapped_column(Text)
+    metriche: Mapped[str | None] = mapped_column(Text)  # JSON: per tipo di fonte e token per ruolo
+
+
+class Notizia(Base):
+    __tablename__ = "notizie"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tipo: Mapped[str] = mapped_column(String(6))
+    url: Mapped[str] = mapped_column(String(1000), unique=True)
+    fonte: Mapped[str] = mapped_column(String(200))
+    titolo: Mapped[str] = mapped_column(Text)  # titolo originale
+    titolo_it: Mapped[str | None] = mapped_column(Text)  # solo se l'originale non è in italiano
+    sommario: Mapped[str | None] = mapped_column(Text)  # es. l'abstract di arXiv (ARX-04)
+    riassunto: Mapped[str] = mapped_column(Text)
+    pubblicata_il: Mapped[datetime]  # per le date incerte è la data di scoperta (WEB-15)
+    data_incerta: Mapped[bool] = mapped_column(default=False)
+    scoperta_il: Mapped[datetime]
+    stato: Mapped[str | None] = mapped_column(String(40))  # es. "contenuto parziale"
+    cuore: Mapped[bool] = mapped_column(default=False, index=True)
+    esecuzione_id: Mapped[int | None] = mapped_column(ForeignKey("esecuzioni.id", ondelete="SET NULL"))
+
+    pertinenze: Mapped[list["Pertinenza"]] = relationship(
+        back_populates="notizia", cascade="all, delete-orphan", order_by="Pertinenza.punteggio.desc()"
+    )
+
+
+class Pertinenza(Base):
+    __tablename__ = "pertinenze"
+
+    notizia_id: Mapped[int] = mapped_column(ForeignKey("notizie.id", ondelete="CASCADE"), primary_key=True)
+    interesse_id: Mapped[int] = mapped_column(ForeignKey("interessi.id", ondelete="CASCADE"), primary_key=True)
+    punteggio: Mapped[int]
+
+    notizia: Mapped[Notizia] = relationship(back_populates="pertinenze")
+    interesse: Mapped[Interesse] = relationship()
+
+
+class NotiziaVista(Base):
+    """Registro delle notizie già viste, scartate comprese: non si rivalutano (ESE-07)."""
+
+    __tablename__ = "notizie_viste"
+
+    url: Mapped[str] = mapped_column(String(1000), primary_key=True)
+    vista_il: Mapped[datetime]

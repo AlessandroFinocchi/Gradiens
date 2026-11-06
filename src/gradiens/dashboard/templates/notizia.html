@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% from "icone.html" import icona with context %}
+{# Pagina della notizia specifica (UI-13): riassunto completo e dati che l'elenco accorcia. #}
+{% block titolo %}{{ n.titolo_it or n.titolo }}{% endblock %}
+{% block contenuto %}
+<main class="dettaglio">
+  <a class="indietro" href="{{ '/archivio' if n.cuore else '/notizie' }}">{{ icona("indietro") }}{{ "Archivio" if n.cuore else "Notizie" }}</a>
+
+  <div class="n-meta">
+    {{ icona(TIPI[n.tipo][0]) }}<span>{{ TIPI[n.tipo][1] }}</span>·<span>{{ n.fonte }}</span>·<span>pubblicata il {{ n.pubblicata_il|data_lunga }}</span>
+    {% if n.data_incerta %}<span class="stato">data incerta</span>{% endif %}
+    {% if n.stato %}<span class="stato">{{ n.stato }}</span>{% endif %}
+  </div>
+  <h1>{{ n.titolo_it or n.titolo }}</h1>
+  {% if n.titolo_it %}<p class="titolo-originale">Titolo originale: {{ n.titolo }}</p>{% endif %}
+
+  <div class="azioni-dettaglio">
+    <a class="bottone" href="{{ n.url }}" target="_blank" rel="noopener noreferrer">{{ icona("esterno") }}Leggi l'originale</a>
+    {% with con_testo = True %}{% include "cuore.html" %}{% endwith %}
+  </div>
+
+  <div class="riassunto-completo">
+    {% for paragrafo in n.riassunto.split("\n") if paragrafo.strip() %}<p>{{ paragrafo }}</p>{% endfor %}
+  </div>
+
+  <section class="riquadro" aria-labelledby="t-pertinenza">
+    <h2 id="t-pertinenza">Pertinenza</h2>
+    {% for p in n.pertinenze %}
+    <div class="barra-riga"><span>{{ p.interesse.nome }}</span><span class="barra"><span style="width: {{ p.punteggio }}%"></span></span><b>{{ p.punteggio }}</b></div>
+    {% else %}
+    <p class="sottotitolo">L'interesse di questa notizia è stato eliminato.</p>
+    {% endfor %}
+    {% if n.pertinenze and n.pertinenze|length < numero_interessi %}<p class="sottotitolo" style="margin: 8px 0 0">Non pertinente agli altri interessi.</p>{% endif %}
+  </section>
+</main>
+{% endblock %}

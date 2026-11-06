@@ -1,4 +1,4 @@
-"""Comandi da terminale: gradiens avvia | stato | spegni (PRD CLI-01, CLI-03, CLI-04)."""
+"""Comandi da terminale: gradiens avvia | esegui | stato | spegni (PRD CLI-01..04)."""
 
 import argparse
 import os
@@ -94,6 +94,54 @@ def spegni(conf: Configurazione) -> int:
     return 1
 
 
+def _riepilogo(ultima: dict) -> str:
+    righe = [f"Esecuzione {ultima['stato']}."]
+    if ultima.get("motivo"):
+        righe.append(f"Motivo: {ultima['motivo']}")
+    m = ultima.get("metriche") or {}
+    if a := m.get("arxiv"):
+        righe.append(
+            f"arXiv: {a['esaminate']} esaminate, {a['scartate_prefiltro']} scartate dal pre-filtro, "
+            f"{a['oltre_tetto']} oltre il tetto, {a['scartate_valutazione']} scartate dalla valutazione, "
+            f"{a['mostrate']} mostrate, {a['errori']} errori."
+        )
+    if t := m.get("token"):
+        righe.append("Token: " + ", ".join(f"{r} {v['ingresso']} in ingresso e {v['uscita']} in uscita" for r, v in t.items()))
+    if "durata_s" in m:
+        righe.append(f"Durata: {m['durata_s']} s")
+    return "\n".join(righe)
+
+
+def esegui(conf: Configurazione) -> int:
+    """Lancia un'esecuzione nel servizio (avviandolo se serve), ne mostra l'avanzamento e le metriche (CLI-02)."""
+    if leggi_stato(conf) is None and avvia(conf, primo_piano=False) != 0:
+        return 1
+    risposta = httpx.post(f"{conf.indirizzo_locale}/api/esegui", headers=INTESTAZIONE_CLI, timeout=10)
+    if risposta.status_code == 409:
+        print("Esecuzione già in corso.")
+        return 1
+    risposta.raise_for_status()
+    id = risposta.json()["esecuzione_id"]
+    print(f"Esecuzione {id} avviata. Ctrl+C chiude solo questo comando: l'esecuzione continua.")
+    ultimo_messaggio = ""
+    while True:
+        time.sleep(1)
+        try:
+            dati = httpx.get(f"{conf.indirizzo_locale}/api/esecuzione", timeout=10).json()
+        except (httpx.HTTPError, ValueError):  # es. `gradiens spegni` da un altro terminale
+            print("Gradiens non risponde più: l'esecuzione è stata interrotta.", file=sys.stderr)
+            return 1
+        avanzamento = dati["avanzamento"]
+        if avanzamento is None or avanzamento["esecuzione_id"] != id:
+            break
+        messaggio = f"  {avanzamento['fase']}: {avanzamento['fatti']} di {avanzamento['totale']}"
+        if messaggio != ultimo_messaggio:
+            print(messaggio, flush=True)
+            ultimo_messaggio = messaggio
+    print(_riepilogo(dati["ultima"]))
+    return 0 if dati["ultima"]["stato"] == "completata" else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     # Su Windows l'output verso pipe e SSH userebbe cp1252 e le lettere accentate si rovinano.
     # Senza terminale (es. pythonw) i flussi valgono None.
@@ -104,6 +152,7 @@ def main(argv: list[str] | None = None) -> int:
     comandi = parser.add_subparsers(dest="comando", required=True, metavar="comando")
     p_avvia = comandi.add_parser("avvia", help="fa partire dashboard, programmazione giornaliera e bot Telegram")
     p_avvia.add_argument("--primo-piano", action="store_true", help="resta collegato al terminale invece di staccarsi")
+    comandi.add_parser("esegui", help="lancia un'esecuzione, ne mostra l'avanzamento e le metriche")
     comandi.add_parser("stato", help="mostra se Gradiens è in esecuzione")
     comandi.add_parser("spegni", help="termina l'applicazione")
     args = parser.parse_args(argv)
@@ -111,6 +160,8 @@ def main(argv: list[str] | None = None) -> int:
     conf = configurazione()
     if args.comando == "avvia":
         return avvia(conf, args.primo_piano)
+    if args.comando == "esegui":
+        return esegui(conf)
     if args.comando == "stato":
         return stato(conf)
     return spegni(conf)

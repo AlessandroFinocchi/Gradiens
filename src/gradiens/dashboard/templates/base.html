@@ -18,7 +18,7 @@
     {% endfor %}
     <div class="basso">
       <a class="voce" href="/aiuto"{% if pagina == "aiuto" %} aria-current="page"{% endif %}>{{ icona("aiuto") }}<span>Aiuto</span></a>
-      <button class="voce" type="button" hx-get="/impostazioni/aspetto" hx-target="#impostazioni">{{ icona("ingranaggio") }}<span>Impostazioni</span></button>
+      <button class="voce" type="button" hx-get="/impostazioni/interessi" hx-target="#impostazioni">{{ icona("ingranaggio") }}<span>Impostazioni</span></button>
     </div>
   </nav>
   {% block contenuto %}{% endblock %}

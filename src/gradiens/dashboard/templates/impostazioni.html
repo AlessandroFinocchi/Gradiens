@@ -13,6 +13,7 @@
     {% endfor %}
   </nav>
   <section class="sezione-contenuto">
+    {% if errore %}<div class="errore-riquadro" role="alert">{{ icona("avvertimento") }}<div>{{ errore }}</div></div>{% endif %}
     {% include "impostazioni/" ~ sezione ~ ".html" %}
   </section>
 </div>

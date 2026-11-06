@@ -1,0 +1,16 @@
+{% from "icone.html" import icona with context %}
+{# Bottone "Avvia esecuzione" o, se un'esecuzione è in corso, il suo avanzamento aggiornato ogni 2 secondi. #}
+{% if avanzamento %}
+<div id="avanzamento" class="avanzamento-esecuzione" role="status"
+     hx-get="/esecuzione/avanzamento" hx-trigger="every 2s" hx-swap="outerHTML">
+  <span class="rotella"></span>
+  <span>Esecuzione in corso: {{ avanzamento.fase }}{% if avanzamento.totale %} {{ avanzamento.fatti }} di {{ avanzamento.totale }}{% endif %}</span>
+</div>
+{% else %}
+<div id="avanzamento" class="avanzamento-esecuzione" role="status">
+  {% if mostra_esito and ultima %}
+  <span>Esecuzione {{ ultima.stato }}{% if ultima.motivo %}: {{ ultima.motivo }}{% endif %}</span>
+  {% endif %}
+  <button type="button" class="bottone" hx-post="/esecuzione" hx-target="#avanzamento" hx-swap="outerHTML">{{ icona("avvia") }}Avvia esecuzione</button>
+</div>
+{% endif %}

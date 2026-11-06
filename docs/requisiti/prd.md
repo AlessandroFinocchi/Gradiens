@@ -1,6 +1,6 @@
 # Gradiens – Documento dei requisiti (PRD)
 
-Versione 1.3 del 6 novembre 2026. Questo documento riunisce in un unico testo il [prompt originale](prompt-originale.md) e le 40 decisioni del [registro dell'intervista](decisioni-intervista.md). Se c'è un contrasto con il prompt originale, vale questo documento. I termini in grassetto sono definiti in [CONTEXT.md](../../CONTEXT.md).
+Versione 1.3 del 6 novembre 2026. Questo documento riunisce in un unico testo il [prompt originale](prompt-originale.md) e le 41 decisioni del [registro dell'intervista](decisioni-intervista.md). Se c'è un contrasto con il prompt originale, vale questo documento. I termini in grassetto sono definiti in [CONTEXT.md](../../CONTEXT.md).
 
 Ogni requisito ha un codice (es. `ESE-03`). I test e le verifiche citano questi codici.
 
@@ -58,6 +58,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 - `ARX-01` L'utente sceglie le categorie arXiv nelle Impostazioni (es. `cs.CR`, `cs.AI`). Deve esserci almeno una categoria.
 - `ARX-02` Tutti i paper nuovi delle categorie scelte passano dal pre-filtro.
 - `ARX-03` Un tetto configurabile limita il numero di paper elaborati per esecuzione. Se il tetto viene superato si elaborano i paper più recenti e il resoconto segnala "tetto raggiunto".
+- `ARX-04` Per un paper, il contenuto che l'LLM valuta e riassume è l'abstract restituito dall'API di arXiv, insieme al titolo. Il PDF non si scarica. Per leggere il paper intero c'è il link all'originale.
 
 ### 4.3 Siti web
 

@@ -10,6 +10,25 @@ Ogni chiamata è isolata (`LLM-05`):
 
 Il modello è scelto con `--model`; il predefinito è Haiku.
 
+## Come si chiama Claude Code
+
+Misure del 6 novembre 2026 (Claude Code 2.1.318, modello Haiku), chiamata minima "rispondi ok":
+
+| Chiamata | Token di contesto | Tempo |
+|---|---|---|
+| opzioni di default | ~36.000 (prompt e strumenti di Claude Code, server MCP, plugin, CLAUDE.md) | 4,4 s |
+| opzioni sotto | ~700 | 2,8 s |
+
+Ogni chiamata usa quindi: `claude -p --model <modello> --output-format json --json-schema <schema> --system-prompt <istruzioni> --tools "" --strict-mcp-config --safe-mode --disable-slash-commands --no-session-persistence`.
+
+- `--safe-mode` esclude CLAUDE.md, plugin, hook e skill, ma mantiene il login dell'abbonamento. `--bare` sarebbe ancora più minimale, ma accetta solo una chiave API e non si può usare.
+- `--json-schema` restituisce un JSON già validato (`structured_output`), senza errori di lettura né nuovi tentativi. Costa qualche centinaio di token di uscita in più.
+- Il prompt di sistema contiene la parte fissa (istruzioni, interessi, raffinamenti), uguale per tutte le chiamate di un'esecuzione, così le chiamate successive la rileggono dalla cache. La notizia va nel messaggio.
+- Le chiamate sono poche: il pre-filtro valuta 25-40 notizie per chiamata; notizie già viste e duplicati si scartano prima; la valutazione completa produce punteggi, riassunto, traduzione e argomento in una sola chiamata.
+- Si eseguono 3-4 chiamate in parallelo (sottoprocessi `asyncio`), ognuna con un timeout e un solo nuovo tentativo per gli errori temporanei.
+- Dal JSON di risposta si leggono `usage` (token per `ESE-11`), `is_error` e `api_error_status` (quota esaurita, `LLM-06`) e `credential_expires_at` (avviso prima della scadenza del login).
+- Scartati: un processo unico con `--input-format stream-json`, perché le chiamate diventerebbero una sola conversazione e ogni notizia pagherebbe le precedenti; il Claude Agent SDK per Python, perché usa la stessa CLI e aggiungerebbe solo una dipendenza.
+
 ## Opzioni considerate
 
 - **API di Claude come predefinito**: scartata come predefinito perché a pagamento, separatamente dall'abbonamento. Resta disponibile in alternativa, con la chiave in `.env`.

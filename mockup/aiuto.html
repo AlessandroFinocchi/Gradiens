@@ -35,7 +35,7 @@
         <li><strong>Pre-filtro</strong>: l'LLM legge titolo e sommario e scarta ciò che è fuori tema, sponsorizzato o escluso.</li>
         <li><strong>Valutazione</strong>: per le notizie rimaste l'LLM legge il testo completo o la trascrizione, dà un punteggio di pertinenza da 0 a 100 per ogni interesse e scrive il riassunto. Si mostrano le notizie con almeno un punteggio sopra la soglia.</li>
       </ul>
-      <p>Le notizie senza cuore si cancellano 7 giorni dopo la pubblicazione. Ogni esecuzione ha un resoconto con metriche, errori e costo: lo apri dallo storico nella Home.</p>
+      <p>Le notizie senza cuore si cancellano 7 giorni dopo la pubblicazione. Ogni esecuzione ha un resoconto con metriche, errori e token usati: lo apri dallo storico nella Home.</p>
 
       <h2 id="fonti">Fonti</h2>
       <ul>
@@ -81,7 +81,7 @@
       <h2 id="impostazioni">Impostazioni e segnali</h2>
       <p>Le Impostazioni si aprono dall'ingranaggio in basso nella sidebar. Accanto al nome di una sezione possono comparire due segnali:</p>
       <ul>
-        <li><span class="segnale avvertimento" data-icona="avvertimento"></span> <strong>avvertimento</strong>: c'è un problema o mancano dati, per esempio un sito in errore o una chiave API rifiutata;</li>
+        <li><span class="segnale avvertimento" data-icona="avvertimento"></span> <strong>avvertimento</strong>: c'è un problema o mancano dati, per esempio un sito in errore o Claude Code non collegato al tuo account;</li>
         <li><span class="segnale novita"></span> <strong>novità</strong>: c'è qualcosa da guardare o approvare, per esempio una proposta di raffinamento.</li>
       </ul>
       <p>Se una sezione ha un segnale, lo mostra anche l'ingranaggio. Passando sopra il segnale si legge il motivo.</p>

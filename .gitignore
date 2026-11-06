@@ -2,6 +2,9 @@
 .env
 .gradiens/
 
+# Worktree di Claude Code
+.claude/worktrees/
+
 # Ambiente Python
 .venv/
 __pycache__/

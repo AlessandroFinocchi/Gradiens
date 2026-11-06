@@ -20,7 +20,7 @@ Riepilogo delle scelte della fase 2. Le decisioni difficili da invertire hanno u
 | Feed RSS/Atom e API di arXiv | `feedparser` | libreria `arxiv`: l'API è già un feed Atom |
 | robots.txt | `urllib.robotparser` (libreria standard) | — |
 | YouTube | `youtube-transcript-api` (trascrizioni), `yt-dlp` (elenco, short, dirette, date) | API ufficiale: serve una chiave Google con quota e non dà le trascrizioni |
-| LLM | `anthropic`, `openai`, ognuno dietro l'interfaccia di provider del progetto | `litellm`: sostituirebbe l'interfaccia richiesta da CLAUDE.md e porta molte dipendenze |
+| LLM | CLI di Claude Code (`claude -p`, predefinito, [ADR 0006](../adr/0006-claude-code-come-provider-predefinito.md)), `anthropic`, `openai`, ognuno dietro l'interfaccia di provider del progetto | `litellm`: sostituirebbe l'interfaccia richiesta da CLAUDE.md e porta molte dipendenze |
 | Telegram | `python-telegram-bot` | `aiogram`: meno documentato |
 | Configurazione | `pydantic-settings` per `.env` (segreti, porta, nomi host consentiti); le impostazioni modificabili dalla dashboard stanno nel database, tabella `impostazioni` | — |
 | Form HTML | `python-multipart`, richiesto da FastAPI per leggere i campi delle form | — |

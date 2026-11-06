@@ -1,6 +1,6 @@
 # Gradiens – Documento dei requisiti (PRD)
 
-Versione 1.2 del 5 novembre 2026. Questo documento riunisce in un unico testo il [prompt originale](prompt-originale.md) e le 39 decisioni del [registro dell'intervista](decisioni-intervista.md). Se c'è un contrasto con il prompt originale, vale questo documento. I termini in grassetto sono definiti in [CONTEXT.md](../../CONTEXT.md).
+Versione 1.3 del 6 novembre 2026. Questo documento riunisce in un unico testo il [prompt originale](prompt-originale.md) e le 40 decisioni del [registro dell'intervista](decisioni-intervista.md). Se c'è un contrasto con il prompt originale, vale questo documento. I termini in grassetto sono definiti in [CONTEXT.md](../../CONTEXT.md).
 
 Ogni requisito ha un codice (es. `ESE-03`). I test e le verifiche citano questi codici.
 
@@ -188,7 +188,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
   - escluse;
   - mostrate;
   - errori;
-  - token usati e costo stimato in dollari, divisi per ruolo. Per i modelli locali si mostrano solo i token.
+  - token usati e costo stimato in dollari, divisi per ruolo. Per Claude Code e per i modelli locali si mostrano solo i token, perché non hanno un costo a consumo.
 
   Non c'è nessun tetto di spesa.
 - `ESE-12` Se l'applicazione viene spenta durante un'esecuzione, l'esecuzione viene segnata come "interrotta". Ciò che è già stato elaborato si conserva, e le notizie rimaste si riprendono all'esecuzione successiva, se sono ancora nella finestra.
@@ -197,15 +197,18 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 ## 6. Provider LLM
 
 - `LLM-01` I provider LLM sono intercambiabili, dietro un'unica interfaccia. Aggiungere un provider (es. Gemini) non richiede modifiche al resto dell'applicazione.
-- `LLM-02` La prima versione supporta due provider:
-  - Claude, che è il default;
+- `LLM-02` La prima versione supporta tre provider:
+  - **Claude Code**, che è il default: l'app usa la modalità senza interfaccia (`claude -p`) di Claude Code, già installato sul PC e collegato all'account dell'utente. Le chiamate consumano la quota del suo abbonamento (es. Pro), senza costi aggiuntivi. Vedi [ADR 0006](../adr/0006-claude-code-come-provider-predefinito.md);
+  - **API di Claude**, con una chiave a pagamento, in alternativa;
   - un collegamento compatibile con l'API di OpenAI, che copre i modelli locali (Ollama, LM Studio).
 - `LLM-03` Nelle Impostazioni si scelgono provider e modello separatamente per due ruoli:
   - **pre-filtro**;
   - **elaborazione**, che comprende valutazione completa, riassunto, argomento, proposte di raffinamento e analisi del profilo dei siti.
 
-  Il default di entrambi i ruoli è un modello Claude economico.
+  Il default di entrambi i ruoli è Claude Code con un modello economico (Haiku). Per il pre-filtro, che fa più chiamate, si può scegliere un modello locale per risparmiare quota dell'abbonamento.
 - `LLM-04` La configurazione di ChatGPT e di Gemini è fuori dalla prima versione.
+- `LLM-05` Con Claude Code ogni chiamata è isolata: niente strumenti, niente server MCP, niente conversazioni salvate. Il modello riceve solo il testo da valutare e risponde nel formato richiesto.
+- `LLM-06` Se la quota dell'abbonamento si esaurisce durante un'esecuzione, l'esecuzione si ferma con lo stato "interrotta" e il motivo "quota dell'abbonamento esaurita", con l'orario in cui torna disponibile se Claude Code lo indica. Ciò che è già elaborato si conserva, e le notizie rimaste si riprendono all'esecuzione successiva, come in `ESE-12`.
 
 ## 7. Telegram
 
@@ -218,7 +221,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 - `TG-02` Il bot risponde solo alla chat configurata e ignora tutti gli altri messaggi.
 - `TG-03` Alla fine di ogni esecuzione il bot manda un messaggio che contiene:
   - per ogni tipo di fonte (arXiv, YouTube, siti web), le 3 notizie con la pertinenza più alta, ciascuna con titolo in italiano, fonte, interesse con il suo punteggio, una o due frasi di riassunto e link;
-  - una riga di metriche: esaminate, mostrate, durata, errori, costo;
+  - una riga di metriche: esaminate, mostrate, durata, errori, costo (o token, per Claude Code e i modelli locali);
   - il link alla dashboard tramite l'indirizzo Tailscale.
 - `TG-04` Se un tipo di fonte ha meno di 3 notizie si mostrano quelle presenti. Se non ne ha nessuna, il messaggio dice "nessuna notizia nuova".
 - `TG-05` Al comando `/aggiorna` il bot risponde "esecuzione avviata" oppure "esecuzione già in corso".
@@ -280,7 +283,7 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
   - **Canali YouTube**;
   - **Siti web**, con il loro profilo;
   - **arXiv**: categorie e tetto di paper;
-  - **Modelli LLM**: provider e modello per i due ruoli, chiavi API;
+  - **Modelli LLM**: provider e modello per i due ruoli, stato di Claude Code, chiavi API;
   - **Esecuzione**: soglia di pertinenza, finestra di raccolta (da 1 a 7 giorni), interruttori di esclusione, orario dell'esecuzione programmata e sua pausa;
   - **Avvio**: all'accensione o a mano;
   - **Telegram**;
@@ -292,7 +295,7 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
     - Interessi, Canali YouTube, Siti web, arXiv: dati obbligatori mancanti (`UI-11`);
     - Canali YouTube: un canale non è più raggiungibile;
     - Siti web: un sito è in stato di errore ("accesso bloccato", "richiede JavaScript", "nessuna strategia funzionante") oppure un feed aggiunto a mano ha smesso di funzionare;
-    - Modelli LLM: chiave API mancante o rifiutata, oppure modello locale non raggiungibile;
+    - Modelli LLM: Claude Code non installato, non collegato a un account o con la quota esaurita; chiave API mancante o rifiutata; modello locale non raggiungibile;
     - Telegram: bot non collegato o token non più valido;
     - Avvio: la registrazione dell'avvio all'accensione è fallita o non è più valida;
   - **novità** (pallino), per cose da guardare o approvare:
@@ -304,7 +307,7 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
   Se una sezione ha entrambi i tipi di segnale, si mostra l'avvertimento. Il segnale sparisce da solo quando la causa viene risolta.
 - `UI-11` **Configurazione iniziale**: si apre all'avvio se mancano dati obbligatori, e la dashboard non si usa finché non è completa. I dati obbligatori sono:
   - almeno un canale YouTube, un sito, un interesse e una categoria arXiv;
-  - la chiave di Claude, se Claude è usato in almeno un ruolo;
+  - Claude Code installato e collegato a un account, se è usato in almeno un ruolo; la chiave dell'API di Claude, se è usata in almeno un ruolo;
   - bot Telegram, collegato con il tutorial di `TG-01`.
 - `UI-12` **Aiuto**: si apre dall'icona in basso nella sidebar. È una pagina statica che spiega come usare l'intera applicazione:
   - fonti e profili dei siti;
@@ -339,7 +342,7 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
   - cancellando la cartella si cancella tutto ciò che riguarda l'app;
   - una copia scaricata da GitHub su un altro dispositivo parte senza configurazione e va configurata da capo.
 
-  L'unica eccezione è la registrazione dell'avvio all'accensione nel sistema operativo (`AMB-04`).
+  L'unica eccezione è la registrazione dell'avvio all'accensione nel sistema operativo (`AMB-04`). Claude Code, quando è usato come provider, tiene il login e i propri file nella sua cartella utente (`~/.claude`): sono file di Claude Code, non di Gradiens, e Gradiens non vi fa salvare conversazioni (`LLM-05`).
 - `PER-04` Chiavi API e token non finiscono mai in file versionati, nel codice o nei log.
 
 ## 11. Fuori dalla prima versione
@@ -368,10 +371,11 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
 - `ACC-08` Nessuna chiave o token compare nei file tracciati da git.
 - `ACC-09` Con l'avvio all'accensione attivo, si accende il PC senza accedere a Windows e si manda `/aggiorna` al bot: l'esecuzione parte e il messaggio di fine esecuzione arriva.
 - `ACC-10` Dopo una configurazione completa e un'esecuzione, si verificano tre cose:
-  - nessun file dell'app è stato scritto fuori dalla cartella della repository, salvo la registrazione di `AMB-04`;
+  - nessun file dell'app è stato scritto fuori dalla cartella della repository, salvo la registrazione di `AMB-04` e i file propri di Claude Code;
   - `git status` non mostra file di configurazione o di dati;
   - un clone nuovo della repository si apre sulla configurazione iniziale.
 - `ACC-11` Con la finestra di raccolta impostata a N giorni, l'esecuzione non raccoglie notizie pubblicate prima di N giorni fa.
 - `ACC-12` Premendo ❤️ su una notizia del messaggio Telegram, la notizia compare con il cuore nell'Archivio della dashboard. Premendolo di nuovo, il cuore viene tolto.
 - `ACC-13` Dopo `/pausa`, all'orario programmato non parte nessuna esecuzione, anche dopo un riavvio, mentre `/aggiorna` funziona. Dopo `/riprendi` l'esecuzione programmata riparte.
 - `ACC-14` Su un campione di 10 notizie di tipi diversi, confrontando il riassunto con l'originale: il riassunto non contiene affermazioni assenti nell'originale e ne copre i punti principali (verifica manuale).
+- `ACC-15` Con Claude Code come provider, un'esecuzione completa non richiede nessuna chiave API e nel resoconto mostra i token senza costo. Se Claude Code non è collegato a un account, l'esecuzione non parte e la sezione Modelli LLM mostra l'avvertimento.

@@ -148,15 +148,16 @@ const CONTENUTI = {
 
   modelli: () => `
     <h2>Modelli LLM</h2>
-    <p class="intro">Provider e modello si scelgono separatamente per i due ruoli. Le chiavi stanno nel file <code>.env</code>, mai nei file versionati.</p>
+    <p class="intro">Provider e modello si scelgono separatamente per i due ruoli. Claude Code usa la quota del tuo abbonamento, senza costi in più. Le chiavi, se servono, stanno nel file <code>.env</code>, mai nei file versionati.</p>
     <h3>Pre-filtro</h3>
-    ${riga("Provider", "Legge a blocchi titolo e sommario delle notizie nuove.", '<select class="selettore"><option>Claude</option><option>Compatibile OpenAI (locale)</option></select>')}
-    ${riga("Modello", "", '<select class="selettore"><option>claude-haiku-5-5</option></select>')}
+    ${riga("Provider", "Legge a blocchi titolo e sommario delle notizie nuove.", '<select class="selettore"><option>Claude Code (abbonamento)</option><option>API di Claude</option><option>Compatibile OpenAI (locale)</option></select>')}
+    ${riga("Modello", "", '<select class="selettore"><option>Haiku</option><option>Sonnet</option></select>')}
     <h3>Elaborazione</h3>
-    ${riga("Provider", "Valutazione, riassunto, argomento, proposte di raffinamento, analisi dei siti.", '<select class="selettore"><option>Claude</option><option>Compatibile OpenAI (locale)</option></select>')}
-    ${riga("Modello", "", '<select class="selettore"><option>claude-haiku-5-5</option></select>')}
+    ${riga("Provider", "Valutazione, riassunto, argomento, proposte di raffinamento, analisi dei siti.", '<select class="selettore"><option>Claude Code (abbonamento)</option><option>API di Claude</option><option>Compatibile OpenAI (locale)</option></select>')}
+    ${riga("Modello", "", '<select class="selettore"><option>Haiku</option><option>Sonnet</option></select>')}
     <h3>Collegamenti</h3>
-    ${riga("Chiave API di Claude", '<span class="stato ok">verificata</span> · salvata in .env', '<button class="bottone secondario piccolo">Cambia</button>')}
+    ${riga("Claude Code", '<span class="stato ok">collegato</span> · abbonamento Pro · quota disponibile', '<button class="bottone secondario piccolo">Verifica</button>')}
+    ${riga("Chiave API di Claude", "Non configurata. Serve solo se scegli l'API di Claude, che è a pagamento.", '<button class="bottone secondario piccolo">Aggiungi</button>')}
     ${riga("Server compatibile OpenAI", "Per i modelli locali (Ollama, LM Studio). Non configurato.", '<input class="campo" placeholder="http://localhost:11434/v1" style="width:240px">')}`,
 
   esecuzione: () => `

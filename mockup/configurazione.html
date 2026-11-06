@@ -61,11 +61,10 @@
     <!-- 3. Modelli -->
     <section class="passo-corpo" data-passo="modelli" hidden>
       <h2>Quale modello usa Gradiens?</h2>
-      <p class="intro">Il predefinito è Claude con un modello economico, sia per il pre-filtro sia per l'elaborazione. Potrai usare anche un modello locale dalle Impostazioni.</p>
-      <label class="etichetta-campo" for="chiave">Chiave API di Claude</label>
-      <div class="campo-riga"><input class="campo" id="chiave" type="password" value="0000000000000000000000" autocomplete="off"><button class="bottone">Verifica</button></div>
-      <div class="esito ok" data-icona="spunta">Chiave verificata</div>
-      <p class="nota">La chiave viene salvata nel file <code>.env</code> di questa cartella, escluso da git. Non finisce mai nei file versionati né nei log.</p>
+      <p class="intro">Il predefinito è Claude Code, con il modello Haiku, sia per il pre-filtro sia per l'elaborazione. Usa la quota del tuo abbonamento Claude, senza costi in più. Dalle Impostazioni potrai scegliere anche l'API di Claude (a pagamento) o un modello locale.</p>
+      <div class="riga"><div class="testo"><div class="titolo">Claude Code</div><div class="descrizione">Installato e collegato al tuo account.</div></div><div class="controllo"><button class="bottone secondario">Verifica di nuovo</button></div></div>
+      <div class="esito ok" data-icona="spunta">Claude Code risponde: collegato all'abbonamento Pro</div>
+      <p class="nota">Se non è collegato, apri un terminale, scrivi <code>claude</code> ed entra con il tuo account, poi premi "Verifica di nuovo".</p>
     </section>
 
     <!-- 4. Telegram, con il tutorial di TG-01 -->

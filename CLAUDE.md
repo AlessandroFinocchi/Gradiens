@@ -15,7 +15,8 @@ Ambiente Python con uv (`uv sync`, `uv run pytest`, `uv run gradiens avvia|stato
   esclusi da git; mai fuori (PRD PER-02, PER-03).
 
 ## Vincoli di architettura (NON semplificare via)
-- Provider LLM intercambiabili (Claude default, poi OpenAI/Gemini/locale).
+- Provider LLM intercambiabili (Claude Code con l'abbonamento come default, API di Claude,
+  poi OpenAI/Gemini/locale). ADR 0006.
 - Strategie di scoperta/estrazione dei siti come moduli intercambiabili.
 
 ## Definizione di "fatto"

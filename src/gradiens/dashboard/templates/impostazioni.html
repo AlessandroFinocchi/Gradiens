@@ -1,0 +1,18 @@
+{% from "icone.html" import icona with context %}
+{# Contenuto della finestra delle Impostazioni (UI-10), caricato da htmx dentro <dialog>. #}
+<div class="finestra-testata">
+  <h2 id="titolo-impostazioni">Impostazioni</h2>
+  <button class="bottone-icona" type="button" data-chiudi aria-label="Chiudi le Impostazioni">{{ icona("chiudi") }}</button>
+</div>
+<div class="finestra-corpo">
+  <nav class="sezioni" aria-label="Sezioni delle Impostazioni">
+    {% for id, (gruppo, nome, nome_icona) in sezioni.items() %}
+    {% if loop.changed(gruppo) %}<h3>{{ gruppo }}</h3>{% endif %}
+    <button class="sezione-voce" type="button" hx-get="/impostazioni/{{ id }}" hx-target="#impostazioni"
+            aria-current="{{ 'true' if id == sezione else 'false' }}">{{ icona(nome_icona) }}<span class="nome">{{ nome }}</span></button>
+    {% endfor %}
+  </nav>
+  <section class="sezione-contenuto">
+    {% include "impostazioni/" ~ sezione ~ ".html" %}
+  </section>
+</div>

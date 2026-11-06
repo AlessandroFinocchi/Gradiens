@@ -1,0 +1,15 @@
+<h2>Aspetto</h2>
+<div class="riga">
+  <div class="testo">
+    <div class="titolo">Tema</div>
+    <div class="descrizione">Come il sistema segue l'impostazione di Windows o del telefono.</div>
+  </div>
+  <div class="controllo">
+    <div class="segmenti" role="group" aria-label="Tema">
+      {% for valore, nome in [("auto", "Sistema"), ("light", "Chiaro"), ("dark", "Scuro")] %}
+      <button type="button" hx-post="/impostazioni/tema" hx-vals='{"tema": "{{ valore }}"}' hx-target="#impostazioni"
+              aria-pressed="{{ 'true' if imp.tema == valore else 'false' }}">{{ nome }}</button>
+      {% endfor %}
+    </div>
+  </div>
+</div>

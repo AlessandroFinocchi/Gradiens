@@ -1,0 +1,28 @@
+{% from "icone.html" import icona with context %}
+<!doctype html>
+<html lang="it"{% if tema != "auto" %} data-theme="{{ tema }}"{% endif %}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block titolo %}{% endblock %} · Gradiens</title>
+<link rel="stylesheet" href="/static/stile.css">
+<script src="/static/htmx.min.js" defer></script>
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+<div class="app">
+  <nav class="sidebar" aria-label="Pagine">
+    <a class="marchio" href="/"><span class="segno">∇</span><span>Gradiens</span></a>
+    {% for id, (nome, indirizzo) in pagine.items() %}
+    <a class="voce" href="{{ indirizzo }}"{% if id == pagina %} aria-current="page"{% endif %}>{{ icona(id) }}<span>{{ nome }}</span></a>
+    {% endfor %}
+    <div class="basso">
+      <a class="voce" href="/aiuto"{% if pagina == "aiuto" %} aria-current="page"{% endif %}>{{ icona("aiuto") }}<span>Aiuto</span></a>
+      <button class="voce" type="button" hx-get="/impostazioni/aspetto" hx-target="#impostazioni">{{ icona("ingranaggio") }}<span>Impostazioni</span></button>
+    </div>
+  </nav>
+  {% block contenuto %}{% endblock %}
+</div>
+<dialog id="impostazioni" class="finestra" aria-labelledby="titolo-impostazioni"></dialog>
+</body>
+</html>

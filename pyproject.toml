@@ -1,0 +1,29 @@
+[project]
+name = "gradiens"
+version = "0.1.0"
+description = "Raccoglie notizie da YouTube, arXiv e siti web, le filtra con un LLM in base ai tuoi interessi e le riassume in italiano."
+requires-python = ">=3.14"
+dependencies = [
+    "alembic",
+    "fastapi",
+    "httpx",
+    "jinja2",
+    "pydantic-settings",
+    "python-multipart",
+    "sqlalchemy",
+    "uvicorn",
+]
+
+[project.scripts]
+gradiens = "gradiens.app.cli:main"
+
+[dependency-groups]
+dev = ["httpx2", "pytest"]
+
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --import-mode=importlib"

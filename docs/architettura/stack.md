@@ -22,9 +22,10 @@ Riepilogo delle scelte della fase 2. Le decisioni difficili da invertire hanno u
 | YouTube | `youtube-transcript-api` (trascrizioni), `yt-dlp` (elenco, short, dirette, date) | API ufficiale: serve una chiave Google con quota e non dà le trascrizioni |
 | LLM | `anthropic`, `openai`, ognuno dietro l'interfaccia di provider del progetto | `litellm`: sostituirebbe l'interfaccia richiesta da CLAUDE.md e porta molte dipendenze |
 | Telegram | `python-telegram-bot` | `aiogram`: meno documentato |
-| Configurazione | `pydantic-settings` (legge `.env` e i file di configurazione nella repo) | — |
+| Configurazione | `pydantic-settings` per `.env` (segreti, porta, nomi host consentiti); le impostazioni modificabili dalla dashboard stanno nel database, tabella `impostazioni` | — |
+| Form HTML | `python-multipart`, richiesto da FastAPI per leggere i campi delle form | — |
 | Programmazione giornaliera | ciclo `asyncio` del progetto (un orario al giorno più la pausa) | `APScheduler`: troppo per un solo orario |
-| Test | `pytest`, con pagine e feed salvati come file di prova | — |
+| Test | `pytest`, con pagine e feed salvati come file di prova; `httpx2` per il client di test di Starlette | — |
 
 Tutte le librerie hanno pacchetti pronti per Python 3.14 su Windows (verificato il 4 novembre 2026).
 

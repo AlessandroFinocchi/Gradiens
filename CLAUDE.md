@@ -16,6 +16,12 @@ Gira su Windows e su Linux: niente codice specifico di un sistema fuori da `app/
 - L'app salva configurazione e dati solo dentro questa cartella, in `.gradiens/` e `.env`,
   esclusi da git; mai fuori (PRD PER-02, PER-03).
 
+## Stato dei lavori e abitudini
+- Fase 4 in corso, a fette verticali: stato, note e problemi aperti in
+  docs/architettura/piano-fase-4.md. Leggilo prima di riprendere il lavoro.
+- I commit li fa l'utente: Claude committa o fa merge solo su richiesta esplicita, mai push.
+- Si lavora direttamente su `main`, senza worktree (`.claude/settings.json`).
+
 ## Vincoli di architettura (NON semplificare via)
 - Provider LLM intercambiabili (Claude Code con l'abbonamento come default, API di Claude,
   poi OpenAI/Gemini/locale). ADR 0006.

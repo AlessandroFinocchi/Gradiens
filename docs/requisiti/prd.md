@@ -18,6 +18,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
   - **a mano**, con `gradiens avvia`. È il valore predefinito.
 
   Quando l'interruttore viene disattivato, la registrazione nel sistema operativo viene rimossa. Su Windows cambiare l'interruttore richiede una conferma di amministratore sullo schermo del PC, quindi si fa stando al PC e non da remoto (vedi [ADR 0005](../adr/0005-avvio-all-accensione-con-attivita-pianificata.md)). Su Linux si usa un servizio utente di systemd; se il sistema chiede la password di amministratore per farlo partire senza accesso, la dashboard mostra il comando da lanciare in un terminale (vedi [ADR 0007](../adr/0007-avvio-all-accensione-su-linux-con-systemd.md)).
+- `AMB-05` Una persona senza familiarità con l'informatica deve poter accendere e spegnere Gradiens e vederne lo stato (spento, acceso, esecuzione in corso) con una piccola interfaccia grafica, senza usare il terminale, su Windows e su Linux. I comandi `gradiens avvia`, `stato` e `spegni` restano. Come realizzarla si decide nella fetta 8 del [piano della fase 4](../architettura/piano-fase-4.md), con un ADR.
 
 ## 3. Interessi
 
@@ -55,7 +56,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 
 ### 4.2 arXiv
 
-- `ARX-01` L'utente sceglie le categorie arXiv nelle Impostazioni (es. `cs.CR`, `cs.AI`). Deve esserci almeno una categoria.
+- `ARX-01` L'utente sceglie le categorie arXiv nelle Impostazioni (es. `cs.CR`, `cs.AI`). Deve esserci almeno una categoria. A ogni categoria può dare un nome facoltativo (es. "Crittografia e Sicurezza" per `cs.CR`), che la dashboard mostra al posto del codice: nel filtro delle fonti, nelle notizie dell'elenco e nella pagina della notizia.
 - `ARX-02` Tutti i paper nuovi delle categorie scelte passano dal pre-filtro.
 - `ARX-03` Un tetto configurabile limita il numero di paper elaborati per esecuzione. Se il tetto viene superato si elaborano i paper più recenti e il resoconto segnala "tetto raggiunto". I paper oltre il tetto entrano nel registro delle notizie già viste e non si riprendono nelle esecuzioni successive.
 - `ARX-04` Per un paper, il contenuto che l'LLM valuta e riassume è l'abstract restituito dall'API di arXiv, insieme al titolo. Il PDF non si scarica. Per leggere il paper intero c'è il link all'originale.
@@ -267,7 +268,7 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
   - tipo: arXiv, sito, video YT, short YT;
   - interesse;
   - data;
-  - fonte;
+  - fonte: l'elenco mostra solo le fonti dei tipi selezionati (tutte se non è selezionato nessun tipo); una fonte scelta che non appartiene ai tipi selezionati si ignora;
   - cuore.
 
   Dentro lo stesso filtro i valori si combinano in OR, filtri diversi si combinano in AND.

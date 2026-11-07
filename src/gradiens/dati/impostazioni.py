@@ -45,17 +45,31 @@ def salva_tetto_arxiv(sessione: Session, tetto: int) -> None:
     sessione.commit()
 
 
+def elenca_categorie(sessione: Session) -> list[CategoriaArxiv]:
+    return list(sessione.scalars(select(CategoriaArxiv).order_by(CategoriaArxiv.codice)))
+
+
 def categorie_arxiv(sessione: Session) -> list[str]:
-    return list(sessione.scalars(select(CategoriaArxiv.codice).order_by(CategoriaArxiv.codice)))
+    return [c.codice for c in elenca_categorie(sessione)]
 
 
-def aggiungi_categoria(sessione: Session, codice: str) -> None:
-    codice = codice.strip()
+def nomi_categorie(sessione: Session) -> dict[str, str]:
+    """{codice: nome} delle categorie a cui l'utente ha dato un nome."""
+    query = select(CategoriaArxiv.codice, CategoriaArxiv.nome).where(CategoriaArxiv.nome.is_not(None))
+    return {codice: nome for codice, nome in sessione.execute(query)}
+
+
+def aggiungi_categoria(sessione: Session, codice: str, nome: str = "") -> None:
+    """Aggiunge la categoria; se c'è già, ne cambia il nome (vuoto = nessun nome)."""
+    codice, nome = codice.strip(), nome.strip()
     if not FORMATO_CATEGORIA.match(codice):
         raise ImpostazioneNonValida(f"«{codice}» non sembra una categoria arXiv, per esempio cs.CR.")
-    if sessione.get(CategoriaArxiv, codice) is None:
-        sessione.add(CategoriaArxiv(codice=codice))
-        sessione.commit()
+    if len(nome) > 100:
+        raise ImpostazioneNonValida("Il nome della categoria può avere al massimo 100 caratteri.")
+    categoria = sessione.get(CategoriaArxiv, codice) or CategoriaArxiv(codice=codice)
+    categoria.nome = nome or None
+    sessione.add(categoria)
+    sessione.commit()
 
 
 def rimuovi_categoria(sessione: Session, codice: str) -> None:

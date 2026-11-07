@@ -1,6 +1,7 @@
 """L'unico codice che dipende dal sistema operativo (PRD AMB-03, ADR 0005 per Windows, ADR 0007 per Linux).
 
-Oggi: lanciare Gradiens staccato dal terminale. Nella fetta 7: registrare l'avvio all'accensione (AMB-04).
+Oggi: lanciare Gradiens staccato dal terminale e trovare l'eseguibile nativo di Claude Code.
+Nella fetta 7: registrare l'avvio all'accensione (AMB-04).
 """
 
 import os
@@ -21,3 +22,11 @@ def lancia_staccato(comando: list[str], file_errori: Path) -> None:
             subprocess.Popen(comando, creationflags=base | subprocess.CREATE_BREAKAWAY_FROM_JOB, **opzioni)
         except OSError:
             subprocess.Popen(comando, creationflags=base, **opzioni)
+
+
+def eseguibile_claude(percorso: Path) -> Path:
+    """Su Windows lo script npm `claude.cmd` passerebbe gli argomenti a cmd.exe, che reinterpreta
+    virgolette, % e &: per sicurezza si lancia l'eseguibile nativo. Su Linux `claude` è già lanciabile."""
+    if os.name == "nt" and percorso.suffix.lower() in (".cmd", ".bat"):
+        return percorso.parent / "node_modules" / "@anthropic-ai" / "claude-code" / "bin" / "claude.exe"
+    return percorso

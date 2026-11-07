@@ -70,6 +70,7 @@ class CategoriaArxiv(Base):
     __tablename__ = "categorie_arxiv"
 
     codice: Mapped[str] = mapped_column(String(32), primary_key=True)  # es. cs.CR
+    nome: Mapped[str | None] = mapped_column(String(100))  # es. "Crittografia e Sicurezza", per i filtri
 
 
 class Esecuzione(Base):

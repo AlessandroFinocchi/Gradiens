@@ -7,6 +7,7 @@ import os
 import shutil
 from pathlib import Path
 
+from gradiens.app.avvio_sistema import eseguibile_claude
 from gradiens.llm.base import ErroreLLM, QuotaEsaurita, Risposta
 
 log = logging.getLogger(__name__)
@@ -24,14 +25,11 @@ PAROLE_QUOTA = ("usage limit", "rate limit", "limit reached", "quota")
 
 
 def trova_eseguibile() -> Path:
-    """Percorso di claude.exe. Lo script npm `claude.cmd` passerebbe gli argomenti a cmd.exe,
-    che reinterpreta virgolette, % e &: per sicurezza si lancia l'eseguibile nativo."""
+    """Percorso dell'eseguibile di Claude Code: `GRADIENS_CLAUDE` oppure quello nel PATH."""
     trovato = os.environ.get("GRADIENS_CLAUDE") or shutil.which("claude")
     if trovato is None:
         raise ErroreLLM("Claude Code non è installato o non è nel PATH.")
-    percorso = Path(trovato)
-    if percorso.suffix.lower() in (".cmd", ".bat"):
-        percorso = percorso.parent / "node_modules" / "@anthropic-ai" / "claude-code" / "bin" / "claude.exe"
+    percorso = eseguibile_claude(Path(trovato))
     if not percorso.exists():
         raise ErroreLLM(f"Eseguibile di Claude Code non trovato: {percorso}")
     return percorso

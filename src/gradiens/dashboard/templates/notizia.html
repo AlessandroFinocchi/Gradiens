@@ -7,7 +7,7 @@
   <a class="indietro" href="{{ '/archivio' if n.cuore else '/notizie' }}">{{ icona("indietro") }}{{ "Archivio" if n.cuore else "Notizie" }}</a>
 
   <div class="n-meta">
-    {{ icona(TIPI[n.tipo][0]) }}<span>{{ TIPI[n.tipo][1] }}</span>·<span>{{ n.fonte }}</span>·<span>pubblicata il {{ n.pubblicata_il|data_lunga }}</span>
+    {{ icona(TIPI[n.tipo][0]) }}<span>{{ TIPI[n.tipo][1] }}</span>·<span>{{ nome_fonte(n.tipo, n.fonte, nomi_categorie) }}</span>·<span>pubblicata il {{ n.pubblicata_il|data_lunga }}</span>
     {% if n.data_incerta %}<span class="stato">data incerta</span>{% endif %}
     {% if n.stato %}<span class="stato">{{ n.stato }}</span>{% endif %}
   </div>

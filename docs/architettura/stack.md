@@ -27,7 +27,7 @@ Riepilogo delle scelte della fase 2. Le decisioni difficili da invertire hanno u
 | Programmazione giornaliera | ciclo `asyncio` del progetto (un orario al giorno più la pausa) | `APScheduler`: troppo per un solo orario |
 | Test | `pytest`, con pagine e feed salvati come file di prova; `httpx2` per il client di test di Starlette | — |
 
-Tutte le librerie hanno pacchetti pronti per Python 3.14 su Windows (verificato il 4 novembre 2026) e su Linux. `uv.lock` vale per entrambi i sistemi.
+Tutte le librerie hanno pacchetti pronti per Python 3.14 su Windows (verificato il 4 novembre 2026) e su Linux (verificato il 6 novembre 2026 su Debian 13: `uv sync`, test verdi, avvio e spegnimento reali, yt-dlp). `uv.lock` vale per entrambi i sistemi.
 
 ## Note
 

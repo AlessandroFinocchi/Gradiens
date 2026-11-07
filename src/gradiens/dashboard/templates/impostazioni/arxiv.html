@@ -1,13 +1,13 @@
 <h2>arXiv</h2>
-<p class="intro">Tutti i paper nuovi delle categorie scelte passano dal pre-filtro; per ogni paper si valuta l'abstract. Serve almeno una categoria, per esempio <code>cs.CR</code> (sicurezza) o <code>cs.CL</code> (linguaggio).</p>
+<p class="intro">Tutti i paper nuovi delle categorie scelte passano dal pre-filtro; per ogni paper si valuta l'abstract. Serve almeno una categoria, per esempio <code>cs.CR</code> (sicurezza) o <code>cs.CL</code> (linguaggio). Il nome, facoltativo, è quello che vedi nel filtro delle fonti al posto del codice; per cambiarlo aggiungi di nuovo la categoria con il nome nuovo.</p>
 
 <div class="riga">
   <div class="testo"><div class="titolo">Categorie</div></div>
   <div class="controllo gettoni">
     {% for c in categorie %}
-    <span class="chip">{{ c }}
-      <button type="button" class="bottone-icona" style="width: 20px; height: 20px" aria-label="Rimuovi {{ c }}"
-              hx-post="/impostazioni/arxiv/categorie/rimuovi" hx-vals='{"codice": "{{ c }}"}' hx-target="#impostazioni">✕</button>
+    <span class="chip">{{ c.codice }}{% if c.nome %} · {{ c.nome }}{% endif %}
+      <button type="button" class="bottone-icona" style="width: 20px; height: 20px" aria-label="Rimuovi {{ c.codice }}"
+              hx-post="/impostazioni/arxiv/categorie/rimuovi" hx-vals='{"codice": "{{ c.codice }}"}' hx-target="#impostazioni">✕</button>
     </span>
     {% else %}
     <span class="nota">Nessuna categoria.</span>
@@ -15,7 +15,8 @@
   </div>
 </div>
 <form class="campo-riga" hx-post="/impostazioni/arxiv/categorie" hx-target="#impostazioni">
-  <input class="campo" name="codice" placeholder="es. cs.CR" aria-label="Nuova categoria" required>
+  <input class="campo" name="codice" placeholder="es. cs.CR" aria-label="Nuova categoria" required style="flex: none; width: 110px">
+  <input class="campo" name="nome" placeholder="Nome (facoltativo), es. Crittografia e Sicurezza" aria-label="Nome della categoria" maxlength="100">
   <button class="bottone">Aggiungi</button>
 </form>
 

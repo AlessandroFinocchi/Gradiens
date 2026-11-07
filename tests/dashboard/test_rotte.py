@@ -42,8 +42,26 @@ def test_filtri_dall_indirizzo(dati):
     pagina = dati.get("/notizie?tipo=video&ordine=data-asc").text
     assert "Video sul ransomware" in pagina and "Paper &lt;script" not in pagina
     assert 'value="video" checked' in pagina
-    assert "Nessuna notizia con questi filtri" in dati.get("/notizie?fonte=inesistente").text
+    assert "Nessuna notizia con questi filtri" in dati.get("/notizie?tipo=short").text
     assert dati.get("/notizie?interesse=abc&giorni=²&tipo=altro").status_code == 200  # parametri ignorati
+
+
+def test_il_filtro_fonte_mostra_solo_le_fonti_dei_tipi_scelti(dati):
+    with dati.app.state.sessioni() as s:
+        impostazioni.aggiungi_categoria(s, "cs.CR", "Crittografia e Sicurezza")
+    pagina = dati.get("/notizie").text
+    assert '<option value="cs.CR">Crittografia e Sicurezza</option>' in pagina and '<option value="Lab">' in pagina
+    solo_arxiv = dati.get("/notizie?tipo=arxiv").text
+    assert 'value="cs.CR"' in solo_arxiv and 'value="Lab"' not in solo_arxiv
+    # Fonte di un tipo non selezionato: si ignora, e il menu torna a "Tutte le fonti".
+    video = dati.get("/notizie?tipo=video&fonte=cs.CR").text
+    assert "Video sul ransomware" in video and 'value="cs.CR"' not in video
+    assert 'value="Lab"' in dati.get("/notizie?fonte=inesistente").text
+    # Il nome della categoria compare anche nelle schede e nella pagina della notizia.
+    assert "<span>Crittografia e Sicurezza</span>" in pagina and "<span>Lab</span>" in pagina
+    with dati.app.state.sessioni() as s:
+        id = s.query(Notizia).filter_by(url="https://arxiv.org/abs/1").one().id
+    assert "<span>Crittografia e Sicurezza</span>" in dati.get(f"/notizie/{id}").text
 
 
 def test_archivio_tiene_anche_le_vecchie(dati):
@@ -83,6 +101,8 @@ def test_impostazioni_arxiv_ed_esecuzione(dati):
     assert "almeno una categoria" in dati.post("/impostazioni/arxiv/categorie/rimuovi", data={"codice": "cs.CR"}, headers=HTMX).text
     assert "non sembra una categoria" in dati.post("/impostazioni/arxiv/categorie", data={"codice": "<b>x</b>"}, headers=HTMX).text
     assert "cs.AI" in dati.post("/impostazioni/arxiv/categorie", data={"codice": "cs.AI"}, headers=HTMX).text
+    con_nome = dati.post("/impostazioni/arxiv/categorie", data={"codice": "cs.IR", "nome": "Ricerca <i>"}, headers=HTMX).text
+    assert "cs.IR · Ricerca &lt;i&gt;" in con_nome
     assert "va da 1 a 7" in dati.post("/impostazioni/esecuzione", data={"soglia": 60, "finestra_giorni": 9}, headers=HTMX).text
     dati.post("/impostazioni/esecuzione", data={"soglia": 75, "finestra_giorni": 3}, headers=HTMX)
     with dati.app.state.sessioni() as s:

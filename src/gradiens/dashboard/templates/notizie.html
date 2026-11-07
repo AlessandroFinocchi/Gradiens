@@ -18,7 +18,7 @@
       {% if not archivio %}{% include "avanzamento.html" %}{% endif %}
     </div>
     <form class="filtri" aria-label="Filtri" hx-get="{{ '/archivio' if archivio else '/notizie' }}" hx-trigger="change"
-          hx-target="#elenco" hx-select="#elenco" hx-swap="outerHTML" hx-push-url="true">
+          hx-target="#elenco" hx-select="#elenco" hx-select-oob="#filtro-fonte" hx-swap="outerHTML" hx-push-url="true">
       <div class="gruppo" role="group" aria-label="Tipo">
         {% for valore, (nome_icona, nome) in TIPI.items() %}
         <label class="chip"><input class="nascosto" type="checkbox" name="tipo" value="{{ valore }}"{% if valore in filtri.tipi %} checked{% endif %}>{{ icona(nome_icona) }}{{ nome }}</label>
@@ -35,9 +35,10 @@
         <option value="{{ valore }}"{% if (filtri.giorni or "")|string == valore %} selected{% endif %}>{{ nome }}</option>
         {% endfor %}
       </select>
-      <select class="selettore" name="fonte" aria-label="Fonte">
+      {# Solo le fonti dei tipi selezionati: si aggiorna con l'elenco (hx-select-oob). #}
+      <select class="selettore" id="filtro-fonte" name="fonte" aria-label="Fonte">
         <option value="">Tutte le fonti</option>
-        {% for f in fonti %}<option{% if filtri.fonte == f %} selected{% endif %}>{{ f }}</option>{% endfor %}
+        {% for valore, nome in fonti.items() %}<option value="{{ valore }}"{% if filtri.fonte == valore %} selected{% endif %}>{{ nome }}</option>{% endfor %}
       </select>
       {% if not archivio %}
       <label class="chip"><input class="nascosto" type="checkbox" name="cuore" value="1"{% if filtri.solo_cuore %} checked{% endif %}>{{ icona("cuore") }}Con il cuore</label>

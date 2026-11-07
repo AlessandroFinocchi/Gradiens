@@ -7,6 +7,13 @@ Ambiente Python con uv (`uv sync`, `uv run pytest`, `uv run gradiens avvia|esegu
 Gira su Windows e su Linux: niente codice specifico di un sistema fuori da `app/avvio_sistema.py`
 (ADR 0007); i test girano su entrambi (`.github/workflows/test.yml`).
 
+## Portabilità (Windows e Linux)
+- Lo sviluppo avviene su entrambi i sistemi: ogni modifica deve funzionare su Windows e su Linux.
+- Percorsi con `pathlib`, file aperti con `encoding="utf-8"`, processi lanciati con liste di argomenti
+  (mai `shell=True`), nessun eseguibile dato per scontato nel `PATH` di un solo sistema.
+- La documentazione va di pari passo: dove i passi cambiano (installazione, avvio all'accensione,
+  percorsi) si scrivono le istruzioni per Windows e per Linux, una accanto all'altra.
+
 ## Regole di lavoro
 - Lavora SOLO dentro questa cartella.
 - Documentazione in italiano. Decisioni importanti → un ADR in docs/adr/.

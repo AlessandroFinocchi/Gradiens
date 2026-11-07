@@ -6,12 +6,37 @@ Requisiti completi: [docs/requisiti/prd.md](docs/requisiti/prd.md). Architettura
 
 ## Cosa serve
 
-- **Python 3.14** e **[uv](https://docs.astral.sh/uv/)**, che installa le dipendenze nella cartella `.venv` del progetto.
+- **[uv](https://docs.astral.sh/uv/)**, che scarica da solo Python 3.14 se manca (la versione è fissata in `.python-version`, uguale su Windows e su Linux) e installa le dipendenze nella cartella `.venv` del progetto.
 - **Claude Code** installato e collegato al tuo account Claude (per esempio Pro): è il motore che filtra e riassume, e usa la quota del tuo abbonamento senza costi in più ([ADR 0006](docs/adr/0006-claude-code-come-provider-predefinito.md)). Su una macchina senza browser il collegamento si fa con `claude setup-token`.
+- **git**.
 
 ## Installazione
 
-Su Windows (PowerShell) e su Linux i comandi sono gli stessi:
+### 1. uv e Claude Code
+
+**Windows** (PowerShell):
+
+```
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+irm https://claude.ai/install.ps1 | iex
+```
+
+Se `uv` è stato installato con `pip` e non è nel PATH, usa `python -m uv` al posto di `uv`.
+
+**Linux** (non servono permessi di amministratore):
+
+```
+curl -LsSf https://astral.sh/uv/install.sh | sh
+curl -fsSL https://claude.ai/install.sh | bash
+```
+
+Entrambi installano in `~/.local/bin`, che deve essere nel `PATH` (su Debian e Ubuntu lo è dopo un nuovo accesso).
+
+Poi, su tutti e due i sistemi, collega Claude Code all'account con `claude` (o `claude setup-token` senza browser) e controlla con `claude auth status`.
+
+### 2. Gradiens
+
+I comandi sono gli stessi su Windows (PowerShell) e su Linux:
 
 ```
 git clone https://github.com/AlessandroFinocchi/Gradiens.git
@@ -19,8 +44,6 @@ cd Gradiens
 uv sync
 uv run pytest
 ```
-
-Se `uv` è stato installato con `pip` e non è nel PATH, usa `python -m uv` al posto di `uv`.
 
 ## Uso
 
@@ -33,7 +56,7 @@ uv run gradiens spegni    # termina l'applicazione
 
 Poi apri http://127.0.0.1:8765/notizie e, dall'ingranaggio in basso a sinistra, configura interessi, siti, canali YouTube e categorie arXiv.
 
-`gradiens avvia` stacca l'app dal terminale, quindi continua a girare anche se chiudi la sessione SSH. Con `--primo-piano` resta collegata al terminale, il che è utile per il debug.
+`gradiens avvia` stacca l'app dal terminale, quindi continua a girare anche se chiudi il terminale o la sessione SSH, su Windows come su Linux. Con `--primo-piano` resta collegata al terminale, il che è utile per il debug.
 
 ## Dove stanno i dati
 
@@ -50,5 +73,22 @@ Cancellando la cartella si cancella tutto. Un clone nuovo parte senza configuraz
 
 ## Sviluppo
 
+Gradiens si sviluppa sia su Windows sia su Linux: ogni modifica deve funzionare su entrambi.
+
 - Test: `uv run pytest`. Girano anche su GitHub, su Ubuntu e su Windows, a ogni push ([workflow](.github/workflows/test.yml)).
 - Regole di lavoro e definizione di "fatto": [CLAUDE.md](CLAUDE.md).
+
+### Strumenti per Claude Code
+
+La definizione di "fatto" usa `/ponytail-review` e la review con `ocr`. Servono [Node.js](https://nodejs.org/) (LTS) e poi, con gli stessi comandi su Windows e su Linux:
+
+```
+npm i -g @alibaba-group/open-code-review
+npx skills add DietrichGebert/ponytail -g --agent claude-code -y
+npx skills add alibaba/open-code-review -g --agent claude-code -y
+npx skills add mattpocock/skills -g --agent claude-code -y
+```
+
+Le skill finiscono nella cartella utente di Claude Code (`~/.claude/skills`, su Windows `%USERPROFILE%\.claude\skills`), non nella repository. `ocr` va poi collegato a un LLM (variabili `OCR_LLM_*` o `~/.opencodereview/config.json`) e si controlla con `ocr llm test`.
+
+Node.js si installa dal sito su Windows. Su Linux, senza permessi di amministratore, si può estrarre l'archivio ufficiale in `~/.local/opt/node`, collegare `node`, `npm` e `npx` in `~/.local/bin` e lanciare `npm config set prefix ~/.local`, così anche `npm i -g` scrive in `~/.local/bin`.

@@ -9,7 +9,7 @@
         <h3 class="n-titolo"><a href="/notizie/{{ n.id }}">{{ n.titolo_it or n.titolo }}</a></h3>
         {% if n.titolo_it %}<p class="n-originale">Titolo originale: {{ n.titolo }}</p>{% endif %}
         <div class="n-meta">
-          {{ icona(TIPI[n.tipo][0]) }}<span>{{ TIPI[n.tipo][1] }}</span>·<span>{{ n.fonte }}</span>·<span>{{ n.pubblicata_il|data_breve }}</span>
+          {{ icona(TIPI[n.tipo][0]) }}<span>{{ TIPI[n.tipo][1] }}</span>·<span>{{ nome_fonte(n.tipo, n.fonte, nomi_categorie) }}</span>·<span>{{ n.pubblicata_il|data_breve }}</span>
           {% if n.data_incerta %}<span class="stato">data incerta</span>{% endif %}
           {% if n.stato %}<span class="stato">{{ n.stato }}</span>{% endif %}
         </div>

@@ -61,6 +61,10 @@ def leggi_filtri(q: QueryParams, archivio: bool) -> Filtri:
 
 def _elenco(request: Request, s: Sessione, archivio: bool) -> HTMLResponse:
     filtri = leggi_filtri(request.query_params, archivio)
+    nomi_categorie = impostazioni.nomi_categorie(s)
+    fonti = notizie.fonti(s, filtri.tipi, nomi_categorie)
+    if filtri.fonte not in fonti:  # fonte di un tipo non selezionato (UI-06): si ignora
+        filtri.fonte = None
     soglia = impostazioni.leggi(s).soglia
     nome = "archivio" if archivio else "notizie"
     return pagina(
@@ -68,7 +72,7 @@ def _elenco(request: Request, s: Sessione, archivio: bool) -> HTMLResponse:
         archivio=archivio, filtri=filtri, soglia=soglia,
         notizie=notizie.elenca(s, filtri, soglia),
         filtrata=bool(request.query_params.get("tipo") or filtri.interesse_id or filtri.fonte or filtri.giorni or filtri.solo_cuore),
-        interessi=interessi.elenca(s), fonti=notizie.fonti(s), ultima=esecuzioni.ultima(s),
+        interessi=interessi.elenca(s), fonti=fonti, nomi_categorie=nomi_categorie, ultima=esecuzioni.ultima(s),
         avanzamento=request.app.state.esecutore.avanzamento,
     )
 
@@ -89,7 +93,7 @@ def notizia_specifica(request: Request, s: Sessione, id: int):
     if notizia is None:
         raise HTTPException(404, "Notizia inesistente o cancellata")
     return pagina(request, s, "notizia", "archivio" if notizia.cuore else "notizie",
-                  n=notizia, numero_interessi=len(interessi.elenca(s)))
+                  n=notizia, numero_interessi=len(interessi.elenca(s)), nomi_categorie=impostazioni.nomi_categorie(s))
 
 
 @router.post("/notizie/{id}/cuore", response_class=HTMLResponse)

@@ -43,7 +43,7 @@ def finestra(request: Request, s: Session, sezione: str, errore: str | None = No
     elif sezione == "siti":
         contesto["siti"] = [(sito, Profilo.da_dict(json.loads(sito.profilo))) for sito in dati_siti.elenca(s)]
     elif sezione == "arxiv":
-        contesto["categorie"] = impostazioni.categorie_arxiv(s)
+        contesto["categorie"] = impostazioni.elenca_categorie(s)
     return frammento(request, "impostazioni", **contesto)
 
 
@@ -185,8 +185,8 @@ async def rigenera_profilo(request: Request, s: Sessione, id: int):
 
 
 @router.post("/arxiv/categorie", response_class=HTMLResponse)
-def aggiungi_categoria(request: Request, s: Sessione, codice: Testo):
-    return _esegui(request, s, "arxiv", lambda: impostazioni.aggiungi_categoria(s, codice))
+def aggiungi_categoria(request: Request, s: Sessione, codice: Testo, nome: Annotated[str, Form()] = ""):
+    return _esegui(request, s, "arxiv", lambda: impostazioni.aggiungi_categoria(s, codice, nome))
 
 
 @router.post("/arxiv/categorie/rimuovi", response_class=HTMLResponse)

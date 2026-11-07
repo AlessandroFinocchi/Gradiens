@@ -65,8 +65,18 @@ def elenca(sessione: Session, filtri: Filtri, soglia: int) -> list[Notizia]:
     return list(sessione.scalars(query))
 
 
-def fonti(sessione: Session) -> list[str]:
-    return list(sessione.scalars(select(Notizia.fonte).distinct().order_by(Notizia.fonte)))
+def nome_fonte(tipo: str, fonte: str, nomi_categorie: dict[str, str]) -> str:
+    """Nome mostrato di una fonte: per arXiv quello dato alla categoria nelle Impostazioni, se c'è (ARX-01)."""
+    return nomi_categorie.get(fonte, fonte) if tipo == "arxiv" else fonte
+
+
+def fonti(sessione: Session, tipi: list[str], nomi_categorie: dict[str, str]) -> dict[str, str]:
+    """Fonti delle notizie dei tipi scelti (tutti se `tipi` è vuoto), come {valore: nome mostrato}."""
+    query = select(Notizia.tipo, Notizia.fonte).distinct()
+    if tipi:
+        query = query.where(Notizia.tipo.in_(tipi))
+    nomi = {fonte: nome_fonte(tipo, fonte, nomi_categorie) for tipo, fonte in sessione.execute(query)}
+    return dict(sorted(nomi.items(), key=lambda voce: voce[1].casefold()))
 
 
 def dettaglio(sessione: Session, id: int) -> Notizia | None:

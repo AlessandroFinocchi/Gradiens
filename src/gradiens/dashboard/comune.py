@@ -11,6 +11,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from gradiens.dati import impostazioni
+from gradiens.dati.notizie import nome_fonte
 
 CARTELLA = Path(__file__).parent
 modelli = Jinja2Templates(directory=CARTELLA / "templates")
@@ -50,7 +51,7 @@ def data_relativa(d: datetime) -> str:
 
 
 modelli.env.filters.update(data_breve=data_breve, data_lunga=data_lunga, data_relativa=data_relativa)
-modelli.env.globals.update(TIPI=TIPI)
+modelli.env.globals.update(TIPI=TIPI, nome_fonte=nome_fonte)
 
 
 def sessione(request: Request) -> Iterator[Session]:

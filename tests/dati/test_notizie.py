@@ -59,6 +59,22 @@ def test_filtri_tipo_fonte_cuore(s):
     assert titoli(notizie.elenca(s, Filtri(solo_cuore=True), 60)) == ["paper"]
 
 
+def test_fonti_dei_tipi_scelti_con_il_nome_delle_categorie(s):
+    impostazioni.aggiungi_categoria(s, "cs.CR", "Crittografia e Sicurezza")
+    notizia(s, "paper")
+    notizia(s, "paper-ml", fonte="cs.LG")  # categoria principale non scelta: resta il codice
+    notizia(s, "sito", tipo="sito", fonte="hwupgrade.it")
+    notizia(s, "video", tipo="video", fonte="Lab")
+    nomi = impostazioni.nomi_categorie(s)
+    assert nomi == {"cs.CR": "Crittografia e Sicurezza"}
+    tutte = {"cs.CR": "Crittografia e Sicurezza", "cs.LG": "cs.LG", "hwupgrade.it": "hwupgrade.it", "Lab": "Lab"}
+    assert notizie.fonti(s, [], nomi) == tutte
+    assert list(notizie.fonti(s, [], nomi)) == ["cs.CR", "cs.LG", "hwupgrade.it", "Lab"]  # in ordine di nome
+    assert notizie.fonti(s, ["arxiv"], nomi) == {"cs.CR": "Crittografia e Sicurezza", "cs.LG": "cs.LG"}
+    assert notizie.fonti(s, ["arxiv", "sito"], nomi).keys() == {"cs.CR", "cs.LG", "hwupgrade.it"}
+    assert notizie.nome_fonte("sito", "cs.CR", nomi) == "cs.CR"  # il nome vale solo per arXiv
+
+
 def test_archivio_tiene_le_notizie_con_cuore_anche_vecchie_e_senza_interesse(s):
     a = interessi.aggiungi(s, "A", "a")
     interessi.aggiungi(s, "B", "b")
@@ -95,7 +111,10 @@ def test_almeno_un_interesse_e_nomi_unici(s):
 
 def test_categorie_arxiv_validate(s):
     impostazioni.aggiungi_categoria(s, " cs.CR ")
-    impostazioni.aggiungi_categoria(s, "cs.CR")
+    impostazioni.aggiungi_categoria(s, "cs.CR", " Sicurezza ")  # già presente: cambia solo il nome
+    assert [(c.codice, c.nome) for c in impostazioni.elenca_categorie(s)] == [("cs.CR", "Sicurezza")]
+    with pytest.raises(ImpostazioneNonValida):
+        impostazioni.aggiungi_categoria(s, "cs.AI", "x" * 101)
     assert impostazioni.categorie_arxiv(s) == ["cs.CR"]
     with pytest.raises(ImpostazioneNonValida):
         impostazioni.aggiungi_categoria(s, "cs.CR OR 1=1")

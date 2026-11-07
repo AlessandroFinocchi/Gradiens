@@ -6,7 +6,7 @@ un'esecuzione, così Claude la rilegge dalla cache; la notizia va nel messaggio 
 
 import json
 
-from gradiens.dati.modelli import Interesse
+from gradiens.dati.modelli import Argomento, Interesse, Notizia
 from gradiens.fonti import Candidata
 
 MAX_SOMMARIO = 1500  # caratteri per notizia nel pre-filtro: bastano titolo e inizio del sommario
@@ -87,3 +87,83 @@ SCHEMA_VALUTAZIONE = {
 
 def messaggio_valutazione(c: Candidata) -> str:
     return json.dumps({"tipo": c.tipo, "fonte": c.fonte, "titolo": c.titolo, "testo": c.contenuto}, ensure_ascii=False)
+
+
+def sistema_argomenti(argomenti: list[Argomento]) -> str:
+    """ESE-08, ADR 0008: un passo unico per tutte le notizie mostrate dall'esecuzione."""
+    elenco = "\n".join(f"[{a.id}] {a.nome}" for a in argomenti) or "(nessuno)"
+    return f"""Sei il passo degli argomenti di Gradiens. Un argomento è un singolo evento preciso e la sua
+evoluzione nel tempo (es. "Attacco ransomware all'ASL Valle Verde"), non un tema generale
+(non "attacchi ransomware", non "intelligenza artificiale").
+
+Argomenti esistenti, con il loro id:
+{elenco}
+
+Ricevi notizie in JSON con id, titolo e riassunto. Per ogni notizia restituisci il suo id e:
+- argomento: l'id di un argomento esistente, se la notizia segue proprio quell'evento;
+- oppure nuovo: il nome di un argomento nuovo, breve e in italiano, se la notizia riguarda un evento
+  preciso che può avere sviluppi. Dai lo stesso nome alle notizie dello stesso evento;
+- oppure nessuno dei due, se la notizia non riguarda un evento preciso (guide, paper, opinioni)."""
+
+
+SCHEMA_ARGOMENTI = {
+    "type": "object",
+    "properties": {"assegnazioni": {"type": "array", "items": {
+        "type": "object",
+        "properties": {"notizia": {"type": "integer"}, "argomento": {"type": "integer"}, "nuovo": {"type": "string"}},
+        "required": ["notizia"],
+    }}},
+    "required": ["assegnazioni"],
+}
+
+
+def messaggio_argomenti(blocco: list[Notizia]) -> str:
+    voci = [{"id": i, "titolo": n.titolo_it or n.titolo, "riassunto": n.riassunto[:600]} for i, n in enumerate(blocco)]
+    return json.dumps(voci, ensure_ascii=False)
+
+
+def _notizie_con_cuore(notizie: list[Notizia]) -> str:
+    voci = [{"titolo": n.titolo_it or n.titolo, "riassunto": n.riassunto[:600]} for n in notizie]
+    return json.dumps(voci, ensure_ascii=False)
+
+
+def sistema_raffinamento(interesse: Interesse) -> str:
+    """INT-04: il raffinamento precisa l'interesse; la descrizione dell'utente non si cambia."""
+    return f"""Sei l'assistente di Gradiens che propone il raffinamento di un interesse dell'utente.
+
+Interesse: {interesse.nome}
+Descrizione scritta dall'utente (non va cambiata né ripetuta): {interesse.descrizione}
+Raffinamento attuale: {interesse.raffinamento or "(nessuno)"}
+
+Ricevi in JSON le notizie a cui l'utente ha messo il cuore. Capisci cosa hanno in comune e restituisci
+in raffinamento un nuovo testo che sostituisce quello attuale: in italiano, da 1 a 3 frasi, che dica
+cosa interessa di più all'utente dentro questo interesse. Tieni ciò che resta valido del raffinamento
+attuale. Se le notizie non aggiungono niente, restituisci una stringa vuota."""
+
+
+SCHEMA_RAFFINAMENTO = {"type": "object", "properties": {"raffinamento": {"type": "string"}}, "required": ["raffinamento"]}
+
+
+def sistema_nuovo_interesse(interessi: list[Interesse]) -> str:
+    """INT-06: notizie con il cuore che non corrispondono a nessun interesse."""
+    return f"""Sei l'assistente di Gradiens che propone nuovi interessi all'utente.
+
+Interessi che l'utente ha già:
+{_interessi(interessi)}
+
+Ricevi in JSON notizie a cui l'utente ha messo il cuore ma che non corrispondono a nessuno di questi
+interessi. Se hanno un tema comune, proponi un interesse nuovo: nome (breve, al massimo 5 parole) e
+descrizione (1 o 2 frasi in italiano, come la scriverebbe l'utente). Se non hanno un tema comune,
+restituisci nome e descrizione vuoti."""
+
+
+SCHEMA_NUOVO_INTERESSE = {
+    "type": "object",
+    "properties": {"nome": {"type": "string"}, "descrizione": {"type": "string"}},
+    "required": ["nome", "descrizione"],
+}
+
+
+def messaggio_proposta(notizie: list[Notizia]) -> str:
+    return _notizie_con_cuore(notizie)
+

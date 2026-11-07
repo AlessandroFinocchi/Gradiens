@@ -434,3 +434,12 @@ dialog.finestra::backdrop { background: var(--velo); }
 .esito { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; margin-top: 6px; }
 .esito.ok { color: var(--ok); }
 .chat-trovata { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--bg); border-radius: 10px; padding: 10px 12px; margin-top: 8px; }
+
+/* Proposte di raffinamento e di nuovi interessi (INT-04, INT-06) */
+.azioni-proposta { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; align-items: flex-start; }
+.modifica-proposta summary { list-style: none; }
+.modifica-proposta summary::-webkit-details-marker { display: none; }
+.modifica-proposta[open] { flex-basis: 100%; order: 3; }
+.modifica-proposta form { margin-top: 8px; display: grid; gap: 8px; justify-items: start; }
+.modifica-proposta textarea { width: 100%; }
+.confronto mark { background: var(--accento-tenue); color: inherit; border-radius: 3px; padding: 0 2px; }

@@ -50,12 +50,22 @@
 
       <section class="blocco" aria-labelledby="t-avvisi">
         <h2 id="t-avvisi">Avvisi</h2>
-        {% if siti_in_errore %}
+        {% if proposte or siti_in_errore or argomenti_nuovi %}
         <ul class="avvisi">
+          {% for p in proposte %}
+          <li><a href="#" hx-get="/impostazioni/interessi" hx-target="#impostazioni">
+            <span class="segnale novita"></span>
+            <span><strong>{{ "Proposta di raffinamento" if p.interesse else "Proposta di un nuovo interesse" }}</strong><br><span class="descrizione">{{ p.interesse.nome if p.interesse else p.nome }} · da {{ p.notizie }} notizie con il cuore</span></span></a></li>
+          {% endfor %}
           {% for sito in siti_in_errore %}
           <li><a href="#" hx-get="/impostazioni/siti" hx-target="#impostazioni">
             <span class="segnale avvertimento">{{ icona("avvertimento") }}</span>
             <span><strong>{{ sito.url }}</strong><br><span class="descrizione">{{ sito.stato or "errore" }}{% if sito.guasti_consecutivi > 1 %} da {{ sito.guasti_consecutivi }} esecuzioni{% endif %}</span></span></a></li>
+          {% endfor %}
+          {% for r in argomenti_nuovi %}
+          <li><a href="/argomenti/{{ r.argomento.id }}">
+            <span class="icona-argomento">{{ icona("argomento") }}</span>
+            <span><strong>{{ r.argomento.nome }}</strong><br><span class="descrizione">{{ r.nuove }} {{ "notizia nuova" if r.nuove == 1 else "notizie nuove" }} nell'argomento</span></span></a></li>
           {% endfor %}
         </ul>
         {% else %}

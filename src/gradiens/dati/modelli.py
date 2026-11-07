@@ -40,6 +40,7 @@ class Impostazioni(Base):
     telegram_bot: Mapped[str | None] = mapped_column(String(64))
     telegram_chat_id: Mapped[int | None] = mapped_column(BigInteger)
     telegram_chat_nome: Mapped[str | None] = mapped_column(String(200))
+    ultima_proposta_interesse_il: Mapped[datetime | None]  # INT-06: contano i cuori messi dopo questa data
 
 
 class Interesse(Base):
@@ -49,6 +50,7 @@ class Interesse(Base):
     nome: Mapped[str] = mapped_column(String(80), unique=True)
     descrizione: Mapped[str] = mapped_column(Text)
     raffinamento: Mapped[str | None] = mapped_column(Text)
+    ultima_proposta_il: Mapped[datetime | None]  # INT-04: contano i cuori messi dopo questa data
 
 
 class CanaleYoutube(Base):
@@ -107,11 +109,27 @@ class Notizia(Base):
     scoperta_il: Mapped[datetime]
     stato: Mapped[str | None] = mapped_column(String(40))  # es. "contenuto parziale"
     cuore: Mapped[bool] = mapped_column(default=False, index=True)
+    cuore_il: Mapped[datetime | None]  # quando è stato messo il cuore (INT-04, INT-06)
     esecuzione_id: Mapped[int | None] = mapped_column(ForeignKey("esecuzioni.id", ondelete="SET NULL"))
+    argomento_id: Mapped[int | None] = mapped_column(ForeignKey("argomenti.id", ondelete="SET NULL"), index=True)  # ESE-08
+
+    argomento: Mapped["Argomento | None"] = relationship(back_populates="notizie")
 
     pertinenze: Mapped[list["Pertinenza"]] = relationship(
         back_populates="notizia", cascade="all, delete-orphan", order_by="Pertinenza.punteggio.desc()"
     )
+
+
+class Argomento(Base):
+    """Un singolo evento e la sua evoluzione (ESE-08), non un tema generale."""
+
+    __tablename__ = "argomenti"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nome: Mapped[str] = mapped_column(String(200))
+    creato_il: Mapped[datetime]
+
+    notizie: Mapped[list[Notizia]] = relationship(back_populates="argomento", order_by="Notizia.pubblicata_il.desc()")
 
 
 class Pertinenza(Base):
@@ -123,6 +141,22 @@ class Pertinenza(Base):
 
     notizia: Mapped[Notizia] = relationship(back_populates="pertinenze")
     interesse: Mapped[Interesse] = relationship()
+
+
+class Proposta(Base):
+    """Proposta dell'LLM da approvare (INT-04, INT-06): un raffinamento per un interesse, oppure,
+    senza interesse, un interesse nuovo con nome e descrizione."""
+
+    __tablename__ = "proposte"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    interesse_id: Mapped[int | None] = mapped_column(ForeignKey("interessi.id", ondelete="CASCADE"))
+    testo: Mapped[str] = mapped_column(Text)  # raffinamento proposto, oppure descrizione del nuovo interesse
+    nome: Mapped[str | None] = mapped_column(String(80))  # solo per un interesse nuovo
+    notizie: Mapped[int]  # notizie con il cuore da cui nasce
+    creata_il: Mapped[datetime]
+
+    interesse: Mapped[Interesse | None] = relationship()
 
 
 class NotiziaVista(Base):

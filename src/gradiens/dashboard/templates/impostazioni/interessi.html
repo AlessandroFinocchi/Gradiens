@@ -1,11 +1,46 @@
 {% from "icone.html" import icona with context %}
+{% from "segnale.html" import segnale with context %}
 <h2>Interessi</h2>
-<p class="intro">Il nome si usa nei filtri. Descrizione e raffinamento guidano il filtro LLM: scrivi la descrizione come la spiegheresti a una persona, dicendo anche cosa non ti interessa.</p>
+<p class="intro">Il nome si usa nei filtri. Descrizione e raffinamento guidano il filtro LLM: scrivi la descrizione come la spiegheresti a una persona, dicendo anche cosa non ti interessa. Il raffinamento lo può proporre Gradiens dalle notizie con il cuore, e vale solo se lo approvi. Le modifiche valgono per le notizie nuove.</p>
 
-{# Compressi: si vede solo il nome, il clic sulla testa apre descrizione e raffinamento. #}
+{# INT-06: interesse nuovo proposto, con nome e descrizione modificabili prima di approvarlo. #}
+{% if proposta_nuova %}
+<form class="riga proposta" style="display: block" hx-post="/impostazioni/proposte/{{ proposta_nuova.id }}/approva" hx-target="#impostazioni">
+  <div class="titolo">Proposta di nuovo interesse, da {{ proposta_nuova.notizie }} notizie con il cuore che non corrispondono a nessun interesse</div>
+  <label class="etichetta-campo" for="proposta-nome">Nome</label>
+  <input class="campo" id="proposta-nome" name="nome" value="{{ proposta_nuova.nome }}" maxlength="80" required>
+  <label class="etichetta-campo" for="proposta-descrizione">Descrizione</label>
+  <textarea class="campo" id="proposta-descrizione" name="testo" rows="2" required>{{ proposta_nuova.testo }}</textarea>
+  <div class="azioni-proposta">
+    <button class="bottone piccolo">Aggiungi l'interesse</button>
+    <button type="button" class="bottone secondario piccolo" hx-post="/impostazioni/proposte/{{ proposta_nuova.id }}/scarta" hx-target="#impostazioni">Scarta</button>
+  </div>
+</form>
+{% endif %}
+
+{# Compressi: si vede solo il nome, il clic sulla testa apre descrizione e raffinamento. Aperti se c'è una proposta. #}
 {% for i in interessi %}
-<details class="interesse">
-  <summary class="interesse-testa"><strong>{{ i.nome }}</strong><span class="freccia">{{ icona("espandi") }}</span></summary>
+{% set p = proposte.get(i.id) %}
+<details class="interesse"{% if p %} open{% endif %}>
+  <summary class="interesse-testa"><strong>{{ i.nome }}</strong>{% if p %}{{ segnale({"tipo": "novita", "motivo": "Proposta di raffinamento da approvare"}) }}{% endif %}<span class="freccia">{{ icona("espandi") }}</span></summary>
+  {% if p %}
+  {# INT-04: proposta con le parole nuove evidenziate; la descrizione dell'utente non cambia. #}
+  <div class="riga proposta" style="display: block; margin-top: 10px">
+    <div class="titolo">Proposta di raffinamento, da {{ p.notizie }} notizie con il cuore</div>
+    <div class="confronto">
+      <div><span class="etichetta-campo">Attuale</span>{{ i.raffinamento or "Nessun raffinamento." }}</div>
+      <div class="nuovo"><span class="etichetta-campo">Proposto</span>{% for pezzo, nuovo in evidenzia(i.raffinamento or "", p.testo) %}{% if nuovo %}<mark>{{ pezzo }}</mark>{% else %}{{ pezzo }}{% endif %} {% endfor %}</div>
+    </div>
+    <div class="azioni-proposta">
+      <button type="button" class="bottone piccolo" hx-post="/impostazioni/proposte/{{ p.id }}/approva" hx-target="#impostazioni">Approva</button>
+      <details class="modifica-proposta"><summary class="bottone secondario piccolo">Modifica e approva</summary>
+        <form hx-post="/impostazioni/proposte/{{ p.id }}/approva" hx-target="#impostazioni">
+          <textarea class="campo" name="testo" rows="3" aria-label="Raffinamento modificato" required>{{ p.testo }}</textarea>
+          <button class="bottone piccolo">Approva questa versione</button></form></details>
+      <button type="button" class="bottone secondario piccolo" hx-post="/impostazioni/proposte/{{ p.id }}/scarta" hx-target="#impostazioni">Scarta</button>
+    </div>
+  </div>
+  {% endif %}
   <form hx-post="/impostazioni/interessi/{{ i.id }}" hx-target="#impostazioni">
     <label class="etichetta-campo" for="nome-{{ i.id }}">Nome</label>
     <input class="campo" id="nome-{{ i.id }}" name="nome" value="{{ i.nome }}" maxlength="80" required>

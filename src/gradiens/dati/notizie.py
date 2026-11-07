@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session, selectinload
 
-from gradiens.dati.modelli import TIPI_NOTIZIA, Notizia, NotiziaVista, Pertinenza
+from gradiens.dati.modelli import TIPI_NOTIZIA, Argomento, Notizia, NotiziaVista, Pertinenza
 
 GIORNI_CONSERVAZIONE = 7  # ESE-09
 GRUPPI_EVIDENZA = {"sito": "siti", "video": "youtube", "short": "youtube", "arxiv": "arxiv"}  # UI-02
@@ -43,7 +43,8 @@ def elenca(sessione: Session, filtri: Filtri, soglia: int) -> list[Notizia]:
             .scalar_subquery()
         )
 
-    query = select(Notizia).options(selectinload(Notizia.pertinenze).selectinload(Pertinenza.interesse))
+    query = select(Notizia).options(selectinload(Notizia.pertinenze).selectinload(Pertinenza.interesse),
+                                    selectinload(Notizia.argomento))
     if filtri.archivio:
         query = query.where(Notizia.cuore)
         if filtri.interesse_id is not None:
@@ -99,6 +100,7 @@ def cancella_scadute(sessione: Session) -> int:
     è già la data di scoperta. Gli indirizzi restano nel registro delle viste, così non tornano."""
     limite = adesso() - timedelta(days=GIORNI_CONSERVAZIONE)
     risultato = sessione.execute(delete(Notizia).where(Notizia.cuore.is_(False), Notizia.pubblicata_il < limite))
+    sessione.execute(delete(Argomento).where(~Argomento.notizie.any()))  # ESE-10: argomenti rimasti vuoti
     sessione.commit()
     return risultato.rowcount
 
@@ -107,14 +109,14 @@ def dettaglio(sessione: Session, id: int) -> Notizia | None:
     query = (
         select(Notizia)
         .where(Notizia.id == id)
-        .options(selectinload(Notizia.pertinenze).selectinload(Pertinenza.interesse))
+        .options(selectinload(Notizia.pertinenze).selectinload(Pertinenza.interesse), selectinload(Notizia.argomento))
     )
     return sessione.scalars(query).first()
 
 
 def imposta_cuore(sessione: Session, id: int, cuore: bool) -> Notizia:
     notizia = sessione.get_one(Notizia, id)
-    notizia.cuore = cuore
+    notizia.cuore, notizia.cuore_il = cuore, adesso() if cuore else None
     sessione.commit()
     return notizia
 

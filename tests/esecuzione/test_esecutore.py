@@ -10,11 +10,11 @@ from sqlalchemy.orm import selectinload
 
 from gradiens.dati import impostazioni, interessi, notizie
 from gradiens.dati.database import crea_motore, fabbrica_sessioni, migra
-from gradiens.dati.modelli import CategoriaArxiv, Esecuzione, Notizia
+from gradiens.dati.modelli import Argomento, CategoriaArxiv, Esecuzione, Notizia, Pertinenza, Proposta
 from gradiens.esecuzione import prompt
 from gradiens.esecuzione.esecutore import Esecutore, GiaInCorso
 from gradiens.fonti import Candidata
-from gradiens.llm.base import QuotaEsaurita
+from gradiens.llm.base import ErroreLLM, QuotaEsaurita
 from gradiens.llm.finto import Finto
 
 
@@ -50,6 +50,9 @@ def risponditore(sistema, messaggio, schema):
         voci = json.loads(messaggio)
         sponsorizzate = [v["id"] for v in voci if "offerta" in v["titolo"]] if "sponsorizzati" in sistema else []
         return {"pertinenti": [v["id"] for v in voci if "sicurezza" in v["titolo"]], "sponsorizzate": sponsorizzate}
+    if schema is prompt.SCHEMA_ARGOMENTI:  # le notizie "attacco" vanno in un argomento solo
+        return {"assegnazioni": [{"notizia": v["id"], "nuovo": "Attacco alla ASL"} for v in json.loads(messaggio)
+                                 if "attacco" in v["titolo"]]}
     titolo = json.loads(messaggio)["titolo"]
     return {"punteggi": [{"interesse": 1, "pertinenza": 90 if "alta" in titolo else 30}],
             "riassunto": f"Riassunto di {titolo}.", "titolo_it": f"IT {titolo}"}
@@ -92,7 +95,7 @@ def test_esecuzione_completa(sessioni):
         assert len(notizie.gia_viste(s, [f"https://arxiv.org/abs/{n}" for n in ("sicurezza-alta", "sicurezza-bassa", "cucina")])) == 3
     # Pre-filtro: una sola chiamata a blocchi. La parte fissa (interessi) sta nel prompt di sistema.
     assert sum("pre-filtro" in sistema for sistema, _ in finto.chiamate) == 1
-    assert all("attacchi informatici" in sistema for sistema, _ in finto.chiamate)
+    assert all("attacchi informatici" in sistema for sistema, _ in finto.chiamate if "passo degli argomenti" not in sistema)
 
 
 def test_tetto_arxiv_elabora_solo_i_piu_recenti(sessioni):
@@ -338,3 +341,64 @@ def test_avviso_di_fine_esecuzione_ma_non_allo_spegnimento(sessioni):
         return prima
 
     assert avvisate == [asyncio.run(prova())]
+
+
+def test_argomenti_a_fine_esecuzione(sessioni):
+    """ESE-08, ADR 0008: le notizie dello stesso evento finiscono in un argomento solo, anche in blocchi diversi."""
+    esecuzione, metriche, salvate, finto = esegui(sessioni, raccolta(
+        candidata("sicurezza-alta-attacco-1"), candidata("sicurezza-alta-attacco-2"), candidata("sicurezza-alta-guida")))
+    assert esecuzione.stato == "completata"
+    with sessioni() as s:
+        notizie_salvate = {n.titolo: n for n in s.scalars(select(Notizia))}
+        assert notizie_salvate["sicurezza-alta-attacco-1"].argomento_id == notizie_salvate["sicurezza-alta-attacco-2"].argomento_id
+        assert notizie_salvate["sicurezza-alta-attacco-1"].argomento.nome == "Attacco alla ASL"
+        assert notizie_salvate["sicurezza-alta-guida"].argomento_id is None
+    # Un'esecuzione dopo: l'argomento esistente compare nel prompt con il suo id.
+    sistema = next(sis for sis, _ in finto.chiamate if "passo degli argomenti" in sis)
+    assert "(nessuno)" in sistema
+
+
+def test_passo_degli_argomenti_fallito_non_ferma_l_esecuzione(sessioni):
+    def guasto(sistema, messaggio, schema):
+        if schema is prompt.SCHEMA_ARGOMENTI:
+            raise ErroreLLM("Claude non risponde")
+        return risponditore(sistema, messaggio, schema)
+
+    esecuzione, _, salvate, _ = esegui(sessioni, raccolta(candidata("sicurezza-alta-attacco")), provider=Finto(guasto))
+    assert esecuzione.stato == "completata" and len(salvate) == 1
+
+
+def test_nuovo_argomento_con_il_nome_di_uno_esistente_non_crea_doppioni(sessioni):
+    async def due_esecuzioni():
+        for nome in ("sicurezza-alta-attacco-1", "sicurezza-alta-attacco-2"):  # il Claude finto risponde sempre "nuovo"
+            esecutore = Esecutore(sessioni, fabbrica_provider=lambda n: Finto(risponditore), fonti=raccolta(candidata(nome)))
+            esecutore.avvia("cli")
+            await esecutore.attendi()
+
+    asyncio.run(due_esecuzioni())
+    with sessioni() as s:
+        assert [a.nome for a in s.scalars(select(Argomento))] == ["Attacco alla ASL"]
+        assert len(s.scalars(select(Argomento)).one().notizie) == 2
+
+
+def test_proposta_di_raffinamento_a_fine_esecuzione(sessioni):
+    """INT-04: 3 cuori nuovi su notizie pertinenti, e alla fine dell'esecuzione c'è una proposta."""
+    with sessioni() as s:
+        for nome in ("a", "b", "c"):
+            s.add(Notizia(tipo="arxiv", url=f"https://arxiv.org/abs/cuore-{nome}", fonte="cs.CR", titolo=nome, riassunto="r",
+                          pubblicata_il=notizie.adesso(), scoperta_il=notizie.adesso(), cuore=True, cuore_il=notizie.adesso(),
+                          pertinenze=[Pertinenza(interesse_id=1, punteggio=90)]))
+        s.commit()
+
+    def con_proposta(sistema, messaggio, schema):
+        if schema is prompt.SCHEMA_RAFFINAMENTO:
+            assert "attacchi informatici" in sistema  # descrizione dell'utente, da non cambiare
+            return {"raffinamento": "Soprattutto ransomware nella sanità."}
+        return risponditore(sistema, messaggio, schema)
+
+    esecuzione, _, _, _ = esegui(sessioni, raccolta(candidata("sicurezza-alta")), provider=Finto(con_proposta))
+    assert esecuzione.stato == "completata"
+    with sessioni() as s:
+        [p] = s.scalars(select(Proposta)).all()
+        assert (p.interesse_id, p.testo, p.notizie) == (1, "Soprattutto ransomware nella sanità.", 3)
+

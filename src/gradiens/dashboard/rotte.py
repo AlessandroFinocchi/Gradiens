@@ -3,16 +3,20 @@
 import json
 from datetime import UTC
 
-from fastapi import APIRouter, FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from typing import Annotated
+
+from fastapi import APIRouter, FastAPI, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.exc import NoResultFound
 from starlette.datastructures import QueryParams
 
 from gradiens.dashboard import rotte_impostazioni
 from gradiens.dashboard.comune import CARTELLA, TIPI, Sessione, frammento, pagina
-from gradiens.dati import esecuzioni, impostazioni, interessi, notizie
+from gradiens.dati import argomenti, esecuzioni, impostazioni, interessi, notizie, proposte
 from gradiens.dati import siti as dati_siti
 from gradiens.dati.modelli import Esecuzione, Notizia
+from gradiens.dati.impostazioni import ImpostazioneNonValida
 from gradiens.dati.notizie import Filtri
 from gradiens.esecuzione.esecutore import GiaInCorso
 
@@ -20,7 +24,6 @@ router = APIRouter()
 
 # Pagine che arrivano nelle fette successive (docs/architettura/piano-fase-4.md).
 IN_ARRIVO = {  # nome: (indirizzo, titolo, messaggio)
-    "timeline": ("/timeline", "Timeline", "La Timeline arriva con la fetta 6, insieme agli argomenti."),
     "aiuto": ("/aiuto", "Aiuto", "La guida completa arriva con la fetta 7."),
 }
 
@@ -49,7 +52,8 @@ def home(request: Request, s: Sessione):
         ultima=ultima, riepilogo=ultima and esecuzioni.riepilogo(ultima),
         evidenza=notizie.in_evidenza(s, impostazioni.leggi(s).soglia),
         nomi_categorie=impostazioni.nomi_categorie(s),
-        siti_in_errore=dati_siti.in_errore(s),
+        siti_in_errore=dati_siti.in_errore(s), proposte=proposte.pendenti(s),
+        argomenti_nuovi=[r for r in argomenti.timeline(s, ultima and ultima.id) if r.nuove],  # UI-02, avvisi
         storico=[(e, esecuzioni.riepilogo(e)) for e in esecuzioni.storico(s)],
     )
 
@@ -60,6 +64,61 @@ def resoconto(request: Request, s: Sessione, id: int):
     if esecuzione is None:
         raise HTTPException(404, "Esecuzione inesistente")
     return pagina(request, s, "resoconto", "home", e=esecuzione, riepilogo=esecuzioni.riepilogo(esecuzione))
+
+
+# ---------- Timeline e argomenti (UI-09, ESE-08) ----------
+
+def _ultima_id(s) -> int | None:
+    ultima = esecuzioni.ultima(s)
+    return ultima.id if ultima else None
+
+
+@router.get("/timeline", response_class=HTMLResponse)
+def timeline(request: Request, s: Sessione):
+    return pagina(request, s, "timeline", "timeline", elenco=argomenti.timeline(s, _ultima_id(s)), tutti=argomenti.tutti(s))
+
+
+@router.get("/argomenti/{id}", response_class=HTMLResponse)
+def pagina_argomento(request: Request, s: Sessione, id: int):
+    r = argomenti.riassunto(s, id, _ultima_id(s))
+    if r is None:
+        raise HTTPException(404, "Argomento inesistente o senza notizie")
+    return pagina(request, s, "argomento", "timeline", r=r, tutti=argomenti.tutti(s), ultima_id=_ultima_id(s),
+                  nomi_categorie=impostazioni.nomi_categorie(s))
+
+
+def _dopo(indirizzo: str | None = None) -> Response:
+    """Dopo un'azione su un argomento: htmx ricarica la pagina, o ne apre un'altra."""
+    return Response(status_code=204, headers={"HX-Redirect": indirizzo} if indirizzo else {"HX-Refresh": "true"})
+
+
+def _azione(s, azione) -> None:
+    try:
+        azione()
+    except ImpostazioneNonValida as errore:
+        s.rollback()
+        raise HTTPException(422, str(errore)) from None
+    except NoResultFound:
+        raise HTTPException(404, "Argomento inesistente") from None
+
+
+@router.post("/argomenti/{id}/rinomina")
+def rinomina_argomento(s: Sessione, id: int, nome: Annotated[str, Form()]):
+    _azione(s, lambda: argomenti.rinomina(s, id, nome))
+    return _dopo()
+
+
+@router.post("/argomenti/{id}/unisci")
+def unisci_argomento(request: Request, s: Sessione, id: int, destinazione: Annotated[int, Form()]):
+    _azione(s, lambda: argomenti.unisci(s, id, destinazione))
+    # Dalla pagina dell'argomento unito si va a quella della destinazione; dalla Timeline si ricarica.
+    return _dopo(f"/argomenti/{destinazione}" if "/argomenti/" in request.headers.get("HX-Current-URL", "") else None)
+
+
+@router.post("/argomenti/{id}/elimina")
+def elimina_argomento(request: Request, s: Sessione, id: int):
+    _azione(s, lambda: argomenti.elimina(s, id))
+    return _dopo("/timeline" if "/argomenti/" in request.headers.get("HX-Current-URL", "") else None)
 
 
 # ---------- Notizie e Archivio (UI-04..UI-08) ----------

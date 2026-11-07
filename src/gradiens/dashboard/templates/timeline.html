@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "icone.html" import icona with context %}
+{% from "argomento_azioni.html" import azioni_argomento, metadati with context %}
+{# Timeline (UI-09): elenco compatto degli argomenti con almeno 2 notizie. #}
+{% block titolo %}Timeline{% endblock %}
+{% block contenuto %}
+<main class="pagina">
+  <header class="testata">
+    <h1>Timeline</h1>
+    <div class="sottotitolo">Argomenti con almeno 2 notizie, dagli ultimi 7 giorni e dall'archivio. Prima quelli aggiornati più di recente. Apri un argomento per scorrere la sua timeline.</div>
+  </header>
+  {% if elenco %}
+  <ul class="elenco-argomenti">
+    {% for r in elenco %}
+    <li class="riga-argomento">
+      <div>
+        <h2><a href="/argomenti/{{ r.argomento.id }}">{{ r.argomento.nome }}</a></h2>
+        <div class="riga-info"><span>{{ metadati(r) }}</span>{% if r.nuove %}<span class="stato">{{ r.nuove }} {{ "nuova" if r.nuove == 1 else "nuove" }}</span>{% endif %}</div>
+      </div>
+      {{ azioni_argomento(r.argomento, tutti) }}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="vuoto-pagina">
+    {{ icona("timeline") }}
+    <h2>Ancora nessun argomento</h2>
+    <p>Un argomento compare qui quando almeno 2 notizie seguono lo stesso evento, per esempio lo stesso attacco o la stessa vulnerabilità.</p>
+  </div>
+  {% endif %}
+</main>
+{% endblock %}

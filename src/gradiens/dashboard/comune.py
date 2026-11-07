@@ -1,5 +1,6 @@
 """Parti comuni della dashboard: template, filtri Jinja, sessione del database."""
 
+import difflib
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -40,6 +41,11 @@ def data_breve(d: datetime) -> str:
     return f"{l.day} {MESI[l.month - 1]}, {l:%H:%M}"
 
 
+def data_breve_giorno(d: datetime) -> str:
+    l = _locale(d)
+    return f"{l.day} {MESI[l.month - 1]}"
+
+
 def data_lunga(d: datetime) -> str:
     l = _locale(d)
     return f"{l.day} {MESI[l.month - 1]} {l.year} alle {l:%H:%M}"
@@ -54,6 +60,21 @@ def data_relativa(d: datetime) -> str:
     if l.date() == oggi + timedelta(days=1):
         return f"domani alle {l:%H:%M}"
     return f"il {l.day} {MESI[l.month - 1]} alle {l:%H:%M}"
+
+
+def evidenzia(attuale: str, proposto: str) -> list[tuple[str, bool]]:
+    """Il testo proposto a pezzi, con True per i pezzi nuovi rispetto all'attuale (INT-04).
+    Le parole si confrontano senza punteggiatura né maiuscole; le parole nuove vicine stanno in un pezzo solo."""
+    def pulita(parola: str) -> str:
+        return parola.strip(".,;:!?()«»\"'").casefold()
+
+    dopo = proposto.split()
+    pezzi: list[tuple[str, bool]] = []
+    confronto = difflib.SequenceMatcher(a=[pulita(p) for p in attuale.split()], b=[pulita(p) for p in dopo], autojunk=False)
+    for op, _, _, j1, j2 in confronto.get_opcodes():
+        if j1 < j2:
+            pezzi.append((" ".join(dopo[j1:j2]), op in ("insert", "replace")))
+    return pezzi
 
 
 def durata(secondi: float | None) -> str:
@@ -71,9 +92,10 @@ def token_brevi(n: int) -> str:
     return migliaia(n) if n < 1000 else f"{round(n / 1000)} mila"
 
 
-modelli.env.filters.update(data_breve=data_breve, data_lunga=data_lunga, data_relativa=data_relativa,
+modelli.env.filters.update(data_breve=data_breve, data_breve_giorno=data_breve_giorno, data_lunga=data_lunga, data_relativa=data_relativa,
                            durata=durata, migliaia=migliaia, token_brevi=token_brevi)
-modelli.env.globals.update(TIPI=TIPI, FONTI=FONTI, AVVIATA_DA=AVVIATA_DA, STATI_BUONI=STATI_BUONI, nome_fonte=nome_fonte)
+modelli.env.globals.update(TIPI=TIPI, FONTI=FONTI, AVVIATA_DA=AVVIATA_DA, STATI_BUONI=STATI_BUONI, nome_fonte=nome_fonte,
+                           evidenzia=evidenzia)
 
 
 def sessione(request: Request) -> Iterator[Session]:

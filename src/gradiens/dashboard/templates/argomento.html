@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from "icone.html" import icona with context %}
+{% from "argomento_azioni.html" import azioni_argomento, metadati with context %}
+{# Pagina dell'argomento (UI-09): le sue notizie in ordine di tempo, dalla più recente. #}
+{% block titolo %}{{ r.argomento.nome }}{% endblock %}
+{% block contenuto %}
+<main class="pagina-argomento">
+  <a class="indietro" href="/timeline">{{ icona("indietro") }}Timeline</a>
+  <div class="argomento-testa">
+    <div><h1>{{ r.argomento.nome }}</h1>
+      <div class="riga-info" style="margin-top: 4px"><span>{{ metadati(r) }}</span>{% if r.nuove %}<span class="stato">{{ r.nuove }} {{ "nuova" if r.nuove == 1 else "nuove" }}</span>{% endif %}</div></div>
+    {{ azioni_argomento(r.argomento, tutti) }}
+  </div>
+  <ol class="linea-tempo">
+    {% for n in r.argomento.notizie %}
+    <li{% if loop.first %} class="recente"{% endif %}>
+      <span class="quando">{{ n.pubblicata_il|data_breve_giorno }}</span><span class="asse"></span>
+      <div class="voce-tempo"><a href="/notizie/{{ n.id }}">{{ n.titolo_it or n.titolo }}</a>
+        <div class="n-meta">{{ icona(TIPI[n.tipo][0]) }}<span>{{ TIPI[n.tipo][1] }}</span>·<span>{{ nome_fonte(n.tipo, n.fonte, nomi_categorie) }}</span>
+          {% if r.nuove and n.esecuzione_id == ultima_id %}<span class="stato">nuova</span>{% endif %}
+          {% if n.cuore %}<span class="in-archivio">{{ icona("cuore") }}in archivio</span>{% endif %}</div></div>
+    </li>
+    {% endfor %}
+  </ol>
+</main>
+{% endblock %}

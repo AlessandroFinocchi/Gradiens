@@ -15,9 +15,10 @@ from dataclasses import asdict, dataclass, field
 from datetime import timedelta
 
 import httpx
+from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
-from gradiens.dati import esecuzioni, impostazioni, interessi, notizie
+from gradiens.dati import argomenti, esecuzioni, impostazioni, interessi, notizie, proposte
 from gradiens.dati import siti as dati_siti
 from gradiens.dati.modelli import Notizia, Pertinenza
 from gradiens.esecuzione import prompt
@@ -28,6 +29,7 @@ from gradiens.llm.base import ErroreLLM, Provider, QuotaEsaurita
 log = logging.getLogger(__name__)
 
 BLOCCO_PREFILTRO = 30  # notizie per chiamata di pre-filtro (ADR 0006)
+BLOCCO_ARGOMENTI = 40  # notizie per chiamata del passo degli argomenti (ADR 0008)
 MAX_CONTENUTO = 60_000  # caratteri (~15.000 token): oltre, la notizia è "contenuto parziale"
 FONTE_DI_TIPO = {"arxiv": "arxiv", "video": "youtube", "short": "youtube", "sito": "siti"}
 
@@ -290,6 +292,63 @@ class Esecutore:
                 self._salva(s, c, risposta.dati, ids_validi, imp.soglia, m, self.avanzamento.esecuzione_id)
 
             await _tutti(elabora(c) for c in passate)
+            await self._argomenti(s, elaborazione, imp.modello_elaborazione, m)
+            await self._proposte(s, elaborazione, imp.modello_elaborazione, imp.soglia, m)
+
+    async def _argomenti(self, s: Session, elaborazione: Provider, modello: str, m: Metriche) -> None:
+        """ESE-08, ADR 0008: le notizie mostrate dall'esecuzione, a blocchi in fila, così ogni blocco
+        vede gli argomenti creati dal precedente. Se Claude non risponde restano senza argomento."""
+        mostrate = list(s.scalars(select(Notizia).where(Notizia.esecuzione_id == self.avanzamento.esecuzione_id)))
+        blocchi = [mostrate[i:i + BLOCCO_ARGOMENTI] for i in range(0, len(mostrate), BLOCCO_ARGOMENTI)]
+        self._fase("argomenti", len(blocchi))
+        for blocco in blocchi:
+            esistenti = argomenti.per_prompt(s)
+            try:
+                risposta = await elaborazione.chiedi(
+                    sistema=prompt.sistema_argomenti(esistenti), messaggio=prompt.messaggio_argomenti(blocco),
+                    schema=prompt.SCHEMA_ARGOMENTI, modello=modello)
+            except QuotaEsaurita:
+                raise
+            except Exception as errore:  # un argomento mancante non fa fallire l'esecuzione (ADR 0008)
+                log.warning("Passo degli argomenti non riuscito: %s", errore)
+                return
+            m.conta_token("elaborazione", risposta)
+            # Un "nuovo" con il nome di un argomento esistente non deve creare un doppione.
+            validi, nuovi = {a.id for a in esistenti}, {a.nome.casefold(): a for a in esistenti}
+            for voce in risposta.dati.get("assegnazioni", []):  # dato esterno: si controlla tutto
+                i = voce.get("notizia") if isinstance(voce, dict) else None
+                if not isinstance(i, int) or not 0 <= i < len(blocco):
+                    continue
+                if voce.get("argomento") in validi:
+                    blocco[i].argomento_id = voce["argomento"]
+                elif isinstance(voce.get("nuovo"), str) and (nome := voce["nuovo"].strip()):
+                    blocco[i].argomento = nuovi.get(nome.casefold()) or nuovi.setdefault(nome.casefold(), argomenti.crea(s, nome))
+            s.commit()
+            self.avanzamento.fatti += 1
+
+    async def _proposte(self, s: Session, elaborazione: Provider, modello: str, soglia: int, m: Metriche) -> None:
+        """INT-04, INT-06: proposte dai cuori nuovi. Se Claude non risponde si riprova alla prossima esecuzione."""
+        compiti = [(prompt.sistema_raffinamento(i), notizie_, prompt.SCHEMA_RAFFINAMENTO,
+                    lambda dati, i=i, n=len(notizie_): proposte.registra_raffinamento(s, i, str(dati.get("raffinamento", "")), n))
+                   for i, notizie_ in proposte.da_raffinare(s, soglia)]
+        if orfane := proposte.senza_interesse(s, soglia):
+            compiti.append((prompt.sistema_nuovo_interesse(interessi.elenca(s)), orfane, prompt.SCHEMA_NUOVO_INTERESSE,
+                            lambda dati, n=len(orfane): proposte.registra_interesse(
+                                s, str(dati.get("nome", "")), str(dati.get("descrizione", "")), n)))
+        self._fase("proposte", len(compiti))
+        for sistema, notizie_, schema, registra in compiti:
+            try:
+                risposta = await elaborazione.chiedi(sistema=sistema, schema=schema, modello=modello,
+                                                     messaggio=prompt.messaggio_proposta(notizie_[:proposte.MASSIMO_NOTIZIE]))
+                registra(risposta.dati)
+            except QuotaEsaurita:
+                raise
+            except Exception as errore:  # una proposta mancata non fa fallire l'esecuzione
+                s.rollback()
+                log.warning("Proposta non generata: %s", errore)
+                continue
+            m.conta_token("elaborazione", risposta)
+            self.avanzamento.fatti += 1
 
     async def _prefiltra(self, s: Session, nuove: list[Candidata], prefiltro: Provider, sistema: str,
                          modello: str, m: Metriche) -> list[Candidata]:

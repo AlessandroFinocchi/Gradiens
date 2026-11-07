@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from gradiens.dashboard import segnali
 from gradiens.dashboard.comune import Sessione, frammento
-from gradiens.dati import impostazioni, interessi
+from gradiens.dati import impostazioni, interessi, proposte
 from gradiens.dati.impostazioni import ImpostazioneNonValida
 from gradiens.dati import siti as dati_siti
 from gradiens.dati.modelli import Sito
@@ -50,6 +50,9 @@ def finestra(request: Request, s: Session, sezione: str, errore: str | None = No
                         COMANDI=COMANDI)
     if sezione == "interessi":
         contesto["interessi"] = interessi.elenca(s)
+        pendenti = proposte.pendenti(s)  # INT-04, INT-06
+        contesto["proposte"] = {p.interesse_id: p for p in pendenti if p.interesse_id is not None}
+        contesto["proposta_nuova"] = next((p for p in pendenti if p.interesse_id is None), None)
     elif sezione == "canali-youtube":
         contesto["canali"] = impostazioni.canali_youtube(s)
     elif sezione == "siti":
@@ -100,6 +103,18 @@ def modifica_interesse(request: Request, s: Sessione, id: int, nome: Testo, desc
 @router.post("/interessi/{id}/elimina", response_class=HTMLResponse)
 def elimina_interesse(request: Request, s: Sessione, id: int):
     return _esegui(request, s, "interessi", lambda: interessi.elimina(s, id))
+
+
+@router.post("/proposte/{id}/approva", response_class=HTMLResponse)
+def approva_proposta(request: Request, s: Sessione, id: int, testo: Annotated[str | None, Form()] = None,
+                     nome: Annotated[str | None, Form()] = None):
+    """Senza campi si approva il testo proposto; con i campi, la versione modificata dall'utente."""
+    return _esegui(request, s, "interessi", lambda: proposte.approva(s, id, testo, nome))
+
+
+@router.post("/proposte/{id}/scarta", response_class=HTMLResponse)
+def scarta_proposta(request: Request, s: Sessione, id: int):
+    return _esegui(request, s, "interessi", lambda: proposte.scarta(s, id))
 
 
 @router.post("/youtube", response_class=HTMLResponse)

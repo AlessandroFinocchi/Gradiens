@@ -1,0 +1,23 @@
+{% from "icone.html" import icona with context %}
+{# Rinomina, unisci ed elimina (UI-09): pannelli nativi <details>, uguali nella Timeline e nella pagina dell'argomento. #}
+{% macro azioni_argomento(a, tutti) -%}
+<div class="azioni-argomento">
+  <details><summary class="bottone-icona" title="Rinomina" aria-label="Rinomina l'argomento">{{ icona("matita") }}</summary>
+    <form class="popover" hx-post="/argomenti/{{ a.id }}/rinomina">
+      <input class="campo" name="nome" value="{{ a.nome }}" maxlength="200" required aria-label="Nuovo nome"><button class="bottone piccolo">Rinomina</button></form></details>
+  {% set altri = tutti|rejectattr("id", "equalto", a.id)|list %}
+  {% if altri %}
+  <details><summary class="bottone-icona" title="Unisci a un altro argomento" aria-label="Unisci a un altro argomento">{{ icona("unisci") }}</summary>
+    <form class="popover" hx-post="/argomenti/{{ a.id }}/unisci"><p>Le notizie di questo argomento passano nell'argomento scelto, che mantiene il suo nome.</p>
+      <select class="selettore" name="destinazione" aria-label="Argomento di destinazione">{% for x in altri %}<option value="{{ x.id }}">{{ x.nome }}</option>{% endfor %}</select>
+      <button class="bottone piccolo">Unisci</button></form></details>
+  {% endif %}
+  <details><summary class="bottone-icona" title="Elimina" aria-label="Elimina l'argomento">{{ icona("cestino") }}</summary>
+    <form class="popover" hx-post="/argomenti/{{ a.id }}/elimina"><p>Le notizie restano, ma non appartengono più a nessun argomento.</p>
+      <button class="bottone piccolo">Elimina l'argomento</button></form></details>
+</div>
+{%- endmacro %}
+
+{% macro metadati(r) -%}
+{{ r.notizie }} notizie · dal {{ r.dal|data_breve_giorno }} · aggiornato il {{ r.aggiornato|data_breve_giorno }}{% if r.in_archivio %} · {{ r.in_archivio }} in archivio{% endif %}
+{%- endmacro %}

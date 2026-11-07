@@ -12,6 +12,7 @@
           {{ icona(TIPI[n.tipo][0]) }}<span>{{ TIPI[n.tipo][1] }}</span>·<span>{{ nome_fonte(n.tipo, n.fonte, nomi_categorie) }}</span>·<span>{{ n.pubblicata_il|data_breve }}</span>
           {% if n.data_incerta %}<span class="stato">data incerta</span>{% endif %}
           {% if n.stato %}<span class="stato">{{ n.stato }}</span>{% endif %}
+          {% if n.argomento %}<span>·</span><a class="argomento" href="/argomenti/{{ n.argomento.id }}" title="Apri la timeline dell'argomento">{{ icona("argomento") }}{{ n.argomento.nome }}</a>{% endif %}
         </div>
         <p class="n-riassunto">{{ n.riassunto }}</p>
         <div class="n-piede">

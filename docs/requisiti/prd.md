@@ -31,12 +31,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
   - La descrizione scritta dall'utente non viene mai modificata dall'LLM.
 - `INT-05` L'utente può modificare o azzerare a mano il raffinamento in qualsiasi momento.
 - `INT-06` Se ci sono notizie con il cuore che non corrispondono a nessun interesse, l'LLM propone un nuovo interesse. Anche questa proposta va approvata dall'utente.
-- `INT-07` Questi eventi fanno rivalutare all'inizio dell'esecuzione successiva tutte le notizie conservate degli ultimi 7 giorni:
-  - si aggiunge un interesse;
-  - si modifica la descrizione di un interesse;
-  - si modifica un raffinamento, a mano o approvando una proposta.
-
-  Le notizie scartate in passato non vengono recuperate.
+- `INT-07` Aggiungere un interesse, modificarne la descrizione o il raffinamento (a mano o approvando una proposta) vale solo per le notizie valutate da quel momento in poi. Le notizie già valutate tengono i loro punteggi e non si rivalutano.
 - `INT-08` Rinominare un interesse ne cambia solo l'etichetta.
 - `INT-09` Eliminare un interesse cancella i suoi punteggi di **pertinenza**:
   - le notizie che non hanno più nessun punteggio sopra la soglia escono dalla pagina Notizie;
@@ -166,14 +161,15 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 - `ESE-04` **Pre-filtro**: l'LLM legge a blocchi titolo e sommario delle notizie nuove e scarta quelle fuori tema e quelle escluse (vedi `WEB-22` e `WEB-23`).
 - `ESE-05` **Valutazione completa**: per le notizie che passano il pre-filtro si scarica il testo completo o la trascrizione. L'LLM assegna un punteggio di pertinenza da 0 a 100 per ogni interesse pertinente, quindi una notizia può corrispondere a più interessi. Nella stessa fase l'LLM:
   - scrive il riassunto in italiano. Il riassunto deve essere corretto e completo: riporta solo ciò che c'è nel contenuto, senza aggiunte, e ne copre tutti i punti principali, non solo l'inizio. Se il contenuto è parziale, il riassunto lo dice;
-  - traduce il titolo in italiano, se la notizia è in un'altra lingua;
-  - assegna la notizia a un argomento, oppure a nessuno.
+  - traduce il titolo in italiano, se la notizia è in un'altra lingua.
+
+  L'argomento si assegna dopo, con un passo unico per tutte le notizie mostrate dall'esecuzione (`ESE-08`).
 - `ESE-06` Una notizia viene mostrata se almeno uno dei suoi punteggi raggiunge o supera la soglia. La soglia si configura nelle Impostazioni e per default vale 60.
 - `ESE-07` Delle notizie scartate si conserva solo l'indirizzo, nel registro delle notizie già viste.
 
 **Argomenti**
 
-- `ESE-08` L'LLM assegna ogni notizia mostrata a un argomento esistente, oppure ne crea uno nuovo, oppure non le assegna nessun argomento. Una notizia appartiene al massimo a un argomento. Un argomento è un singolo evento e la sua evoluzione, non un tema generale.
+- `ESE-08` Dopo la valutazione, in un passo unico, l'LLM assegna ogni notizia mostrata dall'esecuzione a un argomento esistente, oppure ne crea uno nuovo, oppure non le assegna nessun argomento. Vede insieme tutte le notizie dell'esecuzione, così quelle sullo stesso evento finiscono nello stesso argomento. Una notizia appartiene al massimo a un argomento. Un argomento è un singolo evento e la sua evoluzione, non un tema generale. Vedi [ADR 0008](../adr/0008-argomenti-assegnati-a-fine-esecuzione.md).
 
 **Cancellazione delle notizie**
 

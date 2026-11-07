@@ -2,7 +2,7 @@ from datetime import timedelta
 
 import pytest
 
-from gradiens.dati import esecuzioni, impostazioni, interessi
+from gradiens.dati import argomenti, esecuzioni, impostazioni, interessi, proposte
 from gradiens.dati import siti as dati_siti
 from gradiens.dati.modelli import Notizia, Pertinenza
 from gradiens.dati.notizie import adesso
@@ -170,6 +170,53 @@ def test_resoconto_di_un_esecuzione_registrata_prima_della_fetta_4b(client):
             "token": {"prefiltro": {"ingresso": 1, "uscita": 1}}})
     resoconto = client.get(f"/esecuzioni/{e.id}")
     assert resoconto.status_code == 200 and "—" in resoconto.text and "non raggiungibile: x" in resoconto.text
+
+
+def test_timeline_argomento_e_azioni(dati):
+    with dati.app.state.sessioni() as s:
+        a = argomenti.crea(s, "Attacco <b>ASL</b>")
+        b = argomenti.crea(s, "Altro evento")
+        for n in s.query(Notizia):
+            n.argomento = a if n.tipo == "arxiv" else b
+        s.commit()
+        id_a, id_b = a.id, b.id
+        id_notizia = s.query(Notizia).filter_by(url="https://arxiv.org/abs/1").one().id
+    timeline = dati.get("/timeline").text
+    assert "Attacco &lt;b&gt;ASL&lt;/b&gt;" in timeline
+    assert f'href="/argomenti/{id_b}"' not in timeline  # 1 sola notizia: niente riga, ma resta destinazione dell'unione
+    assert "2 notizie" in timeline and "1 in archivio" in timeline
+    pagina = dati.get(f"/argomenti/{id_a}").text
+    assert pagina.index("Paper &lt;script") < pagina.index("Paper vecchio")  # dalla più recente
+    assert f'href="/argomenti/{id_a}"' in dati.get("/notizie").text  # argomento sulla notizia (UI-04)
+    assert "Apri la timeline" in dati.get(f"/notizie/{id_notizia}").text
+    assert dati.get("/argomenti/9999").status_code == 404
+    rinomina = dati.post(f"/argomenti/{id_a}/rinomina", data={"nome": "Attacco alla ASL"}, headers=HTMX)
+    assert rinomina.status_code == 204 and rinomina.headers["HX-Refresh"] == "true"
+    assert dati.post(f"/argomenti/{id_a}/rinomina", data={"nome": " "}, headers=HTMX).status_code == 422
+    unione = dati.post(f"/argomenti/{id_b}/unisci", data={"destinazione": id_a},
+                       headers={**HTMX, "HX-Current-URL": f"http://127.0.0.1/argomenti/{id_b}"})
+    assert unione.headers["HX-Redirect"] == f"/argomenti/{id_a}"
+    assert "3 notizie" in dati.get(f"/argomenti/{id_a}").text
+    elimina = dati.post(f"/argomenti/{id_a}/elimina", headers={**HTMX, "HX-Current-URL": "http://127.0.0.1/timeline"})
+    assert elimina.headers["HX-Refresh"] == "true" and "Ancora nessun argomento" in dati.get("/timeline").text
+
+
+def test_proposta_di_raffinamento_nelle_impostazioni(dati):
+    with dati.app.state.sessioni() as s:
+        sic = next(i for i in interessi.elenca(s) if i.nome == "Sicurezza")
+        sic.raffinamento = "Ransomware."
+        s.commit()
+        proposte.registra_raffinamento(s, sic, "Ransomware <b>nella</b> sanità.", 4)
+        id = proposte.pendenti(s)[0].id
+    finestra = dati.get("/impostazioni/interessi", headers=HTMX).text
+    assert "Proposta di raffinamento, da 4 notizie con il cuore" in finestra
+    assert "<mark>&lt;b&gt;nella&lt;/b&gt; sanità.</mark>" in finestra  # parole nuove evidenziate, testo escapato
+    assert 'title="Sicurezza: proposta di raffinamento"' in finestra  # segnale sulla sezione
+    assert "Proposta di raffinamento" in dati.get("/").text  # avviso nella Home
+    approvata = dati.post(f"/impostazioni/proposte/{id}/approva", headers=HTMX).text
+    assert "Proposta di raffinamento, da" not in approvata
+    with dati.app.state.sessioni() as s:
+        assert next(i for i in interessi.elenca(s) if i.nome == "Sicurezza").raffinamento == "Ransomware <b>nella</b> sanità."
 
 
 def test_avanzamento_dell_esecuzione(dati):

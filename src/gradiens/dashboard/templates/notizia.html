@@ -32,5 +32,15 @@
     {% endfor %}
     {% if n.pertinenze and n.pertinenze|length < numero_interessi %}<p class="sottotitolo" style="margin: 8px 0 0">Non pertinente agli altri interessi.</p>{% endif %}
   </section>
+
+  {% if n.argomento %}
+  <section class="riquadro" aria-labelledby="t-argomento">
+    <h2 id="t-argomento">Argomento</h2>
+    <a class="argomento-riquadro" href="/argomenti/{{ n.argomento.id }}">
+      <span><strong>{{ n.argomento.nome }}</strong><br><span class="sottotitolo">{{ n.argomento.notizie|length }} {{ "notizia" if n.argomento.notizie|length == 1 else "notizie" }}{% if n.argomento.notizie[0].id == n.id %} · questa è la più recente{% endif %}</span></span>
+      <span class="bottone secondario piccolo">Apri la timeline</span>
+    </a>
+  </section>
+  {% endif %}
 </main>
 {% endblock %}

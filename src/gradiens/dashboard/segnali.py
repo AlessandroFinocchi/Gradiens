@@ -1,6 +1,6 @@
 """Segnali delle sezioni delle Impostazioni (UI-14): "avvertimento" per problemi e dati mancanti,
 "novita" per cose da guardare. Si ricalcolano a ogni richiesta, quindi spariscono da soli quando la
-causa è risolta. Modelli LLM, Avvio e proposte di raffinamento arrivano con le loro fette.
+causa è risolta. Modelli LLM e Avvio arrivano con la fetta 7.
 """
 
 import json
@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 
 from sqlalchemy.orm import Session
 
-from gradiens.dati import esecuzioni, impostazioni, interessi
+from gradiens.dati import esecuzioni, impostazioni, interessi, proposte
 from gradiens.dati import siti as dati_siti
 from gradiens.dati.esecuzioni import STATI_BUONI
 
@@ -38,6 +38,11 @@ def segnali(s: Session, problema_telegram: str | None = None) -> dict[str, Segna
     # Dati obbligatori (UI-11).
     if not interessi.elenca(s):
         segnala("interessi", "avvertimento", "Serve almeno un interesse", "aggiungi")
+    for p in proposte.pendenti(s):  # INT-04, INT-06
+        if p.interesse is not None:
+            segnala("interessi", "novita", f"{p.interesse.nome}: proposta di raffinamento", f"proposta-{p.interesse_id}")
+        else:
+            segnala("interessi", "novita", f"Proposta di un nuovo interesse: {p.nome}", "proposta-nuovo")
     canali = impostazioni.canali_youtube(s)
     if not canali:
         segnala("canali-youtube", "avvertimento", "Serve almeno un canale YouTube", "aggiungi")

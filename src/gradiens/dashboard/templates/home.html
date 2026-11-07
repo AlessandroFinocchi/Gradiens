@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% from "icone.html" import icona with context %}
+{% from "stato_esecuzione.html" import stato_esecuzione %}
+{# Home (UI-02): ultima esecuzione, avvisi, in evidenza, storico. Si ricarica alla fine di un'esecuzione (#home). #}
+{% block titolo %}Home{% endblock %}
+{% block contenuto %}
+<main class="pagina">
+  <header class="testata">
+    <div class="testata-riga">
+      <div>
+        <h1>Home</h1>
+        <div class="sottotitolo">
+          {% if prossima %}Prossima esecuzione programmata {{ prossima|data_relativa }}{% else %}Programmazione in pausa{% endif %}
+        </div>
+      </div>
+      {% include "avanzamento.html" %}
+    </div>
+  </header>
+  <div class="contenitore" id="home">
+    <div class="griglia-home">
+      <section class="blocco" aria-labelledby="t-esecuzione">
+        {% if avanzamento %}
+        <h2 id="t-esecuzione">Esecuzione in corso</h2>
+        <p class="nota">L'avanzamento è in alto a destra. Al termine questa pagina si aggiorna da sola.</p>
+        {% elif ultima %}
+        {% set t = riepilogo.totali %}
+        <h2 id="t-esecuzione">Ultima esecuzione <a class="link spinta" href="/esecuzioni/{{ ultima.id }}">Apri il resoconto</a></h2>
+        <div class="riga-info">
+          <span><strong>{{ ultima.avviata_il|data_relativa }}</strong></span>
+          <span>avviata da: {{ AVVIATA_DA.get(ultima.avviata_da, ultima.avviata_da) }}</span>
+          <span>durata {{ riepilogo.durata_s|durata }}</span>
+          {{ stato_esecuzione(ultima) }}
+        </div>
+        {% if ultima.stato == "completata" %}
+        <div class="cifre">
+          <div class="cifra"><b>{{ t.esaminate }}</b><span>esaminate</span></div>
+          <div class="cifra"><b>{{ t.mostrate }}</b><span>mostrate</span></div>
+          <div class="cifra"><b>{{ t.errori }}</b><span>{{ "errore" if t.errori == 1 else "errori" }}</span></div>
+          <div class="cifra"><b>{{ t.token|token_brevi }}</b><span>token</span></div>
+        </div>
+        <div class="riga-info"><span>{% for nome, f in riepilogo.fonti.items() %}{{ FONTI[nome][1] if nome in FONTI else nome }} {{ f.mostrate }}{% if not loop.last %} · {% endif %}{% endfor %} mostrate</span></div>
+        {% elif ultima.motivo %}
+        <div class="errore-riquadro">{{ icona("avvertimento") }}<div><strong>{{ ultima.motivo }}</strong></div></div>
+        {% endif %}
+        {% else %}
+        <h2 id="t-esecuzione">Ultima esecuzione</h2>
+        <p class="nota">Ancora nessuna esecuzione. Avviala dal bottone in alto o aspetta quella programmata.</p>
+        {% endif %}
+      </section>
+
+      <section class="blocco" aria-labelledby="t-avvisi">
+        <h2 id="t-avvisi">Avvisi</h2>
+        {% if siti_in_errore %}
+        <ul class="avvisi">
+          {% for sito in siti_in_errore %}
+          <li><a href="#" hx-get="/impostazioni/siti" hx-target="#impostazioni">
+            <span class="segnale avvertimento">{{ icona("avvertimento") }}</span>
+            <span><strong>{{ sito.url }}</strong><br><span class="descrizione">{{ sito.stato or "errore" }}{% if sito.guasti_consecutivi > 1 %} da {{ sito.guasti_consecutivi }} esecuzioni{% endif %}</span></span></a></li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="nota">Nessun avviso.</p>
+        {% endif %}
+      </section>
+
+      <section class="blocco largo" aria-labelledby="t-evidenza">
+        <h2 id="t-evidenza">In evidenza <a class="link spinta" href="/notizie">Tutte le notizie</a></h2>
+        <div class="colonne-evidenza">
+          {% for gruppo, elenco in evidenza.items() %}
+          <div>
+            <h3>{{ icona(FONTI[gruppo][0]) }}{{ FONTI[gruppo][1] }}</h3>
+            {% if elenco %}
+            <ol>
+              {% for n in elenco %}
+              {% set migliore = n.pertinenze[0] %}
+              <li><a href="/notizie/{{ n.id }}">{{ n.titolo_it or n.titolo }}</a>
+                <div class="riga-info"><span>{{ nome_fonte(n.tipo, n.fonte, nomi_categorie) }}{% if gruppo == "youtube" %} · {{ n.tipo }}{% endif %}</span><span class="punteggio{% if migliore.punteggio >= 80 %} alto{% endif %}">{{ migliore.interesse.nome }} <b>{{ migliore.punteggio }}</b></span></div></li>
+              {% endfor %}
+            </ol>
+            {% endif %}
+            {% if elenco|length < 3 %}<p class="nota">{% if elenco %}Solo {{ elenco|length }} {{ "notizia" if elenco|length == 1 else "notizie" }}{% else %}Nessuna notizia{% endif %} nelle ultime 24 ore.</p>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="blocco largo" aria-labelledby="t-storico">
+        <h2 id="t-storico">Storico delle esecuzioni</h2>
+        {% if storico %}
+        <div class="tabella-scorre">
+          <table>
+            <thead><tr><th>Avvio</th><th>Avviata da</th><th class="num">Durata</th><th class="num">Esaminate</th><th class="num">Mostrate</th><th class="num">Errori</th><th class="num">Token</th><th>Esito</th></tr></thead>
+            <tbody>
+              {% for e, r in storico %}
+              <tr class="cliccabile">
+                <td><a href="/esecuzioni/{{ e.id }}">{{ e.avviata_il|data_breve }}</a></td>
+                <td>{{ AVVIATA_DA.get(e.avviata_da, e.avviata_da) }}</td>
+                <td class="num">{{ r.durata_s|durata }}</td>
+                <td class="num">{{ r.totali.esaminate }}</td>
+                <td class="num">{{ r.totali.mostrate }}</td>
+                <td class="num">{{ r.totali.errori }}</td>
+                <td class="num">{{ r.totali.token|token_brevi }}</td>
+                <td>{{ stato_esecuzione(e) }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="nota">Lo storico si riempie con le esecuzioni.</p>
+        {% endif %}
+      </section>
+    </div>
+  </div>
+</main>
+{% endblock %}

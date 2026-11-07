@@ -1,7 +1,7 @@
 {% from "icone.html" import icona with context %}
 <h2>Siti web</h2>
 <p class="intro">Basta l'indirizzo della home, per seguire tutto il sito, o di una sezione, per seguire solo quella. Gradiens analizza il sito e crea il suo profilo, che puoi modificare: le tue modifiche restano anche quando il profilo viene rigenerato.</p>
-<form class="campo-riga" hx-post="/impostazioni/siti" hx-target="#impostazioni" hx-disabled-elt="find button" hx-indicator="#analisi-sito">
+<form class="campo-riga{% if "aggiungi" in voci %} evidenziata{% endif %}" hx-post="/impostazioni/siti" hx-target="#impostazioni" hx-disabled-elt="find button" hx-indicator="#analisi-sito">
   <input class="campo" name="indirizzo" placeholder="https://…" aria-label="Indirizzo del sito" required>
   <button class="bottone">Aggiungi</button>
 </form>
@@ -10,7 +10,7 @@
 <h3>Siti seguiti</h3>
 {% for sito, p in siti %}
 {% set problema = sito.stato and sito.stato not in ("ok", "nessun articolo nuovo") %}
-<div class="riga{% if problema and sito.stato != 'profilo rigenerato' %} evidenziata{% elif sito.stato == 'profilo rigenerato' %} proposta{% endif %}" style="display: block">
+<div class="riga{% if problema and sito.stato != 'profilo rigenerato' %} evidenziata{% elif "sito-" ~ sito.id in voci %} proposta{% endif %}" style="display: block">
   <div style="display: flex; gap: 12px; align-items: flex-start">
     <div class="testo">
       <div class="titolo">{{ p.perimetro or sito.url }}</div>

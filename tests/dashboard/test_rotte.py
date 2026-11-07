@@ -2,7 +2,8 @@ from datetime import timedelta
 
 import pytest
 
-from gradiens.dati import impostazioni, interessi
+from gradiens.dati import esecuzioni, impostazioni, interessi
+from gradiens.dati import siti as dati_siti
 from gradiens.dati.modelli import Notizia, Pertinenza
 from gradiens.dati.notizie import adesso
 from gradiens.esecuzione.esecutore import Avanzamento
@@ -86,6 +87,8 @@ def test_notizia_specifica_e_cuore(dati):
 def test_impostazioni_interessi(dati):
     finestra = dati.post("/impostazioni/interessi", data={"nome": "LLM", "descrizione": "modelli"}, headers=HTMX).text
     assert 'value="LLM"' in finestra
+    # Ogni interesse è compresso (solo il nome); descrizione e raffinamento si aprono dalla testa.
+    assert finestra.count('<details class="interesse">') == 3 and "<summary" in finestra
     doppione = dati.post("/impostazioni/interessi", data={"nome": "LLM", "descrizione": "x"}, headers=HTMX).text
     assert "Esiste già un interesse" in doppione
     with dati.app.state.sessioni() as s:
@@ -97,6 +100,16 @@ def test_impostazioni_interessi(dati):
     assert dati.post("/impostazioni/interessi/9999/elimina", headers=HTMX).status_code == 404
 
 
+def test_segnali_nella_finestra_e_sull_ingranaggio(dati):
+    # Nel fixture mancano canali, siti e bot Telegram: avvertimento sulle tre sezioni e sull'ingranaggio.
+    pagina = dati.get("/notizie").text
+    assert 'id="apri-impostazioni"' in pagina and "3 sezioni delle Impostazioni da guardare" in pagina
+    finestra = dati.get("/impostazioni/canali-youtube", headers=HTMX).text
+    assert 'title="Serve almeno un canale YouTube"' in finestra and 'title="Serve almeno un sito"' in finestra
+    assert 'class="campo-riga evidenziata"' in finestra  # la voce da sistemare
+    assert 'hx-swap-oob="true"' in finestra  # l'ingranaggio si aggiorna con la finestra
+
+
 def test_impostazioni_arxiv_ed_esecuzione(dati):
     assert "almeno una categoria" in dati.post("/impostazioni/arxiv/categorie/rimuovi", data={"codice": "cs.CR"}, headers=HTMX).text
     assert "non sembra una categoria" in dati.post("/impostazioni/arxiv/categorie", data={"codice": "<b>x</b>"}, headers=HTMX).text
@@ -104,10 +117,59 @@ def test_impostazioni_arxiv_ed_esecuzione(dati):
     con_nome = dati.post("/impostazioni/arxiv/categorie", data={"codice": "cs.IR", "nome": "Ricerca <i>"}, headers=HTMX).text
     assert "cs.IR · Ricerca &lt;i&gt;" in con_nome
     assert "va da 1 a 7" in dati.post("/impostazioni/esecuzione", data={"soglia": 60, "finestra_giorni": 9}, headers=HTMX).text
-    dati.post("/impostazioni/esecuzione", data={"soglia": 75, "finestra_giorni": 3}, headers=HTMX)
+    assert "non è un orario valido" in dati.post(
+        "/impostazioni/esecuzione", data={"soglia": 60, "finestra_giorni": 7, "orario": "25:00"}, headers=HTMX).text
+    dati.post("/impostazioni/esecuzione", data={"soglia": 75, "finestra_giorni": 3, "orario": "06:45", "in_pausa": "true"}, headers=HTMX)
     with dati.app.state.sessioni() as s:
         imp = impostazioni.leggi(s)
         assert (imp.soglia, imp.finestra_giorni) == (75, 3)
+        assert (imp.orario_programmato, imp.programmazione_in_pausa) == ("06:45", True)
+    assert dati.get("/api/stato").json()["prossima_esecuzione"] is None  # in pausa
+
+
+def test_home_senza_esecuzioni(client):
+    pagina = client.get("/").text
+    assert "Prossima esecuzione programmata" in pagina and "Ancora nessuna esecuzione" in pagina
+    assert "Nessun avviso." in pagina and "Nessuna notizia nelle ultime 24 ore." in pagina
+
+
+def test_home_e_resoconto_di_un_esecuzione(dati):
+    with dati.app.state.sessioni() as s:
+        e = esecuzioni.inizia(s, "programmazione")
+        esecuzioni.termina(s, e.id, "completata", {
+            "durata_s": 192, "fonti": {"siti": {
+                "raccolta_s": 48, "esaminate": 215, "scartate_prefiltro": 160, "scartate_valutazione": 31, "escluse": 1,
+                "senza_contenuto": 0, "mostrate": 17, "errori": 1,
+                "stati": [{"fonte": "rotto.it", "stato": "accesso bloccato", "dettaglio": "Il sito rifiuta le richieste.", "nuove": 0},
+                          {"fonte": "buono.it", "stato": "ok", "nuove": 12}],
+                "problemi": [],
+                "notizie_escluse": [{"fonte": "buono.it", "titolo": "Sconto <b>40%</b>", "url": "https://buono.it/x", "motivo": "sponsorizzato o offerta"}]}},
+            "token": {"prefiltro": {"ingresso": 61400, "uscita": 4900, "provider": "claude-code", "modello": "haiku"},
+                      "elaborazione": {"ingresso": 142800, "uscita": 21300, "provider": "claude-code", "modello": "haiku"}}})
+        dati_siti.aggiungi(s, "https://rotto.it/", {"url": "https://rotto.it/"})
+        dati_siti.registra_esito(s, dati_siti.elenca(s)[0].id, "accesso bloccato", "x", True)
+        id = e.id
+    home = dati.get("/").text
+    assert "Ultima esecuzione" in home and f'href="/esecuzioni/{id}"' in home
+    assert "3 min 12 s" in home and "230 mila" in home  # durata e token in breve
+    assert "https://rotto.it/" in home  # avviso del sito in errore
+    assert "Paper &lt;script" in home  # in evidenza: la notizia di ieri, escapata
+    resoconto = dati.get(f"/esecuzioni/{id}").text
+    assert "48 s" in resoconto and "Claude Code · haiku" in resoconto and "61.400" in resoconto
+    assert resoconto.index("rotto.it") < resoconto.index("buono.it")  # prima i problemi
+    assert "12 nuove" in resoconto and "Sconto &lt;b&gt;40%&lt;/b&gt;" in resoconto
+    assert dati.get("/esecuzioni/9999").status_code == 404
+
+
+def test_resoconto_di_un_esecuzione_registrata_prima_della_fetta_4b(client):
+    with client.app.state.sessioni() as s:
+        e = esecuzioni.inizia(s, "cli")
+        esecuzioni.termina(s, e.id, "completata", {"durata_s": 5, "fonti": {"arxiv": {
+            "esaminate": 3, "scartate_prefiltro": 1, "oltre_tetto": 0, "senza_contenuto": 0, "scartate_valutazione": 1,
+            "mostrate": 1, "errori": 0, "problemi": [{"fonte": "arXiv", "stato": "non raggiungibile: x"}]}},
+            "token": {"prefiltro": {"ingresso": 1, "uscita": 1}}})
+    resoconto = client.get(f"/esecuzioni/{e.id}")
+    assert resoconto.status_code == 200 and "—" in resoconto.text and "non raggiungibile: x" in resoconto.text
 
 
 def test_avanzamento_dell_esecuzione(dati):

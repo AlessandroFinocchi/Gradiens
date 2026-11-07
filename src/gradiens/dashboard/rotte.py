@@ -1,6 +1,7 @@
 """Rotte delle pagine della dashboard e pezzi di pagina per htmx (ADR 0003)."""
 
 import json
+from datetime import UTC
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
@@ -10,7 +11,8 @@ from starlette.datastructures import QueryParams
 from gradiens.dashboard import rotte_impostazioni
 from gradiens.dashboard.comune import CARTELLA, TIPI, Sessione, frammento, pagina
 from gradiens.dati import esecuzioni, impostazioni, interessi, notizie
-from gradiens.dati.modelli import Notizia
+from gradiens.dati import siti as dati_siti
+from gradiens.dati.modelli import Esecuzione, Notizia
 from gradiens.dati.notizie import Filtri
 from gradiens.esecuzione.esecutore import GiaInCorso
 
@@ -18,7 +20,6 @@ router = APIRouter()
 
 # Pagine che arrivano nelle fette successive (docs/architettura/piano-fase-4.md).
 IN_ARRIVO = {  # nome: (indirizzo, titolo, messaggio)
-    "home": ("/", "Home", "La Home arriva con la fetta 4: ultima esecuzione, avvisi, notizie in evidenza e storico."),
     "timeline": ("/timeline", "Timeline", "La Timeline arriva con la fetta 6, insieme agli argomenti."),
     "aiuto": ("/aiuto", "Aiuto", "La guida completa arriva con la fetta 7."),
 }
@@ -33,6 +34,32 @@ def _in_arrivo(nome: str, titolo: str, messaggio: str):
 
 for _nome, (_percorso, _titolo, _messaggio) in IN_ARRIVO.items():
     router.add_api_route(_percorso, _in_arrivo(_nome, _titolo, _messaggio), methods=["GET"], response_class=HTMLResponse)
+
+
+# ---------- Home (UI-02) e resoconto di un'esecuzione (UI-03) ----------
+
+@router.get("/", response_class=HTMLResponse)
+def home(request: Request, s: Sessione):
+    ultima = esecuzioni.ultima(s)
+    prossima = request.app.state.programmatore.prossima()
+    return pagina(
+        request, s, "home", "home",
+        prossima=prossima and prossima.astimezone(UTC).replace(tzinfo=None),  # i filtri delle date vogliono UTC
+        avanzamento=request.app.state.esecutore.avanzamento,
+        ultima=ultima, riepilogo=ultima and esecuzioni.riepilogo(ultima),
+        evidenza=notizie.in_evidenza(s, impostazioni.leggi(s).soglia),
+        nomi_categorie=impostazioni.nomi_categorie(s),
+        siti_in_errore=dati_siti.in_errore(s),
+        storico=[(e, esecuzioni.riepilogo(e)) for e in esecuzioni.storico(s)],
+    )
+
+
+@router.get("/esecuzioni/{id}", response_class=HTMLResponse)
+def resoconto(request: Request, s: Sessione, id: int):
+    esecuzione = s.get(Esecuzione, id)
+    if esecuzione is None:
+        raise HTTPException(404, "Esecuzione inesistente")
+    return pagina(request, s, "resoconto", "home", e=esecuzione, riepilogo=esecuzioni.riepilogo(esecuzione))
 
 
 # ---------- Notizie e Archivio (UI-04..UI-08) ----------

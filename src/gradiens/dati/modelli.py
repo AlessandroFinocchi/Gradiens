@@ -5,7 +5,7 @@ Le date sono salvate in UTC senza fuso orario; la dashboard le mostra nell'ora l
 
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, ForeignKey, String, Text
+from sqlalchemy import BigInteger, CheckConstraint, ForeignKey, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 TEMI = ("auto", "light", "dark")
@@ -34,6 +34,12 @@ class Impostazioni(Base):
     modello_elaborazione: Mapped[str] = mapped_column(String(60), default="haiku")
     escludi_sponsorizzati: Mapped[bool] = mapped_column(default=True)  # WEB-23
     escludi_pagamento: Mapped[bool] = mapped_column(default=True)  # WEB-23
+    orario_programmato: Mapped[str] = mapped_column(String(5), default="07:00")  # ESE-01, "HH:MM" nell'ora del PC
+    programmazione_in_pausa: Mapped[bool] = mapped_column(default=False)  # TG-10
+    # TG-01: il token sta nel .env; qui il nome del bot e l'unica chat autorizzata (TG-02).
+    telegram_bot: Mapped[str | None] = mapped_column(String(64))
+    telegram_chat_id: Mapped[int | None] = mapped_column(BigInteger)
+    telegram_chat_nome: Mapped[str | None] = mapped_column(String(200))
 
 
 class Interesse(Base):

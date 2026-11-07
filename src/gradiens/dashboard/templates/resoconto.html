@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% from "icone.html" import icona with context %}
+{% from "stato_esecuzione.html" import stato_esecuzione %}
+{# Resoconto di un'esecuzione (UI-03). Titoli e motivi vengono dalle fonti: mai HTML grezzo. #}
+{% set r = riepilogo %}
+{% block titolo %}Resoconto dell'esecuzione{% endblock %}
+{% block contenuto %}
+<main class="pagina">
+  <header class="testata">
+    <a class="indietro" href="/">{{ icona("indietro") }}Home</a>
+    <div class="testata-riga" style="margin-top: 6px">
+      <div>
+        <h1>Esecuzione {{ e.avviata_il|data_relativa }}</h1>
+        <div class="riga-info" style="margin-top: 4px">
+          <span>avviata da: {{ AVVIATA_DA.get(e.avviata_da, e.avviata_da) }}</span>
+          <span>durata {{ r.durata_s|durata }}</span>
+          {{ stato_esecuzione(e) }}
+        </div>
+      </div>
+    </div>
+  </header>
+  <div class="contenitore">
+    {% if e.motivo %}
+    <div class="errore-riquadro">{{ icona("avvertimento") }}<div><strong>{{ e.motivo }}</strong></div></div>
+    {% endif %}
+    {% if e.stato == "in_corso" %}
+    <p class="nota">Esecuzione in corso: il resoconto è pronto quando finisce.</p>
+    {% endif %}
+
+    {% if r.fonti %}
+    <section class="blocco" aria-labelledby="t-metriche">
+      <h2 id="t-metriche">Metriche per tipo di fonte</h2>
+      <div class="tabella-scorre">
+        <table>
+          <thead><tr><th>Fonte</th><th class="num">Raccolta</th><th class="num">Esaminate</th><th class="num">Scartate dal pre-filtro</th><th class="num">Scartate dalla valutazione</th><th class="num">Escluse</th><th class="num">Senza contenuto</th><th class="num">Mostrate</th><th class="num">Errori</th></tr></thead>
+          <tbody>
+            {% for nome, f in r.fonti.items() %}
+            <tr><td>{{ FONTI[nome][1] if nome in FONTI else nome }}</td><td class="num">{{ f.get("raccolta_s")|durata }}</td><td class="num">{{ f.esaminate }}</td><td class="num">{{ f.scartate_prefiltro }}</td><td class="num">{{ f.scartate_valutazione }}</td><td class="num">{{ f.get("escluse", 0) }}</td><td class="num">{{ f.senza_contenuto }}</td><td class="num">{{ f.mostrate }}</td><td class="num">{{ f.errori }}</td></tr>
+            {% endfor %}
+            <tr class="totale"><td>Totale</td><td class="num"></td><td class="num">{{ r.totali.esaminate }}</td><td class="num">{{ r.totali.scartate_prefiltro }}</td><td class="num">{{ r.totali.scartate_valutazione }}</td><td class="num">{{ r.totali.escluse }}</td><td class="num">{{ r.totali.senza_contenuto }}</td><td class="num">{{ r.totali.mostrate }}</td><td class="num">{{ r.totali.errori }}</td></tr>
+          </tbody>
+        </table>
+      </div>
+      {% set oltre = r.fonti.get("arxiv", {}).get("oltre_tetto", 0) %}
+      {% if oltre %}
+      <div class="errore-riquadro" style="background: var(--accento-tenue)"><span class="segnale novita" style="margin-top: 7px"></span>
+        <div><strong>arXiv: tetto raggiunto.</strong> {{ oltre }} paper oltre il tetto non {{ "è stato elaborato" if oltre == 1 else "sono stati elaborati" }}: si sono tenuti i più recenti.
+          <a class="link" href="#" hx-get="/impostazioni/arxiv" hx-target="#impostazioni">Cambia il tetto</a></div></div>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    {% if r.token %}
+    <section class="blocco" aria-labelledby="t-token">
+      <h2 id="t-token">Token</h2>
+      <div class="tabella-scorre">
+        <table>
+          <thead><tr><th>Ruolo</th><th>Modello</th><th class="num">Token in ingresso</th><th class="num">Token in uscita</th></tr></thead>
+          <tbody>
+            {% for ruolo, t in r.token.items() %}
+            <tr><td>{{ "Pre-filtro" if ruolo == "prefiltro" else "Elaborazione" }}</td><td>{% if t.modello %}{{ "Claude Code" if t.provider == "claude-code" else t.provider }} · {{ t.modello }}{% endif %}</td><td class="num">{{ t.ingresso|migliaia }}</td><td class="num">{{ t.uscita|migliaia }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="nota" style="margin: 8px 0 0">Con Claude Code e con i modelli locali si mostrano solo i token: non c'è un costo a consumo.</p>
+    </section>
+    {% endif %}
+
+    {% if r.stati %}
+    <section class="blocco" aria-labelledby="t-fonti">
+      <h2 id="t-fonti">Stato di siti, canali e arXiv</h2>
+      <ul class="elenco-semplice">
+        {% for st in r.stati %}
+        {% set bene = st.stato in STATI_BUONI %}
+        <li><span class="principale">{{ st.fonte }}{% if st.dettaglio and not bene %}<br><span class="descrizione">{{ st.dettaglio }}</span>{% endif %}</span>
+          {% if st.nuove is defined %}<span class="descrizione">{{ st.nuove }} {{ "nuova" if st.nuove == 1 else "nuove" }}</span>{% endif %}
+          <span class="stato{% if bene %} ok{% elif st.stato != 'profilo rigenerato' %} errore{% endif %}">{{ st.stato }}</span></li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+
+    {% if r.problemi %}
+    <section class="blocco" aria-labelledby="t-contenuto">
+      <h2 id="t-contenuto">Senza contenuto (es. video senza trascrizione)</h2>
+      <ul class="elenco-semplice">
+        {% for p in r.problemi %}
+        <li><span class="principale">{{ p.titolo or p.fonte }}{% if p.titolo %}<br><span class="descrizione">{{ p.fonte }}</span>{% endif %}</span>
+          <span class="stato">{{ p.stato }}</span>
+          {% if p.url %}<a class="bottone-icona" href="{{ p.url }}" target="_blank" rel="noopener noreferrer" aria-label="Apri l'originale">{{ icona("esterno") }}</a>{% endif %}</li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+
+    {% if r.escluse %}
+    <section class="blocco" aria-labelledby="t-escluse">
+      <h2 id="t-escluse">Notizie escluse</h2>
+      <ul class="elenco-semplice">
+        {% for n in r.escluse %}
+        <li><span class="principale">{{ n.titolo }}<br><span class="descrizione">{{ n.fonte }}</span></span>
+          <span class="stato">{{ n.motivo }}</span>
+          <a class="bottone-icona" href="{{ n.url }}" target="_blank" rel="noopener noreferrer" aria-label="Apri l'originale">{{ icona("esterno") }}</a></li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+  </div>
+</main>
+{% endblock %}

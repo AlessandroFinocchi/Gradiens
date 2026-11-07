@@ -6,6 +6,18 @@ def test_stato_senza_servizio(conf, capsys):
     assert "non è in esecuzione" in capsys.readouterr().out
 
 
+def test_stato_mostra_la_prossima_esecuzione_o_la_pausa(conf, monkeypatch, capsys):
+    stato = {"avviato_alle": "2026-11-07T08:00:00", "prossima_esecuzione": "2026-11-08T07:00",
+             "ultima_esecuzione": {"stato": "completata", "avviata_il": "2026-11-07T06:00:00"}}
+    monkeypatch.setattr(cli, "leggi_stato", lambda c: stato)
+    assert cli.stato(conf) == 0
+    uscita = capsys.readouterr().out
+    assert "Prossima esecuzione programmata: 08/11 alle 07:00" in uscita and "Ultima esecuzione: completata" in uscita
+    stato["prossima_esecuzione"] = None
+    cli.stato(conf)
+    assert "Programmazione in pausa." in capsys.readouterr().out
+
+
 def test_spegni_senza_servizio(conf, capsys):
     assert cli.spegni(conf) == 0
     assert "non è in esecuzione" in capsys.readouterr().out

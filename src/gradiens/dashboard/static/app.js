@@ -17,9 +17,10 @@ document.addEventListener("tema-cambiato", (e) => {
   else document.documentElement.setAttribute("data-theme", tema);
 });
 
-// Fine di un'esecuzione avviata dalla pagina Notizie: si ricarica l'elenco.
+// Fine di un'esecuzione: si ricarica la parte della pagina che ne dipende (elenco delle notizie o Home).
 document.addEventListener("esecuzione-finita", () => {
-  if (document.getElementById("elenco")) htmx.ajax("GET", location.href, { target: "#elenco", select: "#elenco", swap: "outerHTML" });
+  const parte = document.querySelector("#elenco, #home");
+  if (parte) htmx.ajax("GET", location.href, { target: `#${parte.id}`, select: `#${parte.id}`, swap: "outerHTML" });
 });
 
 // Indirizzo diretto a una sezione, es. /#impostazioni/aspetto (UI-10).

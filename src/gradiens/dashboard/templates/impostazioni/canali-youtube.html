@@ -1,12 +1,12 @@
 <h2>Canali YouTube</h2>
 <p class="intro">Incolla un indirizzo qualsiasi del canale: <code>@nome</code>, <code>/channel/…</code> o il link di un suo video. Si valutano solo i video con una trascrizione, anche automatica; gli short sono un tipo a parte.</p>
-<form class="campo-riga" hx-post="/impostazioni/youtube" hx-target="#impostazioni" hx-disabled-elt="find button">
+<form class="campo-riga{% if "aggiungi" in voci %} evidenziata{% endif %}" hx-post="/impostazioni/youtube" hx-target="#impostazioni" hx-disabled-elt="find button">
   <input class="campo" name="indirizzo" placeholder="https://www.youtube.com/@…" aria-label="Indirizzo del canale" required>
   <button class="bottone">Aggiungi</button>
 </form>
 <h3>Canali seguiti</h3>
 {% for c in canali %}
-<div class="riga">
+<div class="riga{% if "canale-" ~ c.nome in voci %} evidenziata{% endif %}">
   <div class="testo">
     <div class="titolo">{{ c.nome }}</div>
     <div class="descrizione"><a class="link" href="https://www.youtube.com/channel/{{ c.id }}" target="_blank" rel="noopener noreferrer">youtube.com/channel/{{ c.id }}</a></div>

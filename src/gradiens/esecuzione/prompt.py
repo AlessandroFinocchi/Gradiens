@@ -22,7 +22,8 @@ def _interessi(interessi: list[Interesse]) -> str:
 
 
 def sistema_prefiltro(interessi: list[Interesse], escludi_sponsorizzati: bool = True) -> str:
-    esclusione = "\nEscludi i contenuti sponsorizzati e le offerte commerciali." if escludi_sponsorizzati else ""  # WEB-22/23
+    esclusione = ("\nEscludi i contenuti sponsorizzati e le offerte commerciali: non metterli tra i pertinenti"
+                  " e restituisci i loro id in `sponsorizzate`." if escludi_sponsorizzati else "")  # WEB-22/23
     return f"""Sei il pre-filtro di Gradiens, un'app che seleziona notizie per un utente.
 
 Interessi dell'utente, con il loro id:
@@ -35,7 +36,10 @@ Nel dubbio includi la notizia: un passaggio successivo leggerà il contenuto com
 
 SCHEMA_PREFILTRO = {
     "type": "object",
-    "properties": {"pertinenti": {"type": "array", "items": {"type": "integer"}}},
+    "properties": {
+        "pertinenti": {"type": "array", "items": {"type": "integer"}},
+        "sponsorizzate": {"type": "array", "items": {"type": "integer"}},  # facoltativo (WEB-23)
+    },
     "required": ["pertinenti"],
 }
 

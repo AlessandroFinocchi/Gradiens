@@ -44,10 +44,12 @@ def raccolta(*candidate):
 
 
 def risponditore(sistema, messaggio, schema):
-    """Pre-filtro: passano i titoli con "sicurezza". Valutazione: "alta" 90, altrimenti 30."""
+    """Pre-filtro: passano i titoli con "sicurezza", "offerta" è sponsorizzata se l'esclusione è attiva.
+    Valutazione: "alta" 90, altrimenti 30."""
     if schema is prompt.SCHEMA_PREFILTRO:
         voci = json.loads(messaggio)
-        return {"pertinenti": [v["id"] for v in voci if "sicurezza" in v["titolo"]]}
+        sponsorizzate = [v["id"] for v in voci if "offerta" in v["titolo"]] if "sponsorizzati" in sistema else []
+        return {"pertinenti": [v["id"] for v in voci if "sicurezza" in v["titolo"]], "sponsorizzate": sponsorizzate}
     titolo = json.loads(messaggio)["titolo"]
     return {"punteggi": [{"interesse": 1, "pertinenza": 90 if "alta" in titolo else 30}],
             "riassunto": f"Riassunto di {titolo}.", "titolo_it": f"IT {titolo}"}
@@ -236,8 +238,9 @@ def test_youtube_short_trascrizione_assente_diretta_e_canale_irraggiungibile(ses
     assert "sicurezza-alta-paper" in salvate  # arXiv non risente del canale irraggiungibile
     yt = metriche["fonti"]["youtube"]
     assert (yt["esaminate"], yt["senza_contenuto"], yt["mostrate"], yt["errori"]) == (4, 1, 2, 1)
-    stati = {p["stato"] for p in yt["problemi"]}
-    assert "trascrizione assente" in stati and any("non raggiungibile" in st for st in stati)
+    assert [p["stato"] for p in yt["problemi"]] == ["trascrizione assente"]
+    assert {st["stato"] for st in yt["stati"]} == {"ok", "non raggiungibile"}  # un canale per stato
+    assert metriche["token"]["elaborazione"]["provider"] == "claude-code" and "raccolta_s" in yt
     assert viste == {"https://www.youtube.com/watch?v=sicurezza-muto"}  # la diretta si riprende la volta dopo
     assert all(len(m) < 70_000 for _, m in finto.chiamate)  # contenuto troncato prima di Claude
 
@@ -288,8 +291,10 @@ def test_siti_stato_guasti_e_rigenerazione_dopo_tre(sessioni):
     assert json.loads(bloccato.profilo)["strategie"] == ["html"] and bloccato.profilo_precedente
     assert (buono.stato, buono.guasti_consecutivi) == ("ok", 0)
     assert [(n.tipo, n.url) for n in salvate] == [("sito", "https://redhotcyber.com/articolo")]
-    stati = [p["stato"] for p in ultima["fonti"]["siti"]["problemi"]]
-    assert stati == ["accesso bloccato", "profilo rigenerato"]
+    stati = {st["fonte"]: st for st in ultima["fonti"]["siti"]["stati"]}
+    assert stati["bloccato.example"]["stato"] == "profilo rigenerato"
+    assert "Il sito rifiuta le richieste." in stati["bloccato.example"]["dettaglio"]
+    assert (stati["redhotcyber.com"]["stato"], stati["redhotcyber.com"]["nuove"]) == ("ok", 0)  # già visto
 
 
 @pytest.mark.parametrize("escludi", [True, False])
@@ -300,9 +305,36 @@ def test_articoli_a_pagamento_e_sponsorizzati_secondo_gli_interruttori(sessioni,
         return c
 
     esecuzione, metriche, salvate, finto = esegui(
-        sessioni, raccolta(a_pagamento("sicurezza-alta-paywall")),
+        sessioni, raccolta(a_pagamento("sicurezza-alta-paywall"), candidata("offerta-sconto")),
         escludi_pagamento=escludi, escludi_sponsorizzati=escludi)
     assert (salvate == []) is escludi  # con l'esclusione non si valuta nemmeno (niente quota)
-    assert metriche["fonti"]["arxiv"]["escluse"] == (1 if escludi else 0)
+    arxiv = metriche["fonti"]["arxiv"]
+    assert arxiv["escluse"] == (2 if escludi else 0)
+    assert [e["motivo"] for e in arxiv["notizie_escluse"]] == (["sponsorizzato o offerta", "a pagamento"] if escludi else [])
+    assert arxiv["scartate_prefiltro"] == (0 if escludi else 1)
     prefiltro = next(sistema for sistema, _ in finto.chiamate if "pre-filtro" in sistema)
     assert ("sponsorizzati" in prefiltro) is escludi
+
+
+def test_avviso_di_fine_esecuzione_ma_non_allo_spegnimento(sessioni):
+    avvisate = []
+
+    async def al_termine(id):
+        avvisate.append(id)
+
+    async def prova():
+        esecutore = Esecutore(sessioni, fabbrica_provider=lambda n: Finto(risponditore), fonti=raccolta(candidata("sicurezza-alta")))
+        esecutore.al_termine = al_termine
+        prima = esecutore.avvia("telegram")
+        await esecutore.attendi()
+
+        async def lenta(client, categorie, dal):
+            await asyncio.sleep(10)
+            return []
+        esecutore._fonti = {"arxiv": SimpleNamespace(raccogli=lenta)}
+        esecutore.avvia("dashboard")
+        await asyncio.sleep(0.05)
+        await esecutore.ferma()  # spegnimento durante l'esecuzione (ESE-12): nessun messaggio
+        return prima
+
+    assert avvisate == [asyncio.run(prova())]

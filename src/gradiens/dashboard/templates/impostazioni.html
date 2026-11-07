@@ -1,4 +1,5 @@
 {% from "icone.html" import icona with context %}
+{% from "segnale.html" import segnale, ingranaggio with context %}
 {# Contenuto della finestra delle Impostazioni (UI-10), caricato da htmx dentro <dialog>. #}
 <div class="finestra-testata">
   <h2 id="titolo-impostazioni">Impostazioni</h2>
@@ -9,7 +10,7 @@
     {% for id, (gruppo, nome, nome_icona) in sezioni.items() %}
     {% if loop.changed(gruppo) %}<h3>{{ gruppo }}</h3>{% endif %}
     <button class="sezione-voce" type="button" hx-get="/impostazioni/{{ id }}" hx-target="#impostazioni"
-            aria-current="{{ 'true' if id == sezione else 'false' }}">{{ icona(nome_icona) }}<span class="nome">{{ nome }}</span></button>
+            aria-current="{{ 'true' if id == sezione else 'false' }}">{{ icona(nome_icona) }}<span class="nome">{{ nome }}</span>{{ segnale(segnali.get(id)) }}</button>
     {% endfor %}
   </nav>
   <section class="sezione-contenuto">
@@ -17,3 +18,4 @@
     {% include "impostazioni/" ~ sezione ~ ".html" %}
   </section>
 </div>
+{{ ingranaggio(segnale_globale, oob=true) }}

@@ -3,7 +3,7 @@
 import argparse
 import sys
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 
 import httpx
 
@@ -63,6 +63,16 @@ def stato(conf: Configurazione) -> int:
         return 1
     dal = datetime.fromisoformat(dati["avviato_alle"]).strftime("%d/%m alle %H:%M")
     print(f"Gradiens è in esecuzione dal {dal}: {conf.indirizzo_locale}")
+    if ultima := dati.get("ultima_esecuzione"):
+        avvio = datetime.fromisoformat(ultima["avviata_il"]).replace(tzinfo=UTC).astimezone()
+        if ultima["stato"] == "in_corso":
+            print(f"Esecuzione in corso, avviata il {avvio:%d/%m alle %H:%M}.")
+        else:
+            print(f"Ultima esecuzione: {ultima['stato']}, avviata il {avvio:%d/%m alle %H:%M}.")
+    if prossima := dati.get("prossima_esecuzione"):
+        print(f"Prossima esecuzione programmata: {datetime.fromisoformat(prossima):%d/%m alle %H:%M}")
+    else:
+        print("Programmazione in pausa.")
     return 0
 
 
@@ -83,6 +93,8 @@ def spegni(conf: Configurazione) -> int:
 
 
 def _riepilogo(ultima: dict) -> str:
+    from gradiens.dati.esecuzioni import STATI_BUONI  # import qui: stato e spegni non caricano SQLAlchemy
+
     righe = [f"Esecuzione {ultima['stato']}."]
     if ultima.get("motivo"):
         righe.append(f"Motivo: {ultima['motivo']}")
@@ -94,7 +106,9 @@ def _riepilogo(ultima: dict) -> str:
             f"{c['oltre_tetto']} oltre il tetto, {c.get('escluse', 0)} escluse, {c['senza_contenuto']} senza contenuto, "
             f"{c['scartate_valutazione']} scartate dalla valutazione, {c['mostrate']} mostrate, {c['errori']} errori."
         )
+        righe += [f"  - {st['fonte']}: {st['stato']}" for st in c.get("stati", []) if st["stato"] not in STATI_BUONI]
         righe += [f"  - {p.get('titolo') or p['fonte']}: {p['stato']}" for p in c.get("problemi", [])]
+        righe += [f"  - {n['titolo']}: escluso ({n['motivo']})" for n in c.get("notizie_escluse", [])]
     if t := m.get("token"):
         righe.append("Token: " + ", ".join(f"{r} {v['ingresso']} in ingresso e {v['uscita']} in uscita" for r, v in t.items()))
     if "durata_s" in m:

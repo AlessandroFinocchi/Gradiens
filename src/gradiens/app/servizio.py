@@ -1,5 +1,6 @@
 """Il processo unico di Gradiens: dashboard, esecuzioni e, nelle fette successive, programmazione e bot (ADR 0003)."""
 
+import asyncio
 import json
 import logging
 import sys
@@ -17,6 +18,8 @@ from gradiens.dashboard import rotte as dashboard
 from gradiens.dati import esecuzioni
 from gradiens.dati.database import crea_motore, fabbrica_sessioni, migra
 from gradiens.esecuzione.esecutore import Esecutore, GiaInCorso
+from gradiens.esecuzione.programmatore import Programmatore
+from gradiens.telegram.bot import BotGradiens
 
 METODI_SICURI = {"GET", "HEAD", "OPTIONS"}
 # Intestazioni che un altro sito non può aggiungere a una richiesta senza il permesso CORS,
@@ -30,7 +33,16 @@ controllo = APIRouter(prefix="/api")
 
 @controllo.get("/stato")
 def stato(request: Request) -> dict:
-    return {"avviato_alle": request.app.state.avviato_alle.isoformat(timespec="seconds")}
+    """CLI-03. Ore del PC, tranne `avviata_il` dell'ultima esecuzione, che è in UTC come nel database."""
+    prossima = request.app.state.programmatore.prossima()
+    with request.app.state.sessioni() as s:
+        u = esecuzioni.ultima(s)
+        ultima = None if u is None else {"stato": u.stato, "avviata_il": u.avviata_il.isoformat(timespec="seconds")}
+    return {
+        "avviato_alle": request.app.state.avviato_alle.isoformat(timespec="seconds"),
+        "prossima_esecuzione": prossima and prossima.isoformat(timespec="minutes"),  # None: in pausa
+        "ultima_esecuzione": ultima,
+    }
 
 
 @controllo.post("/spegni")
@@ -68,8 +80,15 @@ def esecuzione(request: Request) -> dict:
 
 @asynccontextmanager
 async def ciclo_di_vita(app: FastAPI):
+    # Prima il bot: un'esecuzione recuperata all'avvio che fallisce subito deve poterlo segnalare (ESE-13).
+    await app.state.bot.avvia()
+    compiti = [asyncio.create_task(app.state.programmatore.gira()),  # ESE-01
+               asyncio.create_task(app.state.bot.gira())]  # sezione 7 del PRD
     yield
+    for compito in compiti:
+        compito.cancel()
     await app.state.esecutore.ferma()  # allo spegnimento: esecuzione interrotta e registrata (ESE-12)
+    await app.state.bot.ferma()
 
 
 def crea_app(conf: Configurazione) -> FastAPI:
@@ -82,6 +101,10 @@ def crea_app(conf: Configurazione) -> FastAPI:
         if interrotte := esecuzioni.segna_interrotte(s):  # ESE-12: spento durante un'esecuzione
             log.warning("%s esecuzioni segnate come interrotte", interrotte)
     app.state.esecutore = Esecutore(app.state.sessioni)
+    app.state.programmatore = Programmatore(app.state.sessioni, app.state.esecutore)
+    app.state.conf = conf
+    app.state.bot = BotGradiens(conf, app.state.sessioni, app.state.esecutore, app.state.programmatore.prossima)
+    app.state.esecutore.al_termine = app.state.bot.invia_esecuzione
     app.state.avviato_alle = datetime.now()
 
     @app.middleware("http")
@@ -103,6 +126,8 @@ def configura_log(conf: Configurazione) -> None:
     gestore.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
     gestori = [gestore] if sys.stdout is None else [gestore, logging.StreamHandler(sys.stdout)]
     logging.basicConfig(level=logging.INFO, handlers=gestori)
+    # A livello INFO httpx scrive ogni indirizzo chiamato: per Telegram contiene il token (PER-04).
+    logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 def esegui(conf: Configurazione) -> None:

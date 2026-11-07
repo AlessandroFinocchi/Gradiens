@@ -1,4 +1,5 @@
 {% from "icone.html" import icona with context %}
+{% from "segnale.html" import ingranaggio with context %}
 <!doctype html>
 <html lang="it"{% if tema != "auto" %} data-theme="{{ tema }}"{% endif %}>
 <head>
@@ -18,7 +19,7 @@
     {% endfor %}
     <div class="basso">
       <a class="voce" href="/aiuto"{% if pagina == "aiuto" %} aria-current="page"{% endif %}>{{ icona("aiuto") }}<span>Aiuto</span></a>
-      <button class="voce" type="button" hx-get="/impostazioni/interessi" hx-target="#impostazioni">{{ icona("ingranaggio") }}<span>Impostazioni</span></button>
+      {{ ingranaggio(segnale_globale) }}
     </div>
   </nav>
   {% block contenuto %}{% endblock %}

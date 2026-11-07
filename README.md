@@ -54,7 +54,7 @@ uv run gradiens stato     # dice se Gradiens è in esecuzione
 uv run gradiens spegni    # termina l'applicazione
 ```
 
-Poi apri http://127.0.0.1:8765/notizie e, dall'ingranaggio in basso a sinistra, configura interessi, siti, canali YouTube e categorie arXiv.
+Poi apri http://127.0.0.1:8765/ e, dall'ingranaggio in basso a sinistra, configura interessi, siti, canali YouTube, categorie arXiv e il bot Telegram (la sezione Telegram ha un tutorial passo dopo passo). Dal bot puoi poi usare `/aggiorna`, `/stato`, `/ultima`, `/pausa`, `/riprendi` e `/help`.
 
 `gradiens avvia` stacca l'app dal terminale, quindi continua a girare anche se chiudi il terminale o la sessione SSH, su Windows come su Linux. Con `--primo-piano` resta collegata al terminale, il che è utile per il debug.
 
@@ -62,7 +62,7 @@ Poi apri http://127.0.0.1:8765/notizie e, dall'ingranaggio in basso a sinistra, 
 
 Tutto resta nella cartella del progetto, escluso da git ([PRD PER-02, PER-03](docs/requisiti/prd.md)):
 
-- `.env`: segreti e opzioni di avvio (prefisso `GRADIENS_`, per esempio `GRADIENS_PORTA=8765`);
+- `.env`: segreti e opzioni di avvio (prefisso `GRADIENS_`, per esempio `GRADIENS_PORTA=8765`), compreso il token del bot Telegram, che la dashboard scrive da sola;
 - `.gradiens/`: database, log e cache.
 
 Cancellando la cartella si cancella tutto. Un clone nuovo parte senza configurazione: per spostare Gradiens su un altro PC copia anche `.gradiens/` e `.env`.

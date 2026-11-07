@@ -8,6 +8,7 @@ stanno invece nel database (tabella `impostazioni`).
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # src/gradiens/app/configurazione.py -> radice della repository.
@@ -25,6 +26,8 @@ class Configurazione(BaseSettings):
     porta: int = 8765
     # Nomi con cui si può raggiungere la dashboard (difesa dal DNS rebinding).
     host_consentiti: list[str] = ["127.0.0.1", "localhost"]
+    file_env: Path = RADICE / ".env"  # dove `salva_segreto` scrive i segreti inseriti dalla dashboard
+    telegram_token: SecretStr | None = None  # TG-01; SecretStr non compare in repr e log (PER-04)
 
     @property
     def percorso_database(self) -> Path:
@@ -37,6 +40,19 @@ class Configurazione(BaseSettings):
     @property
     def indirizzo_locale(self) -> str:
         return f"http://127.0.0.1:{self.porta}"
+
+
+def salva_segreto(conf: Configurazione, nome: str, valore: str) -> None:
+    """Scrive `GRADIENS_<NOME>=valore` nel `.env` lasciando le altre righe (PER-02) e aggiorna `conf`.
+    Il valore va validato prima: non deve contenere a capo."""
+    if "\n" in valore or "\r" in valore:
+        raise ValueError("Valore non valido per il .env")
+    chiave = f"GRADIENS_{nome.upper()}="
+    righe = conf.file_env.read_text(encoding="utf-8").splitlines() if conf.file_env.exists() else []
+    righe = [r for r in righe if not r.startswith(chiave)] + [chiave + valore]
+    conf.file_env.write_text("\n".join(righe) + "\n", encoding="utf-8")
+    conf.file_env.chmod(0o600)  # solo l'utente del PC lo legge (su Windows lascia il file scrivibile)
+    setattr(conf, nome, SecretStr(valore))
 
 
 @lru_cache

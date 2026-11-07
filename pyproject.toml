@@ -11,6 +11,7 @@ dependencies = [
     "jinja2",
     "pydantic-settings",
     "python-multipart",
+    "python-telegram-bot>=22",
     "sqlalchemy",
     "trafilatura>=2.3.1",
     "uvicorn",

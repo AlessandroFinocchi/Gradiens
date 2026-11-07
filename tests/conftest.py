@@ -16,7 +16,8 @@ def porta_libera() -> int:
 @pytest.fixture
 def conf(tmp_path) -> Configurazione:
     # _env_file=None: i test non leggono mai il .env vero con le chiavi.
-    return Configurazione(_env_file=None, cartella_dati=tmp_path / ".gradiens", porta=porta_libera())
+    return Configurazione(_env_file=None, cartella_dati=tmp_path / ".gradiens", porta=porta_libera(),
+                          file_env=tmp_path / ".env")
 
 
 @pytest.fixture

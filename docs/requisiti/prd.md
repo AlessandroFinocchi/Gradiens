@@ -145,8 +145,8 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 
 ### 4.4 Duplicati
 
-- `DUP-01` Gli indirizzi si normalizzano: si usa l'indirizzo canonico e si tolgono i parametri di tracciamento. Un registro delle notizie già viste impedisce di rielaborare la stessa notizia.
-- `DUP-02` Se un articolo incorpora o linka un video YouTube già raccolto, articolo e video diventano una notizia sola con il link "disponibile anche su…". Come contenuto principale si tiene quello con la trascrizione o il testo più completo.
+- `DUP-01` Una notizia si riconosce dal suo indirizzo, normalizzato: https, senza frammento né parametri di tracciamento, per arXiv senza il numero di versione. Un registro delle notizie già viste impedisce di rielaborare lo stesso indirizzo, quindi due notizie con lo stesso link non coesistono. Notizie con indirizzi diversi coesistono, anche se raccontano la stessa cosa da fonti diverse.
+- `DUP-02` Un articolo che incorpora o linka un video YouTube e il video stesso restano due notizie separate: non si uniscono.
 - `DUP-03` Notizie diverse sullo stesso evento non sono duplicati: restano separate e vanno nello stesso **argomento**.
 
 ## 5. Esecuzione
@@ -157,7 +157,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
   - dal bottone in dashboard;
   - dalla CLI;
   - dal comando `/aggiorna` del bot Telegram;
-  - dalla programmazione giornaliera, il cui orario si configura nelle Impostazioni. La programmazione la gestisce l'applicazione stessa mentre è in funzione, e si può mettere in pausa (`TG-10`).
+  - dalla programmazione giornaliera, il cui orario si configura nelle Impostazioni (predefinito alle 7:00, nell'ora del PC). La programmazione la gestisce l'applicazione stessa mentre è in funzione, e si può mettere in pausa (`TG-10`). Se all'orario Gradiens non era in funzione, l'esecuzione si recupera appena parte: se l'orario di oggi è già passato e da allora non è partita nessuna esecuzione, di qualunque tipo, se ne avvia una, una sola anche dopo più giorni di spegnimento. Con la programmazione in pausa non si recupera niente.
 - `ESE-02` Gira una sola esecuzione alla volta. Se ne viene richiesta un'altra mentre una è in corso, la richiesta viene rifiutata con il messaggio "esecuzione già in corso".
 
 **Raccolta e filtro**
@@ -182,8 +182,8 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 
 **Metriche e interruzione**
 
-- `ESE-11` Ogni esecuzione registra le metriche, divise per tipo di fonte:
-  - durata;
+- `ESE-11` Ogni esecuzione registra la durata totale e le metriche, divise per tipo di fonte:
+  - tempo di raccolta (le fonti si leggono in parallelo e pre-filtro e valutazione mescolano fonti diverse, quindi una durata per fonte che si sommi al totale non esiste);
   - notizie esaminate (quelle nuove nella finestra di raccolta);
   - scartate dal pre-filtro;
   - scartate dalla valutazione;
@@ -223,8 +223,9 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 - `TG-02` Il bot risponde solo alla chat configurata e ignora tutti gli altri messaggi.
 - `TG-03` Alla fine di ogni esecuzione il bot manda un messaggio che contiene:
   - per ogni tipo di fonte (arXiv, YouTube, siti web), le 3 notizie con la pertinenza più alta, ciascuna con titolo in italiano, fonte, interesse con il suo punteggio, una o due frasi di riassunto e link;
-  - una riga di metriche: esaminate, mostrate, durata, errori, costo (o token, per Claude Code e i modelli locali);
-  - il link alla dashboard tramite l'indirizzo Tailscale.
+  - una riga di metriche: esaminate, mostrate, durata, errori, costo (o token, per Claude Code e i modelli locali).
+
+  Il messaggio non contiene link alla dashboard: da Telegram si usano solo i comandi, e la dashboard resta raggiungibile solo dal PC su cui gira Gradiens.
 - `TG-04` Se un tipo di fonte ha meno di 3 notizie si mostrano quelle presenti. Se non ne ha nessuna, il messaggio dice "nessuna notizia nuova".
 - `TG-05` Al comando `/aggiorna` il bot risponde "esecuzione avviata" oppure "esecuzione già in corso".
 - `TG-06` Il comando `/help` elenca tutti i comandi del bot e spiega cosa fa ciascuno.
@@ -232,7 +233,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
   - l'esecuzione in corso con il suo avanzamento, oppure l'ultima conclusa con la riga di metriche di `TG-03`;
   - la prossima esecuzione programmata, oppure "programmazione in pausa" (vedi `TG-10`).
 - `TG-08` Il comando `/ultima` rimanda il messaggio di fine dell'ultima esecuzione conclusa (`TG-03`). Se non c'è ancora nessuna esecuzione, il bot risponde "nessuna esecuzione ancora".
-- `TG-09` Sotto ogni notizia del messaggio di `TG-03` c'è un bottone ❤️ che mette o toglie il cuore, con lo stesso effetto del cuore in dashboard (`UI-05`). Il bottone mostra se il cuore è già messo. Se la notizia è già stata cancellata, il bot risponde "notizia non più disponibile".
+- `TG-09` Le notizie del messaggio di `TG-03` sono numerate, e in fondo al messaggio c'è un bottone ❤️ per ognuna, con il suo numero e l'inizio del titolo (Telegram mette i bottoni solo in fondo a un messaggio). Il bottone mette o toglie il cuore, con lo stesso effetto del cuore in dashboard (`UI-05`). Il bottone mostra se il cuore è già messo. Se la notizia è già stata cancellata, il bot risponde "notizia non più disponibile".
 - `TG-10` I comandi `/pausa` e `/riprendi` sospendono e riattivano l'esecuzione programmata giornaliera. Durante la pausa le esecuzioni avviate a mano funzionano normalmente. La pausa resta attiva anche dopo un riavvio, si vede in Home e si può togliere anche dalle Impostazioni.
 
 ## 8. Dashboard
@@ -242,7 +243,7 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
 - `UI-01` **Sidebar**: mostra sempre le icone di tutte le pagine. Quando ci si passa sopra con il puntatore, o la si raggiunge con la tastiera, si espande sopra il contenuto e mostra anche i nomi. In alto ci sono le pagine Home, Notizie, Timeline e Archivio, in quest'ordine. In basso, separate, ci sono Aiuto e, sotto, l'icona a ingranaggio delle Impostazioni. L'ingranaggio mostra un segnale quando almeno una sezione delle Impostazioni ne ha uno (`UI-10`).
 - `UI-02` **Home**, organizzata in quattro blocchi:
   1. ultima esecuzione, con ora di avvio, durata, metriche, errori, bottone "Avvia esecuzione" e avanzamento se un'esecuzione è in corso; prossima esecuzione programmata, oppure "programmazione in pausa";
-  2. "In evidenza", con le 3 notizie a pertinenza più alta per ogni tipo di fonte;
+  2. "In evidenza", con le 3 notizie a pertinenza più alta per ogni tipo di fonte (siti web, YouTube, arXiv) tra quelle scoperte nelle ultime 24 ore e mostrate nella pagina Notizie;
   3. avvisi: proposte di raffinamento da approvare, siti in stato di errore, argomenti con notizie nuove;
   4. storico delle esecuzioni.
 
@@ -281,7 +282,7 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
   - compaiono solo gli argomenti con almeno 2 notizie, prima quelli aggiornati più di recente;
   - cliccando un argomento si apre la **pagina dell'argomento**, con un indirizzo proprio, che mostra tutte le sue notizie in ordine di tempo, cioè quelle degli ultimi 7 giorni e quelle in archivio. Ogni notizia apre la pagina della notizia specifica (`UI-13`). Anche qui si può rinominare, unire ed eliminare l'argomento.
 - `UI-10` **Impostazioni**: si aprono dall'ingranaggio come finestra sopra la pagina corrente, nello stile delle impostazioni delle app Claude, e si chiudono con la X o con Esc. Sul telefono occupano tutto lo schermo. A sinistra c'è l'elenco delle sezioni, ognuna con la sua icona; a destra il contenuto della sezione scelta. Le sezioni sono:
-  - **Interessi**: interessi con raffinamenti e proposte da approvare;
+  - **Interessi**: interessi con raffinamenti e proposte da approvare. Ogni interesse è compresso e mostra solo il nome; un clic lo espande per vedere e modificare descrizione e raffinamento;
   - **Canali YouTube**;
   - **Siti web**, con il loro profilo;
   - **arXiv**: categorie e tetto di paper;
@@ -302,7 +303,7 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
     - Avvio: la registrazione dell'avvio all'accensione è fallita o non è più valida;
   - **novità** (pallino), per cose da guardare o approvare:
     - Interessi: proposte di raffinamento da approvare;
-    - Siti web: un profilo è stato rigenerato e le differenze sono da guardare (`WEB-25`), oppure ci sono siti collegati proposti e non ancora attivati (`WEB-07`);
+    - Siti web: un profilo è stato rigenerato e le differenze sono da guardare (`WEB-25`), oppure un sito appena aggiunto o con il profilo appena rigenerato propone siti collegati non ancora attivati (`WEB-07`). Questi segnali durano fino alla raccolta successiva: dopo, i siti collegati restano attivabili dal profilo ma senza segnale;
     - arXiv: nell'ultima esecuzione è stato raggiunto il tetto di paper;
     - Esecuzione: la programmazione è in pausa.
 

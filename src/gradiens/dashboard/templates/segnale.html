@@ -1,0 +1,11 @@
+{# Segnale di UI-14: triangolo per l'avvertimento, pallino per la novità; il motivo al passaggio del puntatore. #}
+{% from "icone.html" import icona with context %}
+{% macro segnale(s) -%}
+{% if s %}<span class="segnale {{ s.tipo }}" title="{{ s.motivo }}">{% if s.tipo == "avvertimento" %}{{ icona("avvertimento") }}{% endif %}<span class="nascosto">{{ s.motivo }}</span></span>{% endif %}
+{%- endmacro %}
+
+{# Ingranaggio della sidebar: segnale più grave; aggiornato anche dalla finestra con hx-swap-oob. #}
+{% macro ingranaggio(globale, oob=false) -%}
+<button class="voce" id="apri-impostazioni" type="button" hx-get="/impostazioni/{{ globale[0] if globale else 'interessi' }}" hx-target="#impostazioni"{% if oob %} hx-swap-oob="true"{% endif %}>
+  {{ icona("ingranaggio") }}<span>Impostazioni</span>{% if globale %}<span class="pallino-voce">{{ segnale(globale[1]) }}</span>{% endif %}</button>
+{%- endmacro %}

@@ -16,6 +16,11 @@ def elenca(sessione: Session) -> list[Sito]:
     return list(sessione.scalars(select(Sito).order_by(Sito.url)))
 
 
+def in_errore(sessione: Session) -> list[Sito]:
+    """Siti che all'ultima raccolta non hanno funzionato, per gli avvisi della Home (UI-02)."""
+    return list(sessione.scalars(select(Sito).where(Sito.guasti_consecutivi > 0).order_by(Sito.url)))
+
+
 def aggiungi(sessione: Session, url: str, profilo: dict, stato: str | None = None) -> Sito:
     sito = Sito(url=url, profilo=json.dumps(profilo, ensure_ascii=False), stato=stato)
     sessione.add(sito)

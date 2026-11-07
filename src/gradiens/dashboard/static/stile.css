@@ -175,11 +175,18 @@ textarea.campo { resize: vertical; line-height: 1.5; }
 .riga .descrizione { color: var(--tenue); font-size: 13.5px; margin-top: 2px; }
 .riga .controllo { flex: none; display: flex; align-items: center; gap: 8px; }
 .riga.evidenziata { background: var(--errore-tenue); margin: 0 -12px; padding: 14px 12px; border-radius: 10px; border-bottom-color: transparent; }
+.interesse.evidenziata, .campo-riga.evidenziata { outline: 2px solid var(--errore-tenue); outline-offset: 4px; border-radius: 10px; }
+.sezione-voce .segnale.novita::before { margin-right: 4px; }
 .riga.proposta { background: var(--accento-tenue); margin: 0 -12px; padding: 14px 12px; border-radius: 10px; border-bottom-color: transparent; }
 
 .interesse { border: 1px solid var(--bordo); background: var(--pannello); border-radius: 12px; padding: 14px 16px; margin-top: 12px; }
 .interesse-testa { display: flex; align-items: center; gap: 10px; }
 .interesse-testa strong { flex: 1; font-size: 15px; }
+summary.interesse-testa { cursor: pointer; list-style: none; }
+summary.interesse-testa::-webkit-details-marker { display: none; }
+.interesse .freccia { display: inline-grid; color: var(--tenue); transition: transform .15s; }
+.interesse[open] .freccia { transform: rotate(180deg); }
+.azioni-interesse { display: flex; justify-content: space-between; margin-top: 10px; }
 .etichetta-campo { display: block; font-size: 12.5px; color: var(--tenue); margin: 12px 0 4px; }
 .confronto { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
 .confronto > div { background: var(--pannello); border: 1px solid var(--bordo); border-radius: 8px; padding: 10px 12px; font-size: 13.5px; }
@@ -414,3 +421,16 @@ dialog.finestra::backdrop { background: var(--velo); }
 .profilo-sito dt { color: var(--tenue); }
 .profilo-sito dd { margin: 0; overflow-wrap: anywhere; }
 .collegato { display: inline-flex; align-items: center; gap: 6px; margin: 0 12px 6px 0; }
+
+/* Tutorial di Telegram (TG-01), dalla preview della configurazione iniziale */
+.tutorial { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.tutorial > li { display: grid; grid-template-columns: 30px 1fr; gap: 12px; padding: 14px; border: 1px solid var(--bordo); border-radius: 12px; }
+.tutorial .numero { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--hover); font-weight: 600; font-size: 13.5px; }
+.tutorial li.fatto .numero { background: transparent; color: var(--ok); border: 2px solid var(--ok); }
+.tutorial li.corrente { border-color: var(--accento-testo); }
+.tutorial h4 { margin: 3px 0 4px; font-size: 15px; }
+.tutorial p, .tutorial ol { margin: 4px 0; font-size: 14px; color: var(--tenue); }
+.tutorial ol { padding-left: 18px; }
+.esito { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; margin-top: 6px; }
+.esito.ok { color: var(--ok); }
+.chat-trovata { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--bg); border-radius: 10px; padding: 10px 12px; margin-top: 8px; }

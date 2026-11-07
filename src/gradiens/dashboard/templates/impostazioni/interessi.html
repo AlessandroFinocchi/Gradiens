@@ -2,25 +2,28 @@
 <h2>Interessi</h2>
 <p class="intro">Il nome si usa nei filtri. Descrizione e raffinamento guidano il filtro LLM: scrivi la descrizione come la spiegheresti a una persona, dicendo anche cosa non ti interessa.</p>
 
+{# Compressi: si vede solo il nome, il clic sulla testa apre descrizione e raffinamento. #}
 {% for i in interessi %}
-<form class="interesse" hx-post="/impostazioni/interessi/{{ i.id }}" hx-target="#impostazioni">
-  <div class="interesse-testa">
-    <strong>{{ i.nome }}</strong>
-    <button type="button" class="bottone-icona" hx-post="/impostazioni/interessi/{{ i.id }}/elimina" hx-target="#impostazioni"
-            hx-confirm="Eliminare l'interesse «{{ i.nome }}»? I suoi punteggi vengono cancellati."
-            aria-label="Elimina l'interesse {{ i.nome }}" title="Elimina">{{ icona("cestino") }}</button>
-  </div>
-  <label class="etichetta-campo" for="nome-{{ i.id }}">Nome</label>
-  <input class="campo" id="nome-{{ i.id }}" name="nome" value="{{ i.nome }}" maxlength="80" required>
-  <label class="etichetta-campo" for="descrizione-{{ i.id }}">Descrizione</label>
-  <textarea class="campo" id="descrizione-{{ i.id }}" name="descrizione" rows="2" required>{{ i.descrizione }}</textarea>
-  <label class="etichetta-campo" for="raffinamento-{{ i.id }}">Raffinamento (facoltativo)</label>
-  <textarea class="campo" id="raffinamento-{{ i.id }}" name="raffinamento" rows="2">{{ i.raffinamento or "" }}</textarea>
-  <div style="margin-top: 10px"><button class="bottone piccolo">Salva</button></div>
-</form>
+<details class="interesse">
+  <summary class="interesse-testa"><strong>{{ i.nome }}</strong><span class="freccia">{{ icona("espandi") }}</span></summary>
+  <form hx-post="/impostazioni/interessi/{{ i.id }}" hx-target="#impostazioni">
+    <label class="etichetta-campo" for="nome-{{ i.id }}">Nome</label>
+    <input class="campo" id="nome-{{ i.id }}" name="nome" value="{{ i.nome }}" maxlength="80" required>
+    <label class="etichetta-campo" for="descrizione-{{ i.id }}">Descrizione</label>
+    <textarea class="campo" id="descrizione-{{ i.id }}" name="descrizione" rows="2" required>{{ i.descrizione }}</textarea>
+    <label class="etichetta-campo" for="raffinamento-{{ i.id }}">Raffinamento (facoltativo)</label>
+    <textarea class="campo" id="raffinamento-{{ i.id }}" name="raffinamento" rows="2">{{ i.raffinamento or "" }}</textarea>
+    <div class="azioni-interesse">
+      <button class="bottone piccolo">Salva</button>
+      <button type="button" class="bottone secondario piccolo" hx-post="/impostazioni/interessi/{{ i.id }}/elimina" hx-target="#impostazioni"
+              hx-confirm="Eliminare l'interesse «{{ i.nome }}»? I suoi punteggi vengono cancellati."
+              aria-label="Elimina l'interesse {{ i.nome }}">{{ icona("cestino") }}Elimina</button>
+    </div>
+  </form>
+</details>
 {% endfor %}
 
-<form class="interesse" hx-post="/impostazioni/interessi" hx-target="#impostazioni">
+<form class="interesse{% if "aggiungi" in voci %} evidenziata{% endif %}" hx-post="/impostazioni/interessi" hx-target="#impostazioni">
   <div class="interesse-testa"><strong>Nuovo interesse</strong></div>
   <label class="etichetta-campo" for="nuovo-nome">Nome</label>
   <input class="campo" id="nuovo-nome" name="nome" maxlength="80" placeholder="es. Sicurezza informatica" required>

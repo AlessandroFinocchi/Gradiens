@@ -9,7 +9,8 @@ import contextlib
 import json
 import logging
 import time
-from collections.abc import Callable
+from collections import Counter
+from collections.abc import Awaitable, Callable
 from dataclasses import asdict, dataclass, field
 from datetime import timedelta
 
@@ -31,6 +32,9 @@ MAX_CONTENUTO = 60_000  # caratteri (~15.000 token): oltre, la notizia è "conte
 FONTE_DI_TIPO = {"arxiv": "arxiv", "video": "youtube", "short": "youtube", "sito": "siti"}
 
 
+SPENTO = "Gradiens è stato spento durante l'esecuzione."
+
+
 class GiaInCorso(Exception):
     """ESE-02: un'altra esecuzione è in corso."""
 
@@ -45,9 +49,11 @@ class Avanzamento:
 
 @dataclass
 class Contatori:
-    """ESE-11 per un tipo di fonte. `problemi` va nel resoconto (UI-03): fonti irraggiungibili,
-    notizie senza contenuto (es. "trascrizione assente", YT-05)."""
+    """ESE-11 per un tipo di fonte, per il resoconto (UI-03). `stati`: un elemento per sito, canale o
+    arXiv; `problemi`: notizie senza contenuto (es. "trascrizione assente", YT-05); `notizie_escluse`:
+    notizie scartate per WEB-23, con il motivo."""
 
+    raccolta_s: float = 0  # le fonti di un tipo si leggono in parallelo: conta la più lenta
     esaminate: int = 0
     scartate_prefiltro: int = 0
     oltre_tetto: int = 0
@@ -56,13 +62,20 @@ class Contatori:
     scartate_valutazione: int = 0
     mostrate: int = 0
     errori: int = 0
+    stati: list[dict] = field(default_factory=list)
     problemi: list[dict] = field(default_factory=list)
+    notizie_escluse: list[dict] = field(default_factory=list)
 
 
 @dataclass
 class Metriche:
     fonti: dict[str, Contatori] = field(default_factory=dict)
     token: dict = field(default_factory=lambda: {r: {"ingresso": 0, "uscita": 0} for r in ("prefiltro", "elaborazione")})
+
+    def escludi(self, c: Candidata, motivo: str) -> None:
+        conta = self.di(c.tipo)
+        conta.escluse += 1
+        conta.notizie_escluse.append({"fonte": c.fonte, "titolo": c.titolo, "url": c.url, "motivo": motivo})
 
     def di(self, tipo: str) -> Contatori:
         """Contatori della fonte di un tipo di notizia (video e short sono entrambi "youtube")."""
@@ -85,6 +98,7 @@ class Esecutore:
         self._fonti = fonti or {"arxiv": arxiv, "youtube": youtube, "siti": siti}  # moduli con raccogli (e completa)
         self.avanzamento: Avanzamento | None = None
         self._compito: asyncio.Task | None = None
+        self.al_termine: Callable[[int], Awaitable[None]] | None = None  # es. messaggio Telegram (TG-03)
 
     def avvia(self, avviata_da: str) -> int:
         """Crea l'esecuzione e la fa partire in sottofondo. Nessun `await` prima del controllo:
@@ -118,7 +132,7 @@ class Esecutore:
         except QuotaEsaurita as errore:
             stato, motivo = "interrotta", str(errore)
         except asyncio.CancelledError:
-            stato, motivo = "interrotta", "Gradiens è stato spento durante l'esecuzione."
+            stato, motivo = "interrotta", SPENTO
             raise
         except Exception as errore:  # l'esecuzione fallisce, ma va sempre chiusa con il suo motivo (ESE-13)
             log.exception("Esecuzione %s fallita", id)
@@ -133,6 +147,8 @@ class Esecutore:
                 esecuzioni.termina(s, id, stato, dati, motivo)
             self.avanzamento = None
             log.info("Esecuzione %s %s %s", id, stato, motivo or "")
+            if self.al_termine is not None and motivo != SPENTO:  # allo spegnimento non si manda niente
+                await self.al_termine(id)
 
     async def _raccogli(self, client: httpx.AsyncClient, s: Session, dal, m: Metriche) -> list[Candidata]:
         """Tutte le fonti in parallelo: una fonte irraggiungibile non ferma le altre."""
@@ -147,17 +163,27 @@ class Esecutore:
         if not compiti:
             raise ValueError("Serve almeno una fonte: un sito, un canale YouTube o una categoria arXiv (Impostazioni).")
 
+        async def cronometra(tipo: str, coroutine):
+            inizio = time.monotonic()
+            try:
+                return await coroutine
+            finally:
+                conta = m.di(tipo)
+                conta.raccolta_s = max(conta.raccolta_s, round(time.monotonic() - inizio, 1))
+
         trovate: list[Candidata] = []
-        risultati = await asyncio.gather(*(c for _, _, c in compiti), return_exceptions=True)
+        risultati = await asyncio.gather(*(cronometra(t, c) for t, _, c in compiti), return_exceptions=True)
         for (tipo, nome, _), risultato in zip(compiti, risultati):
             if isinstance(risultato, Exception):
                 log.warning("Raccolta da %s fallita: %s", nome, risultato)
                 m.di(tipo).errori += 1
-                m.di(tipo).problemi.append({"fonte": nome, "stato": f"non raggiungibile: {risultato}"})
+                m.di(tipo).stati.append({"fonte": nome, "stato": "non raggiungibile", "dettaglio": str(risultato)})
             elif isinstance(risultato, BaseException):
                 raise risultato
             else:
                 trovate += risultato
+                if tipo != "sito":  # lo stato di un sito lo registra `_raccogli_sito`
+                    m.di(tipo).stati.append({"fonte": nome, "stato": "ok"})
         if all(isinstance(r, BaseException) for r in risultati):
             raise RuntimeError("Nessuna fonte raggiungibile.")
         return trovate
@@ -176,8 +202,8 @@ class Esecutore:
         conta = m.di("sito")
         if esito.guasto:
             conta.errori += 1
-        if esito.stato not in ("ok", "nessun articolo nuovo"):
-            conta.problemi.append({"fonte": profilo.dominio, "stato": esito.stato, "dettaglio": esito.dettaglio})
+        stato = {"fonte": profilo.dominio, "stato": esito.stato, "dettaglio": esito.dettaglio}
+        conta.stati.append(stato)
         if guasti >= dati_siti.GUASTI_PER_RIGENERARE:
             try:
                 nuovo = await fonte.rigenera(client, profilo)
@@ -185,11 +211,13 @@ class Esecutore:
                 log.warning("Rigenerazione del profilo di %s fallita: %s", profilo.url, errore)
             else:
                 dati_siti.salva_rigenerato(s, id, nuovo.come_dict())
-                conta.problemi.append({"fonte": profilo.dominio, "stato": "profilo rigenerato",
-                                       "dettaglio": "Dopo 3 guasti di fila il profilo è stato ricreato; le tue modifiche restano."})
+                stato.update(stato="profilo rigenerato",
+                             dettaglio=f"{esito.dettaglio or esito.stato}. Dopo 3 guasti di fila il profilo è stato ricreato; le tue modifiche restano.")
         return esito.candidate
 
     async def _pipeline(self, s: Session, m: Metriche) -> None:
+        if cancellate := notizie.cancella_scadute(s):  # ESE-09: all'inizio di ogni esecuzione
+            log.info("%s notizie più vecchie di 7 giorni cancellate", cancellate)
         imp = impostazioni.leggi(s)
         elenco_interessi = interessi.elenca(s)
         if not elenco_interessi:
@@ -197,6 +225,8 @@ class Esecutore:
         prefiltro = self._fabbrica_provider(imp.provider_prefiltro)
         elaborazione = self._fabbrica_provider(imp.provider_elaborazione)
         dal = notizie.adesso() - timedelta(days=imp.finestra_giorni)
+        m.token["prefiltro"].update(provider=imp.provider_prefiltro, modello=imp.modello_prefiltro)
+        m.token["elaborazione"].update(provider=imp.provider_elaborazione, modello=imp.modello_elaborazione)
 
         async with httpx.AsyncClient(follow_redirects=True) as client:
             # Raccolta (ESE-03): solo la finestra, senza le notizie già viste (ESE-07) né i doppioni.
@@ -205,6 +235,12 @@ class Esecutore:
             nuove = list({c.url: c for c in trovate if c.url not in viste}.values())
             for c in nuove:
                 m.di(c.tipo).esaminate += 1
+            # Notizie nuove per sito, canale o arXiv. Si riconoscono dal nome della fonte: due siti
+            # dello stesso dominio (es. /blog e /news) mostrano il totale di entrambi.
+            per_fonte = Counter((FONTE_DI_TIPO[c.tipo], "arXiv" if c.tipo == "arxiv" else c.fonte) for c in nuove)
+            for nome, conta in m.fonti.items():
+                for stato in conta.stati:
+                    stato["nuove"] = per_fonte[(nome, stato["fonte"])]
 
             passate = await self._prefiltra(s, nuove, prefiltro, prompt.sistema_prefiltro(elenco_interessi, imp.escludi_sponsorizzati),
                                             imp.modello_prefiltro, m)
@@ -229,7 +265,7 @@ class Esecutore:
                     if imp.escludi_pagamento and c.stato and "paywall" in c.stato:  # WEB-23: niente quota sprecata
                         notizie.segna_viste(s, [c.url])
                         s.commit()
-                        m.di(c.tipo).escluse += 1
+                        m.escludi(c, "a pagamento")
                         return
                     risposta = await elaborazione.chiedi(sistema=sistema, messaggio=prompt.messaggio_valutazione(c),
                                                          schema=prompt.SCHEMA_VALUTAZIONE,
@@ -251,7 +287,7 @@ class Esecutore:
                 finally:
                     self.avanzamento.fatti += 1
                 m.conta_token("elaborazione", risposta)
-                self._salva(s, c, risposta.dati, ids_validi, imp.soglia, m)
+                self._salva(s, c, risposta.dati, ids_validi, imp.soglia, m, self.avanzamento.esecuzione_id)
 
             await _tutti(elabora(c) for c in passate)
 
@@ -275,12 +311,19 @@ class Esecutore:
             finally:
                 self.avanzamento.fatti += 1
             m.conta_token("prefiltro", risposta)
-            indici = {i for i in risposta.dati.get("pertinenti", []) if isinstance(i, int) and 0 <= i < len(blocco)}
+            def validi(chiave: str) -> set[int]:
+                return {i for i in risposta.dati.get(chiave, []) if isinstance(i, int) and 0 <= i < len(blocco)}
+
+            indici = validi("pertinenti")
+            sponsorizzate = validi("sponsorizzate") - indici  # WEB-23, solo con l'esclusione attiva
             scartate = [c for n, c in enumerate(blocco) if n not in indici]
             notizie.segna_viste(s, [c.url for c in scartate])
             s.commit()
-            for c in scartate:
-                m.di(c.tipo).scartate_prefiltro += 1
+            for n, c in enumerate(blocco):
+                if n in sponsorizzate:
+                    m.escludi(c, "sponsorizzato o offerta")
+                elif n not in indici:
+                    m.di(c.tipo).scartate_prefiltro += 1
             return [blocco[i] for i in sorted(indici)]
 
         return [c for blocco in await _tutti(filtra(b) for b in blocchi) for c in blocco]
@@ -297,7 +340,8 @@ class Esecutore:
         self.avanzamento.fase, self.avanzamento.fatti, self.avanzamento.totale = fase, 0, totale
 
     @staticmethod
-    def _salva(s: Session, c: Candidata, dati: dict, ids_validi: set[int], soglia: int, m: Metriche) -> None:
+    def _salva(s: Session, c: Candidata, dati: dict, ids_validi: set[int], soglia: int, m: Metriche,
+               esecuzione_id: int) -> None:
         # La risposta dell'LLM è dato esterno: si tengono solo interessi esistenti e punteggi 0-100.
         punteggi: dict[int, int] = {}
         for p in dati.get("punteggi", []):
@@ -315,6 +359,7 @@ class Esecutore:
             titolo_it=titolo_it if titolo_it and titolo_it != c.titolo else None,
             sommario=c.sommario, riassunto=str(dati.get("riassunto", "")).strip(),
             pubblicata_il=c.pubblicata_il, data_incerta=c.data_incerta, scoperta_il=notizie.adesso(), stato=c.stato,
+            esecuzione_id=esecuzione_id,
             pertinenze=[Pertinenza(interesse_id=i, punteggio=v) for i, v in punteggi.items() if v > 0],
         ))
         s.commit()

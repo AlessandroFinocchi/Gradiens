@@ -87,6 +87,48 @@ def test_archivio_tiene_le_notizie_con_cuore_anche_vecchie_e_senza_interesse(s):
     assert archivio[0].pertinenze == []
 
 
+def test_cancellazione_dopo_7_giorni_tranne_l_archivio(s):
+    a = interessi.aggiungi(s, "A", "a")
+    notizia(s, "recente", giorni_fa=6, punteggi=[(a.id, 80)])
+    notizia(s, "vecchia", giorni_fa=8, punteggi=[(a.id, 80)])
+    notizia(s, "vecchia-con-cuore", giorni_fa=30, cuore=True, punteggi=[(a.id, 80)])
+    assert notizie.cancella_scadute(s) == 1
+    assert sorted(n.url for n in s.query(Notizia)) == ["recente", "vecchia-con-cuore"]
+    assert s.query(Pertinenza).count() == 2  # i punteggi della notizia cancellata se ne vanno con lei
+
+
+def test_in_evidenza_le_migliori_3_per_fonte_delle_ultime_24_ore(s):
+    a = interessi.aggiungi(s, "A", "a")
+    for n, punteggio in enumerate([95, 90, 85, 80]):
+        notizia(s, f"paper-{punteggio}", giorni_fa=0, punteggi=[(a.id, punteggio)])
+    notizia(s, "paper-sotto-soglia", giorni_fa=0, punteggi=[(a.id, 50)])
+    vecchio = notizia(s, "paper-di-ieri-l-altro", giorni_fa=0, punteggi=[(a.id, 99)])
+    vecchio.scoperta_il = adesso() - timedelta(hours=30)
+    notizia(s, "short", tipo="short", fonte="Lab", giorni_fa=0, punteggi=[(a.id, 70)])
+    s.commit()
+    gruppi = notizie.in_evidenza(s, 60)
+    assert titoli(gruppi["arxiv"]) == ["paper-95", "paper-90", "paper-85"]
+    assert titoli(gruppi["youtube"]) == ["short"] and gruppi["siti"] == []
+
+
+def test_riepilogo_di_un_esecuzione_anche_nel_formato_vecchio(s):
+    e = esecuzioni.inizia(s, "cli")
+    esecuzioni.termina(s, e.id, "completata", {
+        "durata_s": 12.5,
+        "fonti": {
+            "siti": {"esaminate": 5, "mostrate": 2, "errori": 1,
+                     "stati": [{"fonte": "a.it", "stato": "ok"}, {"fonte": "b.it", "stato": "accesso bloccato"}]},
+            "arxiv": {"esaminate": 3, "mostrate": 1, "errori": 0, "problemi": [{"fonte": "cs.CR", "stato": "x"}]},
+        },
+        "token": {"prefiltro": {"ingresso": 100, "uscita": 10}, "elaborazione": {"ingresso": 1000, "uscita": 90}},
+    })
+    r = esecuzioni.riepilogo(s.get(Esecuzione, e.id))
+    assert (r["totali"]["esaminate"], r["totali"]["mostrate"], r["totali"]["errori"], r["totali"]["token"]) == (8, 3, 1, 1200)
+    assert [st["fonte"] for st in r["stati"]] == ["b.it", "a.it"]  # prima i problemi
+    assert len(r["problemi"]) == 1 and r["escluse"] == []
+    assert esecuzioni.riepilogo(esecuzioni.inizia(s, "cli"))["totali"]["esaminate"] == 0  # in corso: vuoto
+
+
 def test_cuore(s):
     n = notizia(s, "x")
     assert notizie.imposta_cuore(s, n.id, True).cuore

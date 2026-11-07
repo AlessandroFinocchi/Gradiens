@@ -1,6 +1,7 @@
 """Lettura e scrittura delle impostazioni modificabili dalla dashboard."""
 
 import re
+from datetime import time
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -27,14 +28,28 @@ def salva_tema(sessione: Session, tema: str) -> None:
 
 
 def salva_esecuzione(sessione: Session, soglia: int, finestra_giorni: int,
-                     escludi_sponsorizzati: bool = True, escludi_pagamento: bool = True) -> None:
+                     escludi_sponsorizzati: bool = True, escludi_pagamento: bool = True,
+                     orario: str | None = None, in_pausa: bool = False) -> None:
+    """`orario` None lascia quello attuale."""
     if not 0 <= soglia <= 100:
         raise ImpostazioneNonValida("La soglia va da 0 a 100.")
     if not 1 <= finestra_giorni <= 7:
         raise ImpostazioneNonValida("La finestra di raccolta va da 1 a 7 giorni.")
     imp = leggi(sessione)
+    if orario is not None:
+        try:
+            imp.orario_programmato = time.fromisoformat(orario).strftime("%H:%M")
+        except ValueError:
+            raise ImpostazioneNonValida(f"«{orario}» non è un orario valido, per esempio 07:00.") from None
     imp.soglia, imp.finestra_giorni = soglia, finestra_giorni
     imp.escludi_sponsorizzati, imp.escludi_pagamento = escludi_sponsorizzati, escludi_pagamento
+    imp.programmazione_in_pausa = in_pausa
+    sessione.commit()
+
+
+def imposta_pausa(sessione: Session, in_pausa: bool) -> None:
+    """TG-10: /pausa e /riprendi."""
+    leggi(sessione).programmazione_in_pausa = in_pausa
     sessione.commit()
 
 

@@ -1,0 +1,69 @@
+{% from "icone.html" import icona with context %}
+{# Sezione Telegram (TG-01): tutorial in tre passi finché il bot non è collegato, poi stato, prova e comandi. #}
+<h2>Telegram</h2>
+{% set collegato = token_salvato and imp.telegram_chat_id %}
+{% if esito %}<div class="esito ok" role="status">{{ esito }}</div>{% endif %}
+
+{% if not collegato %}
+<p class="intro">Il bot ti manda le notizie migliori alla fine di ogni esecuzione e accetta comandi come <code>/aggiorna</code>. Ci vogliono due minuti.</p>
+<ol class="tutorial">
+  <li class="{{ 'fatto' if token_salvato else 'corrente' }}"><span class="numero">{{ "✓" if token_salvato else "1" }}</span><div>
+    <h4>Crea il bot con BotFather</h4>
+    <ol>
+      <li>In Telegram cerca <strong>@BotFather</strong> (ha la spunta blu) e apri la chat.</li>
+      <li>Scrivi <code>/newbot</code>.</li>
+      <li>Scegli un nome, per esempio "Il mio Gradiens".</li>
+      <li>Scegli uno username che finisca con <code>bot</code>, per esempio <code>mio_gradiens_bot</code>.</li>
+      <li>BotFather risponde con un messaggio che contiene il <strong>token</strong>, una lunga stringa di numeri e lettere.</li>
+    </ol></div></li>
+  <li class="{{ 'fatto' if token_salvato else '' }}"><span class="numero">{{ "✓" if token_salvato else "2" }}</span><div>
+    <h4>Incolla qui il token</h4>
+    <p>Il token è segreto come una password: non condividerlo. Viene salvato nel file <code>.env</code> di Gradiens.</p>
+    <form class="campo-riga" style="margin-top: 8px" hx-post="/impostazioni/telegram/token" hx-target="#impostazioni" hx-disabled-elt="find button">
+      <input class="campo" type="password" name="token" autocomplete="off" aria-label="Token del bot" required
+             placeholder="{{ 'Token salvato: incollane un altro per cambiare bot' if token_salvato else '123456789:AAF…' }}">
+      <button class="bottone secondario">Verifica</button>
+    </form>
+    {% if token_salvato and imp.telegram_bot %}<div class="esito ok">{{ icona("spunta") }}Token valido: bot @{{ imp.telegram_bot }}</div>{% endif %}
+  </div></li>
+  <li class="{{ 'corrente' if token_salvato else '' }}"><span class="numero">3</span><div>
+    <h4>Scrivi /start al tuo bot</h4>
+    <p>Apri {% if imp.telegram_bot %}<strong>@{{ imp.telegram_bot }}</strong>{% else %}il tuo bot{% endif %} in Telegram e premi Avvia, oppure scrivi <code>/start</code>. Poi premi "Cerca la chat": Gradiens riconosce la chat da cui arriva il messaggio.</p>
+    {% if token_salvato %}
+    {% if chat_trovata %}
+    <form class="chat-trovata" hx-post="/impostazioni/telegram/conferma" hx-target="#impostazioni" hx-disabled-elt="find button">
+      <input type="hidden" name="chat_id" value="{{ chat_trovata[0] }}"><input type="hidden" name="nome" value="{{ chat_trovata[1] }}">
+      <span style="flex: 1"><strong>Chat trovata: {{ chat_trovata[1] }}</strong><br><span class="nota">da qui è arrivato l'ultimo /start</span></span>
+      <button class="bottone">Conferma questa chat</button>
+    </form>
+    <p class="nota" style="margin-top: 8px">Il bot risponderà solo a questa chat e ignorerà tutte le altre. Non è la tua? Scrivi di nuovo /start dalla chat giusta e cerca ancora.</p>
+    {% endif %}
+    <button type="button" class="bottone{% if chat_trovata %} secondario{% endif %} piccolo" style="margin-top: 8px"
+            hx-post="/impostazioni/telegram/cerca" hx-target="#impostazioni" hx-disabled-elt="this">Cerca la chat</button>
+    {% endif %}
+  </div></li>
+</ol>
+
+{% else %}
+<div class="riga{% if 'bot' in voci %} evidenziata{% endif %}">
+  <div class="testo">
+    <div class="titolo">Bot</div>
+    <div class="descrizione">
+      {% if problema_bot %}<span class="stato errore">non in funzione</span> {{ problema_bot }}{% else %}<span class="stato ok">collegato</span> · @{{ imp.telegram_bot }}{% endif %}
+    </div>
+  </div>
+  <div class="controllo"><button type="button" class="bottone secondario piccolo" hx-post="/impostazioni/telegram/prova" hx-target="#impostazioni" hx-disabled-elt="this">Messaggio di prova</button></div>
+</div>
+<div class="riga">
+  <div class="testo">
+    <div class="titolo">Chat autorizzata</div>
+    <div class="descrizione">{{ imp.telegram_chat_nome }}. Il bot ignora tutte le altre chat.</div>
+  </div>
+  <div class="controllo"><button type="button" class="bottone secondario piccolo" hx-post="/impostazioni/telegram/cambia-chat" hx-target="#impostazioni"
+          hx-confirm="Scollegare questa chat? Il bot smette di rispondere finché non ne confermi una con il tutorial.">Cambia chat o bot</button></div>
+</div>
+<h3>Comandi del bot</h3>
+{% for comando, spiegazione in COMANDI.items() %}
+<div class="riga"><div class="testo"><div class="titolo"><code>/{{ comando }}</code></div><div class="descrizione">{{ spiegazione|capitalize }}.</div></div></div>
+{% endfor %}
+{% endif %}

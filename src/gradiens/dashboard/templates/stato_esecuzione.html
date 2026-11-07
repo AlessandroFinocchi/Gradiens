@@ -1,0 +1,4 @@
+{# Esito di un'esecuzione come etichetta colorata. #}
+{% macro stato_esecuzione(e) -%}
+<span class="stato{% if e.stato == 'completata' %} ok{% elif e.stato == 'fallita' %} errore{% endif %}">{{ "in corso" if e.stato == "in_corso" else e.stato }}</span>
+{%- endmacro %}

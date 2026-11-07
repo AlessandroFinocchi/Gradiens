@@ -3,12 +3,13 @@
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session, selectinload
 
 from gradiens.dati.modelli import TIPI_NOTIZIA, Notizia, NotiziaVista, Pertinenza
 
 GIORNI_CONSERVAZIONE = 7  # ESE-09
+GRUPPI_EVIDENZA = {"sito": "siti", "video": "youtube", "short": "youtube", "arxiv": "arxiv"}  # UI-02
 
 
 def adesso() -> datetime:
@@ -65,6 +66,20 @@ def elenca(sessione: Session, filtri: Filtri, soglia: int) -> list[Notizia]:
     return list(sessione.scalars(query))
 
 
+def in_evidenza(sessione: Session, soglia: int, esecuzione_id: int | None = None,
+                quante: int = 3) -> dict[str, list[Notizia]]:
+    """Per tipo di fonte, le notizie mostrate più pertinenti: quelle scoperte nelle ultime 24 ore
+    (Home, UI-02) oppure quelle di un'esecuzione (messaggio Telegram, TG-03)."""
+    dal = adesso() - timedelta(hours=24)
+    gruppi: dict[str, list[Notizia]] = {"siti": [], "youtube": [], "arxiv": []}
+    for n in elenca(sessione, Filtri(), soglia):  # già in ordine di pertinenza
+        gruppo = gruppi[GRUPPI_EVIDENZA[n.tipo]]
+        scelta = n.esecuzione_id == esecuzione_id if esecuzione_id is not None else n.scoperta_il >= dal
+        if scelta and len(gruppo) < quante:
+            gruppo.append(n)
+    return gruppi
+
+
 def nome_fonte(tipo: str, fonte: str, nomi_categorie: dict[str, str]) -> str:
     """Nome mostrato di una fonte: per arXiv quello dato alla categoria nelle Impostazioni, se c'è (ARX-01)."""
     return nomi_categorie.get(fonte, fonte) if tipo == "arxiv" else fonte
@@ -77,6 +92,15 @@ def fonti(sessione: Session, tipi: list[str], nomi_categorie: dict[str, str]) ->
         query = query.where(Notizia.tipo.in_(tipi))
     nomi = {fonte: nome_fonte(tipo, fonte, nomi_categorie) for tipo, fonte in sessione.execute(query)}
     return dict(sorted(nomi.items(), key=lambda voce: voce[1].casefold()))
+
+
+def cancella_scadute(sessione: Session) -> int:
+    """ESE-09: via le notizie senza cuore più vecchie di 7 giorni. Per le date incerte `pubblicata_il`
+    è già la data di scoperta. Gli indirizzi restano nel registro delle viste, così non tornano."""
+    limite = adesso() - timedelta(days=GIORNI_CONSERVAZIONE)
+    risultato = sessione.execute(delete(Notizia).where(Notizia.cuore.is_(False), Notizia.pubblicata_il < limite))
+    sessione.commit()
+    return risultato.rowcount
 
 
 def dettaglio(sessione: Session, id: int) -> Notizia | None:

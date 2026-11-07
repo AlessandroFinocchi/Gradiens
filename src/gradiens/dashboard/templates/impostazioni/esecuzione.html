@@ -2,6 +2,20 @@
 <form hx-post="/impostazioni/esecuzione" hx-target="#impostazioni">
   <div class="riga">
     <div class="testo">
+      <div class="titolo">Esecuzione programmata</div>
+      <div class="descrizione">Ogni giorno a quest'ora, nell'ora del PC. Se a quell'ora Gradiens è spento, l'esecuzione parte appena lo riaccendi.</div>
+    </div>
+    <div class="controllo"><input class="campo" type="time" name="orario" value="{{ imp.orario_programmato }}" required aria-label="Orario dell'esecuzione programmata"></div>
+  </div>
+  <div class="riga{% if "pausa" in voci %} proposta{% endif %}">
+    <div class="testo">
+      <div class="titolo">Programmazione in pausa</div>
+      <div class="descrizione">Nessuna esecuzione automatica finché la pausa è attiva, anche dopo un riavvio. Le esecuzioni avviate a mano funzionano lo stesso.</div>
+    </div>
+    <div class="controllo"><input type="checkbox" role="switch" class="interruttore" name="in_pausa" value="true"{% if imp.programmazione_in_pausa %} checked{% endif %} aria-label="Programmazione in pausa"></div>
+  </div>
+  <div class="riga">
+    <div class="testo">
       <div class="titolo">Soglia di pertinenza</div>
       <div class="descrizione">Una notizia si mostra se almeno uno dei suoi punteggi la raggiunge (da 0 a 100).</div>
     </div>

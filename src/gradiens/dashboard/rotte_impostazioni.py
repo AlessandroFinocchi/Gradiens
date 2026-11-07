@@ -12,6 +12,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session
 
+from gradiens.dashboard import segnali
 from gradiens.dashboard.comune import Sessione, frammento
 from gradiens.dati import impostazioni, interessi
 from gradiens.dati.impostazioni import ImpostazioneNonValida
@@ -19,6 +20,9 @@ from gradiens.dati import siti as dati_siti
 from gradiens.dati.modelli import Sito
 from gradiens.fonti import siti, youtube
 from gradiens.fonti.siti import Profilo
+from gradiens.app.configurazione import salva_segreto
+from gradiens.telegram import bot as telegram
+from gradiens.telegram.messaggi import COMANDI
 
 # Sezione: (gruppo, nome, icona). Ogni fetta aggiunge le sue.
 SEZIONI = {
@@ -27,15 +31,23 @@ SEZIONI = {
     "siti": ("Contenuti", "Siti web", "sito"),
     "arxiv": ("Contenuti", "arXiv", "arxiv"),
     "esecuzione": ("Funzionamento", "Esecuzione", "esecuzione"),
+    "telegram": ("Funzionamento", "Telegram", "telegram"),
     "aspetto": ("Interfaccia", "Aspetto", "aspetto"),
 }
 router = APIRouter(prefix="/impostazioni")
 
 
-def finestra(request: Request, s: Session, sezione: str, errore: str | None = None) -> HTMLResponse:
+def finestra(request: Request, s: Session, sezione: str, errore: str | None = None, **extra) -> HTMLResponse:
     if sezione not in SEZIONI:
         raise HTTPException(404, "Sezione inesistente")
-    contesto = {"sezioni": SEZIONI, "sezione": sezione, "imp": impostazioni.leggi(s), "errore": errore}
+    bot = request.app.state.bot
+    trovati = segnali.segnali(s, bot.problema())
+    contesto = {"sezioni": SEZIONI, "sezione": sezione, "imp": impostazioni.leggi(s), "errore": errore,
+                "segnali": trovati, "segnale_globale": segnali.globale(trovati),
+                "voci": trovati[sezione].voci if sezione in trovati else set(), **extra}
+    if sezione == "telegram":
+        contesto.update(token_salvato=request.app.state.conf.telegram_token is not None, problema_bot=bot.errore,
+                        COMANDI=COMANDI)
     if sezione == "interessi":
         contesto["interessi"] = interessi.elenca(s)
     elif sezione == "canali-youtube":
@@ -201,7 +213,74 @@ def tetto_arxiv(request: Request, s: Sessione, tetto: Numero):
 
 @router.post("/esecuzione", response_class=HTMLResponse)
 def esecuzione(request: Request, s: Sessione, soglia: Numero, finestra_giorni: Numero,
-               escludi_sponsorizzati: Annotated[bool, Form()] = False, escludi_pagamento: Annotated[bool, Form()] = False):
+               escludi_sponsorizzati: Annotated[bool, Form()] = False, escludi_pagamento: Annotated[bool, Form()] = False,
+               orario: Annotated[str | None, Form()] = None, in_pausa: Annotated[bool, Form()] = False):
     # Una casella non spuntata non viene inviata: per questo il valore di base qui è False.
     return _esegui(request, s, "esecuzione", lambda: impostazioni.salva_esecuzione(
-        s, soglia, finestra_giorni, escludi_sponsorizzati, escludi_pagamento))
+        s, soglia, finestra_giorni, escludi_sponsorizzati, escludi_pagamento, orario, in_pausa))
+
+
+# ---------- Telegram (TG-01): tutorial, prova, cambio di chat ----------
+
+@router.post("/telegram/token", response_class=HTMLResponse)
+async def telegram_token(request: Request, s: Sessione, token: Testo):
+    token = token.strip()
+    try:
+        nome = await telegram.verifica_token(token)
+    except telegram.ErroreTelegram as errore:
+        return finestra(request, s, "telegram", errore=str(errore))
+    await request.app.state.bot.ferma()
+    salva_segreto(request.app.state.conf, "telegram_token", token)  # nel .env, mai nel database (PER-02)
+    imp = impostazioni.leggi(s)
+    imp.telegram_bot, imp.telegram_chat_id, imp.telegram_chat_nome = nome, None, None  # nuovo bot: chat da confermare
+    s.commit()
+    return finestra(request, s, "telegram")
+
+
+@router.post("/telegram/cerca", response_class=HTMLResponse)
+async def telegram_cerca(request: Request, s: Sessione):
+    token = request.app.state.conf.telegram_token
+    if token is None:
+        return finestra(request, s, "telegram", errore="Prima incolla il token del bot.")
+    try:
+        trovata = await telegram.cerca_chat(token.get_secret_value())
+    except telegram.ErroreTelegram as errore:
+        return finestra(request, s, "telegram", errore=str(errore))
+    if trovata is None:
+        return finestra(request, s, "telegram", errore="Nessun /start ricevuto: scrivi /start al bot e riprova.")
+    return finestra(request, s, "telegram", chat_trovata=trovata)
+
+
+@router.post("/telegram/conferma", response_class=HTMLResponse)
+async def telegram_conferma(request: Request, s: Sessione, chat_id: Numero, nome: Testo):
+    token = request.app.state.conf.telegram_token
+    if token is None:
+        return finestra(request, s, "telegram", errore="Prima incolla il token del bot.")
+    try:
+        await telegram.collega(token.get_secret_value(), chat_id)
+    except telegram.ErroreTelegram as errore:
+        return finestra(request, s, "telegram", errore=str(errore))
+    imp = impostazioni.leggi(s)
+    imp.telegram_chat_id, imp.telegram_chat_nome = chat_id, nome[:200]
+    s.commit()
+    await request.app.state.bot.avvia()
+    return finestra(request, s, "telegram")
+
+
+@router.post("/telegram/prova", response_class=HTMLResponse)
+async def telegram_prova(request: Request, s: Sessione):
+    try:
+        await request.app.state.bot.invia_prova()
+    except telegram.ErroreTelegram as errore:
+        return finestra(request, s, "telegram", errore=str(errore))
+    return finestra(request, s, "telegram", esito="Messaggio di prova inviato: controlla Telegram.")
+
+
+@router.post("/telegram/cambia-chat", response_class=HTMLResponse)
+async def telegram_cambia_chat(request: Request, s: Sessione):
+    await request.app.state.bot.ferma()
+    imp = impostazioni.leggi(s)
+    imp.telegram_chat_id = imp.telegram_chat_nome = None
+    s.commit()
+    return finestra(request, s, "telegram")
+

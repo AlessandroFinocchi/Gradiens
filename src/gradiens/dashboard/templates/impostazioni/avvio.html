@@ -1,0 +1,31 @@
+{# Sezione Avvio (AMB-04): l'interruttore registra o toglie l'avvio all'accensione nel sistema operativo. #}
+<h2>Avvio</h2>
+{% if esito %}<div class="esito ok" role="status">{{ esito }}</div>{% endif %}
+<form hx-post="/impostazioni/avvio" hx-trigger="change" hx-target="#impostazioni" hx-disabled-elt="find input">
+  <div class="riga">
+    <div class="testo">
+      <div class="titolo">Avvia Gradiens all'accensione del PC</div>
+      <div class="descrizione">
+        {% if windows %}Parte senza bisogno di accedere a Windows né di accendere il monitor. Cambiare questa impostazione richiede una conferma di amministratore sullo schermo del PC, quindi va fatto stando al PC.
+        {% else %}Parte senza bisogno di accedere al sistema né di accendere il monitor, come servizio utente di systemd. Vale dal prossimo avvio del PC.{% endif %}
+      </div>
+    </div>
+    <div class="controllo"><input type="checkbox" role="switch" class="interruttore" name="attivo" value="true"{% if avvio.attivo %} checked{% endif %} aria-label="Avvio all'accensione"></div>
+  </div>
+</form>
+<div class="riga{% if 'stato' in voci %} evidenziata{% endif %}">
+  <div class="testo">
+    <div class="titolo">Stato</div>
+    <div class="descrizione">
+      {% if not avvio.attivo %}Avvio a mano con <code>gradiens avvia</code>. Nessuna registrazione nel sistema operativo.
+      {% elif avvio.problema %}<span class="stato errore">da sistemare</span> {{ avvio.problema }}
+      {% elif windows %}<span class="stato ok">registrato</span> · attività pianificata "Gradiens" nell'Utilità di pianificazione.
+      {% else %}<span class="stato ok">registrato</span> · servizio utente <code>gradiens.service</code>. I suoi messaggi si leggono con <code>journalctl --user -u gradiens</code>.{% endif %}
+    </div>
+  </div>
+</div>
+{% set comando = comando or avvio.comando %}
+{% if comando %}
+<p class="nota" style="margin-top: 12px">{% if windows %}Apri PowerShell come amministratore (tasto destro sul menu Start, "Terminale (Admin)"), incolla questi comandi e premi Invio. Poi riapri questa sezione.{% else %}Lancia questo comando in un terminale, poi riapri questa sezione.{% endif %}</p>
+<pre class="comando">{{ comando }}</pre>
+{% endif %}

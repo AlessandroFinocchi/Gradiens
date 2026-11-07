@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 
 import httpx
 
-from gradiens.app.avvio_sistema import lancia_staccato
+from gradiens.app.avvio_sistema import ARGOMENTI, lancia_staccato
 from gradiens.app.configurazione import Configurazione, configurazione
 
 ATTESA_MASSIMA = 20  # secondi per l'avvio o lo spegnimento
@@ -36,7 +36,7 @@ def _attendi(condizione, secondi: float = ATTESA_MASSIMA) -> bool:
 def _avvia_staccato(conf: Configurazione) -> None:
     """Lancia il servizio come processo indipendente dal terminale (e dalla sessione SSH)."""
     conf.cartella_log.mkdir(parents=True, exist_ok=True)
-    lancia_staccato([sys.executable, "-m", "gradiens", "avvia", "--primo-piano"], conf.cartella_log / "avvio.log")
+    lancia_staccato([sys.executable, *ARGOMENTI], conf.cartella_log / "avvio.log")
 
 
 def avvia(conf: Configurazione, primo_piano: bool) -> int:

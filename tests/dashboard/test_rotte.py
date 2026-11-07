@@ -2,6 +2,8 @@ from datetime import timedelta
 
 import pytest
 
+from gradiens.app import avvio_sistema
+
 from gradiens.dati import argomenti, esecuzioni, impostazioni, interessi, proposte
 from gradiens.dati import siti as dati_siti
 from gradiens.dati.modelli import Notizia, Pertinenza
@@ -101,17 +103,20 @@ def test_impostazioni_interessi(dati):
 
 
 def test_segnali_nella_finestra_e_sull_ingranaggio(dati):
-    # Nel fixture mancano canali, siti e bot Telegram: avvertimento sulle tre sezioni e sull'ingranaggio.
+    # Nel fixture c'è solo una categoria arXiv: canali e siti vuoti vanno bene (decisione 56), manca il bot.
     pagina = dati.get("/notizie").text
-    assert 'id="apri-impostazioni"' in pagina and "3 sezioni delle Impostazioni da guardare" in pagina
+    assert 'id="apri-impostazioni"' in pagina and "Bot Telegram non collegato" in pagina
+    with dati.app.state.sessioni() as s:
+        impostazioni.rimuovi_categoria(s, "cs.CR")  # nessuna fonte: avvertimento sulle tre sezioni delle fonti
+    pagina = dati.get("/notizie").text
+    assert "4 sezioni delle Impostazioni da guardare" in pagina
     finestra = dati.get("/impostazioni/canali-youtube", headers=HTMX).text
-    assert 'title="Serve almeno un canale YouTube"' in finestra and 'title="Serve almeno un sito"' in finestra
+    assert finestra.count('title="Serve almeno una fonte: un canale YouTube, un sito o una categoria arXiv"') == 3
     assert 'class="campo-riga evidenziata"' in finestra  # la voce da sistemare
     assert 'hx-swap-oob="true"' in finestra  # l'ingranaggio si aggiorna con la finestra
 
 
 def test_impostazioni_arxiv_ed_esecuzione(dati):
-    assert "almeno una categoria" in dati.post("/impostazioni/arxiv/categorie/rimuovi", data={"codice": "cs.CR"}, headers=HTMX).text
     assert "non sembra una categoria" in dati.post("/impostazioni/arxiv/categorie", data={"codice": "<b>x</b>"}, headers=HTMX).text
     assert "cs.AI" in dati.post("/impostazioni/arxiv/categorie", data={"codice": "cs.AI"}, headers=HTMX).text
     con_nome = dati.post("/impostazioni/arxiv/categorie", data={"codice": "cs.IR", "nome": "Ricerca <i>"}, headers=HTMX).text
@@ -293,3 +298,42 @@ def test_tetti_del_sito_e_interruttori_di_esclusione(dati, monkeypatch):
     assert (profilo["pagine_massime"], profilo["articoli_massimi"]) == (120, 400)
     assert {"pagine_massime", "articoli_massimi"} <= set(profilo["modificati"])
     assert (imp.escludi_sponsorizzati, imp.escludi_pagamento) == (True, False)  # casella non spuntata = disattivo
+
+
+def test_impostazioni_avvio(client, monkeypatch):
+    registrato = []
+
+    def attiva(radice):
+        registrato.append(radice)
+        monkeypatch.setattr(avvio_sistema, "_cache", (float("inf"), avvio_sistema.StatoAvvio(True)))
+
+    monkeypatch.setattr(avvio_sistema, "attiva_avvio", attiva)
+    monkeypatch.setattr(avvio_sistema, "disattiva_avvio", lambda radice: registrato.clear())
+    assert "Avvio a mano" in client.get("/impostazioni/avvio").text
+    pagina = client.post("/impostazioni/avvio", data={"attivo": "true"}, headers=HTMX).text
+    assert registrato and "accensione registrato" in pagina and "checked" in pagina
+    pagina = client.post("/impostazioni/avvio", headers=HTMX).text  # interruttore spento: nessun campo
+    assert not registrato and "si avvia a mano" in pagina
+
+    def negato(radice):
+        raise avvio_sistema.ErroreAvvio("La conferma di amministratore è stata negata.", "Register-ScheduledTask …")
+
+    monkeypatch.setattr(avvio_sistema, "attiva_avvio", negato)
+    pagina = client.post("/impostazioni/avvio", data={"attivo": "true"}, headers=HTMX).text
+    assert "negata" in pagina and '<pre class="comando">Register-ScheduledTask …</pre>' in pagina
+
+
+def test_segnale_dell_avvio_da_rifare(client, monkeypatch):
+    stato = avvio_sistema.StatoAvvio(True, "Il servizio non è abilitato.", "sudo loginctl enable-linger io")
+    monkeypatch.setattr(avvio_sistema, "_cache", (float("inf"), stato))
+    pagina = client.get("/impostazioni/avvio").text
+    assert "Il servizio non è abilitato." in pagina and "sudo loginctl enable-linger io" in pagina
+    assert 'evidenziata' in pagina
+
+
+def test_aiuto(client):
+    pagina = client.get("/aiuto").text
+    for sezione in ("esecuzione", "fonti", "siti", "interessi", "cuore", "argomenti", "stati", "avvio", "cli", "telegram"):
+        assert f'id="{sezione}"' in pagina and f'href="#{sezione}"' in pagina  # UI-12, con l'indice
+    assert "<code>/riprendi</code>" in pagina and "Windows" in pagina and "Linux" in pagina
+    assert 'aria-current="page"' in pagina.split("Aiuto</span>")[0].rsplit("<a", 1)[1]  # voce attiva nella sidebar

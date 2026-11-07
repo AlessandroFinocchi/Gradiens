@@ -26,7 +26,9 @@ from gradiens.telegram import messaggi
 log = logging.getLogger(__name__)
 
 FORMATO_TOKEN = re.compile(r"^\d{5,}:[\w-]{30,}$")
-RIPROVA = 60  # secondi tra due tentativi di avvio, se Telegram non era raggiungibile
+# Secondi tra due tentativi di avvio se Telegram non è raggiungibile: all'accensione del PC la rete
+# arriva di solito dopo pochi secondi, quindi si comincia presto e si rallenta fino a un minuto.
+RIPROVA_MINIMA, RIPROVA = 5, 60
 SENZA_ANTEPRIMA = LinkPreviewOptions(is_disabled=True)
 
 
@@ -124,7 +126,7 @@ class BotGradiens:
             if isinstance(errore, InvalidToken):  # il suo testo contiene il token: non va nei log (PER-04)
                 self.errore = "Il token del bot non è più valido: rifai il collegamento"
             else:
-                self.errore = f"Telegram non raggiungibile: {errore}"
+                self.errore = f"Telegram non raggiungibile, riprovo da solo: {errore}"
                 log.warning("Avvio del bot Telegram non riuscito: %s", errore)
             return
         self._app, self.errore = app, None
@@ -140,12 +142,17 @@ class BotGradiens:
             await app.shutdown()
 
     async def gira(self) -> None:
-        """Avvia il bot e riprova se Telegram non era raggiungibile (es. PC acceso senza rete)."""
+        """Riprova ad avviare il bot se Telegram non era raggiungibile (es. PC appena acceso, rete non ancora pronta)."""
+        attesa = RIPROVA_MINIMA
         while True:
-            await asyncio.sleep(RIPROVA)  # il primo tentativo lo fa il servizio all'avvio
-            token_rifiutato = self.errore and "token" in self.errore
-            if self._app is None and not token_rifiutato:
-                await self.avvia()
+            await asyncio.sleep(attesa)  # il primo tentativo lo fa il servizio all'avvio
+            await self._riprova()
+            attesa = RIPROVA_MINIMA if self._app is not None else min(attesa * 2, RIPROVA)
+
+    async def _riprova(self) -> None:
+        token_rifiutato = self.errore and "token" in self.errore
+        if self._app is None and not token_rifiutato:
+            await self.avvia()
 
     # ---- Messaggio di fine esecuzione (TG-03, TG-04, TG-09) ----
 
@@ -169,6 +176,7 @@ class BotGradiens:
             log.exception("Messaggio Telegram dell'esecuzione %s non inviato", id)
 
     async def invia_prova(self) -> None:
+        await self._riprova()  # chi preme "Messaggio di prova" non deve aspettare il prossimo tentativo
         if self._app is None:
             raise ErroreTelegram(self.problema() or "Il bot non è in funzione.")
         try:

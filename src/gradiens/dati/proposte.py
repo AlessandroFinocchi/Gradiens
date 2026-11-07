@@ -5,7 +5,7 @@ risposta, per quell'interesse (o per gli interessi nuovi) non se ne genera un'al
 """
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from gradiens.dati import impostazioni, interessi
 from gradiens.dati.impostazioni import ImpostazioneNonValida
@@ -40,12 +40,12 @@ def da_raffinare(sessione: Session, soglia: int) -> list[tuple[Interesse, list[N
     return risultato
 
 
-def senza_interesse(sessione: Session, soglia: int) -> list[Notizia]:
-    """INT-06: cuori nuovi su notizie che non superano la soglia per nessun interesse."""
+def per_interesse_nuovo(sessione: Session) -> list[Notizia]:
+    """INT-06, decisione 57: cuori nuovi su notizie qualsiasi. Se rivelano un tema che gli interessi non
+    coprono lo decide l'LLM: le notizie sotto la soglia non si salvano, quindi non hanno mai il cuore."""
     if any(p.interesse_id is None for p in pendenti(sessione)):
         return []
-    sopra = select(Pertinenza.notizia_id).where(Pertinenza.punteggio >= soglia)
-    query = select(Notizia).where(Notizia.cuore, Notizia.id.not_in(sopra))
+    query = select(Notizia).where(Notizia.cuore).options(selectinload(Notizia.pertinenze).selectinload(Pertinenza.interesse))
     notizie = _cuori(sessione, query, impostazioni.leggi(sessione).ultima_proposta_interesse_il)
     return notizie if len(notizie) >= MINIMO_CUORI else []
 

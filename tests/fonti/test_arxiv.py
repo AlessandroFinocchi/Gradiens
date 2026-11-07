@@ -15,6 +15,8 @@ ATOM = """<?xml version="1.0" encoding="UTF-8"?>
     <summary>  We use a small model
       to discard documents.  </summary>
     <arxiv:primary_category term="cs.CL"/>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CR" scheme="http://arxiv.org/schemas/atom"/>
   </entry>
   <entry>
     <id>http://arxiv.org/abs/2610.00001v1</id>
@@ -27,13 +29,18 @@ ATOM = """<?xml version="1.0" encoding="UTF-8"?>
 
 
 def test_interpreta_normalizza_url_titolo_e_data():
-    nuova, vecchia = arxiv.interpreta(ATOM)
+    nuova, vecchia = arxiv.interpreta(ATOM, ["cs.CL", "cs.CR"])
     assert nuova.url == "https://arxiv.org/abs/2611.01234"  # senza versione: v1 e v2 sono la stessa notizia
     assert nuova.titolo == "Small Language Models as Pre-filters"
     assert nuova.contenuto == nuova.sommario == "We use a small model to discard documents."
     assert nuova.fonte == "cs.CL"
     assert nuova.pubblicata_il == datetime(2026, 11, 4, 17, 0)
     assert vecchia.fonte == "cs.CR"
+
+
+def test_la_fonte_e_la_categoria_seguita_non_la_primaria():
+    nuova, _ = arxiv.interpreta(ATOM, ["cs.CR"])  # primaria cs.CL, trovato perché è anche in cs.CR
+    assert nuova.fonte == "cs.CR"
 
 
 def test_raccogli_tiene_solo_la_finestra_e_si_ferma():

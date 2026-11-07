@@ -11,7 +11,8 @@
 <script src="/static/app.js" defer></script>
 </head>
 <body>
-<div class="app">
+<div class="app"{% if procedura %} data-senza-sidebar{% endif %}>
+  {% if not procedura %}
   <nav class="sidebar" aria-label="Pagine">
     <a class="marchio" href="/"><span class="segno">∇</span><span>Gradiens</span></a>
     {% for id, (nome, indirizzo) in pagine.items() %}
@@ -22,8 +23,9 @@
       {{ ingranaggio(segnale_globale) }}
     </div>
   </nav>
+  {% endif %}
   {% block contenuto %}{% endblock %}
 </div>
-<dialog id="impostazioni" class="finestra" aria-labelledby="titolo-impostazioni"></dialog>
+{% if not procedura %}<dialog id="impostazioni" class="finestra" aria-labelledby="titolo-impostazioni"></dialog>{% endif %}
 </body>
 </html>

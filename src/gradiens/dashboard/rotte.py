@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import NoResultFound
 from starlette.datastructures import QueryParams
 
-from gradiens.dashboard import rotte_impostazioni
+from gradiens.dashboard import rotte_configurazione, rotte_impostazioni
 from gradiens.dashboard.comune import CARTELLA, TIPI, Sessione, frammento, pagina
 from gradiens.dati import argomenti, esecuzioni, impostazioni, interessi, notizie, proposte
 from gradiens.dati import siti as dati_siti
@@ -19,24 +19,15 @@ from gradiens.dati.modelli import Esecuzione, Notizia
 from gradiens.dati.impostazioni import ImpostazioneNonValida
 from gradiens.dati.notizie import Filtri
 from gradiens.esecuzione.esecutore import GiaInCorso
+from gradiens.telegram.messaggi import COMANDI
 
 router = APIRouter()
 
-# Pagine che arrivano nelle fette successive (docs/architettura/piano-fase-4.md).
-IN_ARRIVO = {  # nome: (indirizzo, titolo, messaggio)
-    "aiuto": ("/aiuto", "Aiuto", "La guida completa arriva con la fetta 7."),
-}
 
-
-def _in_arrivo(nome: str, titolo: str, messaggio: str):
-    def vista(request: Request, s: Sessione) -> HTMLResponse:
-        return pagina(request, s, "in_arrivo", nome, titolo=titolo, messaggio=messaggio)
-
-    return vista
-
-
-for _nome, (_percorso, _titolo, _messaggio) in IN_ARRIVO.items():
-    router.add_api_route(_percorso, _in_arrivo(_nome, _titolo, _messaggio), methods=["GET"], response_class=HTMLResponse)
+@router.get("/aiuto", response_class=HTMLResponse)
+def aiuto(request: Request, s: Sessione):
+    """UI-12: pagina statica; i comandi Telegram sono quelli del bot."""
+    return pagina(request, s, "aiuto", "aiuto", COMANDI=COMANDI)
 
 
 # ---------- Home (UI-02) e resoconto di un'esecuzione (UI-03) ----------
@@ -215,4 +206,5 @@ def avanzamento(request: Request, s: Sessione):
 def registra(app: FastAPI) -> None:
     app.mount("/static", StaticFiles(directory=CARTELLA / "static"), name="static")
     app.include_router(rotte_impostazioni.router)
+    app.include_router(rotte_configurazione.router)
     app.include_router(router)

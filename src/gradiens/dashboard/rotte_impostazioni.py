@@ -20,7 +20,8 @@ from gradiens.dati import siti as dati_siti
 from gradiens.dati.modelli import Sito
 from gradiens.fonti import siti, youtube
 from gradiens.fonti.siti import Profilo
-from gradiens.app.configurazione import salva_segreto
+from gradiens.app import avvio_sistema
+from gradiens.app.configurazione import RADICE, salva_segreto
 from gradiens.telegram import bot as telegram
 from gradiens.telegram.messaggi import COMANDI
 
@@ -31,6 +32,7 @@ SEZIONI = {
     "siti": ("Contenuti", "Siti web", "sito"),
     "arxiv": ("Contenuti", "arXiv", "arxiv"),
     "esecuzione": ("Funzionamento", "Esecuzione", "esecuzione"),
+    "avvio": ("Funzionamento", "Avvio", "accensione"),
     "telegram": ("Funzionamento", "Telegram", "telegram"),
     "aspetto": ("Interfaccia", "Aspetto", "aspetto"),
 }
@@ -40,26 +42,36 @@ router = APIRouter(prefix="/impostazioni")
 def finestra(request: Request, s: Session, sezione: str, errore: str | None = None, **extra) -> HTMLResponse:
     if sezione not in SEZIONI:
         raise HTTPException(404, "Sezione inesistente")
-    bot = request.app.state.bot
-    trovati = segnali.segnali(s, bot.problema())
+    from gradiens.dashboard import rotte_configurazione  # qui: quel modulo importa questo
+
+    if rotte_configurazione.dalla_procedura(request):  # i moduli delle sezioni servono anche alla configurazione iniziale
+        return rotte_configurazione.passo(request, s, rotte_configurazione.PASSO_DI[sezione], errore=errore, **extra)
+    trovati = segnali.segnali(s, request.app.state.bot.problema(), avvio_sistema.stato_avvio(RADICE).problema)
     contesto = {"sezioni": SEZIONI, "sezione": sezione, "imp": impostazioni.leggi(s), "errore": errore,
                 "segnali": trovati, "segnale_globale": segnali.globale(trovati),
-                "voci": trovati[sezione].voci if sezione in trovati else set(), **extra}
-    if sezione == "telegram":
-        contesto.update(token_salvato=request.app.state.conf.telegram_token is not None, problema_bot=bot.errore,
-                        COMANDI=COMANDI)
-    if sezione == "interessi":
-        contesto["interessi"] = interessi.elenca(s)
-        pendenti = proposte.pendenti(s)  # INT-04, INT-06
-        contesto["proposte"] = {p.interesse_id: p for p in pendenti if p.interesse_id is not None}
-        contesto["proposta_nuova"] = next((p for p in pendenti if p.interesse_id is None), None)
-    elif sezione == "canali-youtube":
-        contesto["canali"] = impostazioni.canali_youtube(s)
-    elif sezione == "siti":
-        contesto["siti"] = [(sito, Profilo.da_dict(json.loads(sito.profilo))) for sito in dati_siti.elenca(s)]
-    elif sezione == "arxiv":
-        contesto["categorie"] = impostazioni.elenca_categorie(s)
+                "voci": trovati[sezione].voci if sezione in trovati else set(), **dati_sezione(request, s, sezione), **extra}
     return frammento(request, "impostazioni", **contesto)
+
+
+def dati_sezione(request: Request, s: Session, sezione: str) -> dict:
+    """I dati che il modello della sezione legge."""
+    if sezione == "telegram":
+        return {"token_salvato": request.app.state.conf.telegram_token is not None,
+                "problema_bot": request.app.state.bot.errore, "COMANDI": COMANDI}
+    if sezione == "interessi":
+        pendenti = proposte.pendenti(s)  # INT-04, INT-06
+        return {"interessi": interessi.elenca(s),
+                "proposte": {p.interesse_id: p for p in pendenti if p.interesse_id is not None},
+                "proposta_nuova": next((p for p in pendenti if p.interesse_id is None), None)}
+    if sezione == "canali-youtube":
+        return {"canali": impostazioni.canali_youtube(s)}
+    if sezione == "siti":
+        return {"siti": [(sito, Profilo.da_dict(json.loads(sito.profilo))) for sito in dati_siti.elenca(s)]}
+    if sezione == "arxiv":
+        return {"categorie": impostazioni.elenca_categorie(s)}
+    if sezione == "avvio":
+        return {"avvio": avvio_sistema.stato_avvio(RADICE), "windows": avvio_sistema.su_windows()}
+    return {}
 
 
 def _esegui(request: Request, s: Session, sezione: str, azione: Callable[[], object]) -> HTMLResponse:
@@ -299,3 +311,18 @@ async def telegram_cambia_chat(request: Request, s: Sessione):
     s.commit()
     return finestra(request, s, "telegram")
 
+
+
+@router.post("/avvio", response_class=HTMLResponse)
+def avvio(request: Request, s: Sessione, attivo: Annotated[bool, Form()] = False):
+    """AMB-04. Funzione sincrona: FastAPI la esegue in un thread, così l'attesa della conferma
+    di amministratore (Windows) non blocca la dashboard."""
+    try:
+        if attivo:
+            avvio_sistema.attiva_avvio(RADICE)
+        elif avvio_sistema.stato_avvio(RADICE).attivo:
+            avvio_sistema.disattiva_avvio(RADICE)
+    except avvio_sistema.ErroreAvvio as errore:
+        return finestra(request, s, "avvio", errore=str(errore), comando=errore.comando)
+    esito = "Avvio all'accensione registrato." if attivo else "Avvio all'accensione tolto: Gradiens si avvia a mano."
+    return finestra(request, s, "avvio", esito=esito)

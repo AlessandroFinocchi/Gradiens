@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{# Configurazione iniziale (UI-11): pagina senza sidebar; il corpo si chiama #impostazioni perché i moduli
+   delle sezioni delle Impostazioni, riusati nei passi, mandano lì le loro risposte. #}
+{% block titolo %}Configurazione iniziale{% endblock %}
+{% block contenuto %}
+<main class="procedura" id="impostazioni">{% include "configurazione_passo.html" %}</main>
+{% endblock %}

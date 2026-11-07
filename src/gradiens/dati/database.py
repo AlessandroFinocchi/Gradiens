@@ -27,9 +27,18 @@ def migra(motore: Engine) -> None:
     """Porta il database all'ultima versione senza perdere dati."""
     config = Config()
     config.set_main_option("script_location", str(CARTELLA_MIGRAZIONI))
-    with motore.begin() as connessione:
-        config.attributes["connection"] = connessione
-        command.upgrade(config, "head")
+    with motore.connect() as connessione:
+        # SQLite ricrea le tabelle per quasi ogni ALTER: con le chiavi esterne attive il DROP della
+        # vecchia tabella cancellerebbe a cascata le righe collegate. Il PRAGMA vale solo fuori transazione.
+        connessione.exec_driver_sql("PRAGMA foreign_keys = OFF")
+        connessione.commit()
+        try:
+            with connessione.begin():
+                config.attributes["connection"] = connessione
+                command.upgrade(config, "head")
+        finally:
+            connessione.exec_driver_sql("PRAGMA foreign_keys = ON")
+            connessione.commit()
 
 
 def fabbrica_sessioni(motore: Engine) -> sessionmaker[Session]:

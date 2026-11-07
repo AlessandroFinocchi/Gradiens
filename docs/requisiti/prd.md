@@ -30,7 +30,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
   - La proposta compare nelle Impostazioni con le modifiche evidenziate. L'utente la approva, la modifica o la scarta.
   - La descrizione scritta dall'utente non viene mai modificata dall'LLM.
 - `INT-05` L'utente può modificare o azzerare a mano il raffinamento in qualsiasi momento.
-- `INT-06` Se ci sono notizie con il cuore che non corrispondono a nessun interesse, l'LLM propone un nuovo interesse. Anche questa proposta va approvata dall'utente.
+- `INT-06` Se le notizie con il cuore rivelano un tema che nessun interesse copre, l'LLM propone un nuovo interesse. Dopo almeno 3 cuori nuovi, l'LLM riceve gli interessi e quelle notizie con i loro punteggi e decide se c'è un tema nuovo. Anche questa proposta va approvata dall'utente.
 - `INT-07` Aggiungere un interesse, modificarne la descrizione o il raffinamento (a mano o approvando una proposta) vale solo per le notizie valutate da quel momento in poi. Le notizie già valutate tengono i loro punteggi e non si rivalutano.
 - `INT-08` Rinominare un interesse ne cambia solo l'etichetta.
 - `INT-09` Eliminare un interesse cancella i suoi punteggi di **pertinenza**:
@@ -51,7 +51,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 
 ### 4.2 arXiv
 
-- `ARX-01` L'utente sceglie le categorie arXiv nelle Impostazioni (es. `cs.CR`, `cs.AI`). Deve esserci almeno una categoria. A ogni categoria può dare un nome facoltativo (es. "Crittografia e Sicurezza" per `cs.CR`), che la dashboard mostra al posto del codice: nel filtro delle fonti, nelle notizie dell'elenco e nella pagina della notizia.
+- `ARX-01` L'utente sceglie le categorie arXiv nelle Impostazioni (es. `cs.CR`, `cs.AI`). Le categorie sono facoltative, come canali e siti: basta una fonte di qualsiasi tipo (`UI-11`). A ogni categoria può dare un nome facoltativo (es. "Crittografia e Sicurezza" per `cs.CR`), che la dashboard mostra al posto del codice: nel filtro delle fonti, nelle notizie dell'elenco e nella pagina della notizia.
 - `ARX-02` Tutti i paper nuovi delle categorie scelte passano dal pre-filtro.
 - `ARX-03` Un tetto configurabile limita il numero di paper elaborati per esecuzione. Se il tetto viene superato si elaborano i paper più recenti e il resoconto segnala "tetto raggiunto". I paper oltre il tetto entrano nel registro delle notizie già viste e non si riprendono nelle esecuzioni successive.
 - `ARX-04` Per un paper, il contenuto che l'LLM valuta e riassume è l'abstract restituito dall'API di arXiv, insieme al titolo. Il PDF non si scarica. Per leggere il paper intero c'è il link all'originale.
@@ -291,7 +291,8 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
   Le Impostazioni si possono aprire direttamente su una sezione, per esempio da un avviso della Home.
 - `UI-14` **Segnali delle sezioni delle Impostazioni**: a destra del nome di una sezione compare un'icona quando la sezione richiede attenzione. Passandoci sopra si legge il motivo, e dentro la sezione è evidenziata la voce interessata. Ci sono due tipi di segnale:
   - **avvertimento** (triangolo), per problemi e dati mancanti:
-    - Interessi, Canali YouTube, Siti web, arXiv: dati obbligatori mancanti (`UI-11`);
+    - Interessi: nessun interesse (`UI-11`);
+    - Canali YouTube, Siti web, arXiv: nessuna fonte di nessun tipo (`UI-11`). Un tipo di fonte vuoto, se ce ne sono altri, non è un problema;
     - Canali YouTube: un canale non è più raggiungibile;
     - Siti web: un sito è in stato di errore ("accesso bloccato", "richiede JavaScript", "nessuna strategia funzionante") oppure un feed aggiunto a mano ha smesso di funzionare;
     - Modelli LLM: Claude Code non installato, non collegato a un account o con la quota esaurita; chiave API mancante o rifiutata; modello locale non raggiungibile;
@@ -304,8 +305,8 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
     - Esecuzione: la programmazione è in pausa.
 
   Se una sezione ha entrambi i tipi di segnale, si mostra l'avvertimento. Il segnale sparisce da solo quando la causa viene risolta.
-- `UI-11` **Configurazione iniziale**: si apre all'avvio se mancano dati obbligatori, e la dashboard non si usa finché non è completa. I dati obbligatori sono:
-  - almeno un canale YouTube, un sito, un interesse e una categoria arXiv;
+- `UI-11` **Configurazione iniziale**: si apre la prima volta, finché non è stata completata, e la dashboard non si usa finché non è completa. Dopo, se un dato obbligatorio manca, la dashboard resta usabile e lo segnala sulla sezione delle Impostazioni (`UI-14`). I dati obbligatori sono:
+  - almeno un interesse e almeno una fonte, di qualsiasi tipo: un canale YouTube, un sito o una categoria arXiv;
   - Claude Code installato e collegato a un account, se è usato in almeno un ruolo; la chiave dell'API di Claude, se è usata in almeno un ruolo;
   - bot Telegram, collegato con il tutorial di `TG-01`.
 - `UI-12` **Aiuto**: si apre dall'icona in basso nella sidebar. È una pagina statica che spiega come usare l'intera applicazione:

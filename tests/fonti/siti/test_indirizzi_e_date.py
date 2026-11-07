@@ -3,6 +3,8 @@ from datetime import datetime
 from gradiens.fonti.siti.date import da_iso, da_testo, da_url, nella_finestra
 from gradiens.fonti.siti.indirizzi import normalizza, sembra_articolo
 from gradiens.fonti.siti.profilo import Profilo, perimetro_di
+from gradiens.fonti.siti.rete import Pagina
+from gradiens.fonti.siti.strategie import sitemap
 
 
 def test_normalizza_protocollo_mancante_tracciamento_e_indirizzi_non_web():
@@ -70,3 +72,13 @@ def test_pagina_successiva_e_piattaforma():
     assert successiva(Pagina("https://e3rehab.com/articles/", 200, elenco, "text/html")) == "https://e3rehab.com/articles/2/"
     generatori = b'<html><head><meta name="generator" content="Elementor 3.2"><meta name="generator" content="WordPress 6.7">'
     assert piattaforma(Pagina("https://e3rehab.com/", 200, generatori, "text/html")) == "wordpress"
+
+
+def test_sitemap_toglie_il_maggiore_rimasto_in_fondo_al_titolo():
+    # redhotcyber.com scrive "<news:title>... Yahoo e Bing></news:title>" nella sua news-sitemap.
+    xml = b"""<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
+      <url><loc>https://sito.it/post/estensioni-chrome/</loc>
+        <news:news><news:publication_date>2026-11-06T22:23:00Z</news:publication_date>
+        <news:title>319 estensioni Chrome rubano le tue ricerche&gt; </news:title></news:news></url></urlset>"""
+    _, [(_, _, titolo, _)] = sitemap.interpreta(Pagina("https://sito.it/news-sitemap.xml", 200, xml, "application/xml"))
+    assert titolo == "319 estensioni Chrome rubano le tue ricerche"

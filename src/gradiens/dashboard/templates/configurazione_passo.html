@@ -1,0 +1,37 @@
+{% from "icone.html" import icona with context %}
+<div class="procedura-testa"><span class="segno">∇</span><div><h1>Benvenuto in Gradiens</h1><div class="sottotitolo">Servono pochi dati prima di iniziare. Puoi cambiarli tutti dopo, nelle Impostazioni.</div></div></div>
+<ol class="passi" aria-label="Passi della configurazione">
+  {% for id, (nome, _) in passi.items() %}<li class="{{ 'fatto' if fatti[id] }}"{% if id == passo %} aria-current="step"{% endif %}>{{ nome }}</li>{% endfor %}
+</ol>
+{% if errore %}<div class="errore-riquadro" role="alert">{{ icona("avvertimento") }}<div>{{ errore }}</div></div>{% endif %}
+<section class="passo-corpo">
+  {% if passo == "interessi" %}
+  {% include "impostazioni/interessi.html" %}
+  {% elif passo == "fonti" %}
+  <p class="intro">Serve almeno una fonte, di qualsiasi tipo: un canale YouTube, un sito o una categoria arXiv. Puoi aggiungerne altre quando vuoi.</p>
+  {% include "impostazioni/canali-youtube.html" %}
+  {% include "impostazioni/siti.html" %}
+  {% include "impostazioni/arxiv.html" %}
+  {% elif passo == "claude" %}
+  <h2>Claude Code</h2>
+  <p class="intro">Gradiens usa Claude Code, con il modello Haiku, per scegliere e riassumere le notizie. Usa la quota del tuo abbonamento Claude, senza costi in più.</p>
+  <div class="riga">
+    <div class="testo"><div class="titolo">Claude Code</div>
+      <div class="descrizione">{% if fatti.claude %}<span class="stato ok">collegato</span> · {{ account }}{% else %}<span class="stato errore">non pronto</span> {{ account }}{% endif %}</div></div>
+    <div class="controllo"><button type="button" class="bottone secondario" hx-get="/configurazione?passo=claude" hx-target="#impostazioni" hx-disabled-elt="this">Verifica di nuovo</button></div>
+  </div>
+  {% if not fatti.claude %}<p class="nota">Apri un terminale, scrivi <code>claude</code> ed entra con il tuo account (su un PC senza browser: <code>claude setup-token</code>), poi premi "Verifica di nuovo". Le istruzioni per installarlo sono nel README.</p>{% endif %}
+  {% else %}
+  {% include "impostazioni/telegram.html" %}
+  {% endif %}
+</section>
+<div class="navigazione-passi">
+  {% set nomi = passi | list %}
+  {% if indice > 0 %}<a class="bottone secondario" href="/configurazione?passo={{ nomi[indice - 1] }}">Indietro</a>{% else %}<span></span>{% endif %}
+  <span class="nota">{% if fatti[passo] %}Passo {{ indice + 1 }} di {{ nomi | length }}{% else %}{{ MANCA[passo] }}{% endif %}</span>
+  {% if indice < nomi | length - 1 %}
+  {% if fatti[passo] %}<a class="bottone" href="/configurazione?passo={{ nomi[indice + 1] }}">Avanti</a>{% else %}<button class="bottone" disabled>Avanti</button>{% endif %}
+  {% else %}
+  <button class="bottone" hx-post="/configurazione/completa" hx-target="#impostazioni"{% if not fatti[passo] %} disabled{% endif %}>Inizia a usare Gradiens</button>
+  {% endif %}
+</div>

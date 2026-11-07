@@ -12,6 +12,9 @@ class Finto:
         self._risponditore = risponditore
         self.chiamate: list[tuple[str, str]] = []
 
+    async def pronto(self) -> None:
+        pass
+
     async def chiedi(self, *, sistema: str, messaggio: str, schema: dict, modello: str) -> Risposta:
         self.chiamate.append((sistema, messaggio))
         dati = self._risponditore(sistema, messaggio, schema)

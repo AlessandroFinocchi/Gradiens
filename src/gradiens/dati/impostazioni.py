@@ -88,9 +88,8 @@ def aggiungi_categoria(sessione: Session, codice: str, nome: str = "") -> None:
 
 
 def rimuovi_categoria(sessione: Session, codice: str) -> None:
+    """Anche l'ultima: arXiv è facoltativo se ci sono altre fonti (decisione 56); senza fonti c'è il segnale."""
     categoria = sessione.get(CategoriaArxiv, codice)
-    if categoria is not None and len(categorie_arxiv(sessione)) <= 1:
-        raise ImpostazioneNonValida("Deve esserci almeno una categoria arXiv.")  # ARX-01
     if categoria is not None:
         sessione.delete(categoria)
         sessione.commit()

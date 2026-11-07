@@ -1,6 +1,6 @@
 """Segnali delle sezioni delle Impostazioni (UI-14): "avvertimento" per problemi e dati mancanti,
 "novita" per cose da guardare. Si ricalcolano a ogni richiesta, quindi spariscono da soli quando la
-causa è risolta. Modelli LLM e Avvio arrivano con la fetta 7.
+causa è risolta. Modelli LLM arriva con la 7a, rimandata agli sviluppi futuri.
 """
 
 import json
@@ -24,7 +24,7 @@ class Segnale:
         return "; ".join(self.motivi)
 
 
-def segnali(s: Session, problema_telegram: str | None = None) -> dict[str, Segnale]:
+def segnali(s: Session, problema_telegram: str | None = None, problema_avvio: str | None = None) -> dict[str, Segnale]:
     trovati: dict[str, Segnale] = {}
 
     def segnala(sezione: str, tipo: str, motivo: str, voce: str) -> None:
@@ -43,14 +43,10 @@ def segnali(s: Session, problema_telegram: str | None = None) -> dict[str, Segna
             segnala("interessi", "novita", f"{p.interesse.nome}: proposta di raffinamento", f"proposta-{p.interesse_id}")
         else:
             segnala("interessi", "novita", f"Proposta di un nuovo interesse: {p.nome}", "proposta-nuovo")
-    canali = impostazioni.canali_youtube(s)
-    if not canali:
-        segnala("canali-youtube", "avvertimento", "Serve almeno un canale YouTube", "aggiungi")
-    elenco_siti = dati_siti.elenca(s)
-    if not elenco_siti:
-        segnala("siti", "avvertimento", "Serve almeno un sito", "aggiungi")
-    if not impostazioni.categorie_arxiv(s):
-        segnala("arxiv", "avvertimento", "Serve almeno una categoria arXiv", "categorie")
+    canali, elenco_siti = impostazioni.canali_youtube(s), dati_siti.elenca(s)
+    if not (canali or elenco_siti or impostazioni.categorie_arxiv(s)):  # decisione 56: basta una fonte qualsiasi
+        for sezione, voce in (("canali-youtube", "aggiungi"), ("siti", "aggiungi"), ("arxiv", "categorie")):
+            segnala(sezione, "avvertimento", "Serve almeno una fonte: un canale YouTube, un sito o una categoria arXiv", voce)
 
     # Ultima esecuzione conclusa: canali irraggiungibili e tetto arXiv.
     conclusa = next((e for e in esecuzioni.storico(s, 2) if e.stato != "in_corso"), None)
@@ -74,6 +70,8 @@ def segnali(s: Session, problema_telegram: str | None = None) -> dict[str, Segna
 
     if problema_telegram:  # bot non collegato (UI-11) o token non più valido
         segnala("telegram", "avvertimento", problema_telegram, "bot")
+    if problema_avvio:  # registrazione dell'avvio all'accensione da rifare o incompleta (AMB-04)
+        segnala("avvio", "avvertimento", problema_avvio, "stato")
     if impostazioni.leggi(s).programmazione_in_pausa:
         segnala("esecuzione", "novita", "La programmazione è in pausa", "pausa")
     return trovati

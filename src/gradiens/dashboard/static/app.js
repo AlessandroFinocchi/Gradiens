@@ -2,12 +2,13 @@
 
 // Finestra delle Impostazioni (UI-10): <dialog> nativo riempito da htmx. Esc la chiude da solo.
 document.addEventListener("htmx:afterSwap", (e) => {
-  if (e.target.id === "impostazioni" && !e.target.open) e.target.showModal();
+  // Nella configurazione iniziale #impostazioni è il corpo della pagina, non un <dialog>.
+  if (e.target.id === "impostazioni" && e.target.tagName === "DIALOG" && !e.target.open) e.target.showModal();
 });
 document.addEventListener("click", (e) => {
   const finestra = document.getElementById("impostazioni");
   // Il clic sul velo intorno alla finestra arriva al <dialog> stesso.
-  if (e.target.closest("[data-chiudi]") || e.target === finestra) finestra.close();
+  if (finestra?.tagName === "DIALOG" && (e.target.closest("[data-chiudi]") || e.target === finestra)) finestra.close();
 });
 
 // Il server conferma il nuovo tema (sezione Aspetto): lo si applica senza ricaricare.

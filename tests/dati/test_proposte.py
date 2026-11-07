@@ -55,16 +55,22 @@ def test_approvare_cambia_il_raffinamento_ma_non_la_descrizione(s):
     assert proposte.pendenti(s) == []
 
 
-def test_nuovo_interesse_dai_cuori_senza_interesse(s):
+def test_nuovo_interesse_dai_cuori_nuovi_di_qualsiasi_notizia(s):
+    # Decisione 57: contano tutti i cuori nuovi, anche su notizie pertinenti (le uniche che si vedono);
+    # se rivelano un tema nuovo lo decide l'LLM.
     a = interessi.aggiungi(s, "Sicurezza", "attacchi")
     for url in ("1", "2"):
-        con_cuore(s, url, [(a.id, 30)])
-    con_cuore(s, "pertinente", [(a.id, 90)])
-    assert proposte.senza_interesse(s, 60) == []
-    con_cuore(s, "3", [])  # es. il suo interesse è stato eliminato
-    assert len(proposte.senza_interesse(s, 60)) == 3
+        con_cuore(s, url, [(a.id, 70)])
+    assert proposte.per_interesse_nuovo(s) == []
+    con_cuore(s, "3", [(a.id, 95)])
+    assert [n.url for n in proposte.per_interesse_nuovo(s)] == ["3", "2", "1"]
+    proposte.registra_interesse(s, "", "", 3)  # l'LLM non vede un tema nuovo: nessuna proposta, si riparte
+    assert proposte.pendenti(s) == [] and proposte.per_interesse_nuovo(s) == []
+    for url in ("4", "5", "6"):
+        con_cuore(s, url, [(a.id, 65)])
+    assert len(proposte.per_interesse_nuovo(s)) == 3
     proposte.registra_interesse(s, "Corsa", "Allenamento per la mezza maratona.", 3)
-    assert proposte.senza_interesse(s, 60) == []
+    assert proposte.per_interesse_nuovo(s) == []  # una proposta di interesse nuovo alla volta
     [p] = proposte.pendenti(s)
     proposte.approva(s, p.id, nome="Corsa e salute", testo="Allenamento e prevenzione.")
     assert [i.nome for i in interessi.elenca(s)] == ["Corsa e salute", "Sicurezza"]

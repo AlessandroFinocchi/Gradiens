@@ -56,7 +56,8 @@ class Programmatore:
             else:
                 da_avviare = ultimo < scadenza <= adesso
         self._ultimo_controllo = adesso
-        if da_avviare and not imp.programmazione_in_pausa:
+        # UI-11: prima della configurazione iniziale fallirebbe per i dati mancanti.
+        if da_avviare and not imp.programmazione_in_pausa and imp.configurazione_completata:
             try:
                 self._esecutore.avvia("programmazione")
             except GiaInCorso:

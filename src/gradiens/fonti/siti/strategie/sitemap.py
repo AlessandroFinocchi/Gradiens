@@ -46,7 +46,8 @@ def interpreta(pagina: Pagina) -> tuple[str, list[tuple[str, datetime | None, st
         modifica = None if lastmod_inutile else da_iso(el.xpath("string(*[local-name()='lastmod'])"))
         # lastmod è l'ultima modifica: se l'indirizzo ha la data di pubblicazione, vale quella.
         data = notizia or da_url(url) or modifica
-        titolo = el.xpath("string(*[local-name()='news']/*[local-name()='title'])").strip()
+        # Alcuni siti lasciano un ">" del markup in fondo al titolo (redhotcyber.com: "... Bing>").
+        titolo = el.xpath("string(*[local-name()='news']/*[local-name()='title'])").strip().rstrip(">").rstrip()
         voci.append((url, data, titolo, notizia is not None))
     return ("indice" if etree.QName(radice).localname == "sitemapindex" else "elenco"), voci
 

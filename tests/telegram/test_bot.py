@@ -210,3 +210,43 @@ def test_gli_errori_di_telegram_non_mostrano_il_token(monkeypatch):
             asyncio.run(chiamata)
         assert TOKEN not in str(errore.value) and str(errore.value) == telegram.RIFIUTATO
 
+
+
+def test_senza_rete_all_accensione_riprova_presto_e_poi_piu_di_rado(monkeypatch):
+    # PC appena acceso: la rete arriva dopo qualche tentativo. Prima si riprovava solo dopo un minuto.
+    bot = telegram.BotGradiens(SimpleNamespace(), None, None, lambda: None)
+    attese, tentativi = [], []
+
+    async def avvia():
+        tentativi.append(1)
+        if len(tentativi) == 4:
+            bot._app = "in ascolto"
+
+    async def dorme(secondi):
+        attese.append(secondi)
+        if len(attese) > 6:
+            raise asyncio.CancelledError
+
+    monkeypatch.setattr(bot, "avvia", avvia)
+    monkeypatch.setattr(telegram.asyncio, "sleep", dorme)
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(bot.gira())
+    assert attese[:5] == [5, 10, 20, 40, 5] and len(tentativi) == 4  # collegato: niente altri tentativi
+
+
+def test_messaggio_di_prova_prova_prima_a_ricollegare(monkeypatch):
+    bot = telegram.BotGradiens(SimpleNamespace(), None, None, lambda: None)
+    bot.errore = "Telegram non raggiungibile, riprovo da solo: rete assente"
+
+    async def avvia():
+        bot.errore = None
+        bot._app = SimpleNamespace(bot=SimpleNamespace(send_message=inviato))
+
+    async def inviato(chat, testo):
+        inviati.append(testo)
+
+    inviati = []
+    monkeypatch.setattr(bot, "avvia", avvia)
+    monkeypatch.setattr(bot, "_chat", lambda: CHAT)
+    asyncio.run(bot.invia_prova())
+    assert inviati and "funziona" in inviati[0]

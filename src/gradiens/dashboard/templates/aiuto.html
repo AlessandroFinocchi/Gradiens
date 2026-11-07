@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{# Aiuto (UI-12): pagina statica su tutta l'applicazione. I comandi Telegram vengono da COMANDI, come nel bot. #}
+{% block titolo %}Aiuto{% endblock %}
+{% block contenuto %}
+<main class="aiuto">
+  <nav aria-label="Indice dell'aiuto">
+    <a href="#esecuzione">Come funziona</a>
+    <a href="#pagine">Le pagine</a>
+    <a href="#fonti">Fonti</a>
+    <a href="#siti">Siti web e profili</a>
+    <a href="#interessi">Interessi e raffinamento</a>
+    <a href="#cuore">Il cuore e l'archivio</a>
+    <a href="#argomenti">Argomenti e timeline</a>
+    <a href="#stati">Stati</a>
+    <a href="#impostazioni">Impostazioni e segnali</a>
+    <a href="#avvio">Avvio all'accensione</a>
+    <a href="#cli">Comandi da terminale</a>
+    <a href="#telegram">Comandi Telegram</a>
+  </nav>
+  <article>
+    <h1>Come si usa Gradiens</h1>
+    <p class="sottotitolo">Gradiens raccoglie video YouTube, paper arXiv e articoli di siti web, tiene solo quelli che corrispondono ai tuoi interessi e li riassume in italiano.</p>
+
+    <h2 id="esecuzione">Come funziona un'esecuzione</h2>
+    <p>Un'<strong>esecuzione</strong> è un giro completo su tutte le fonti. Parte ogni giorno all'orario scelto nelle Impostazioni, oppure a mano: con il bottone "Avvia esecuzione" nella Home, con <code>gradiens esegui</code> o con <code>/aggiorna</code> su Telegram. Ne gira una sola alla volta. Se all'orario programmato Gradiens è spento, l'esecuzione parte appena lo riaccendi.</p>
+    <ul>
+      <li><strong>Raccolta</strong>: si prendono le notizie pubblicate nella finestra di raccolta, da 1 a 7 giorni. Una notizia già vista non si elabora di nuovo.</li>
+      <li><strong>Pre-filtro</strong>: l'LLM legge titolo e sommario e scarta ciò che è fuori tema e, se lo chiedi, ciò che è sponsorizzato.</li>
+      <li><strong>Valutazione</strong>: per le notizie rimaste l'LLM legge il testo completo, la trascrizione o, per i paper arXiv, l'abstract, dà un punteggio di pertinenza da 0 a 100 per ogni interesse e scrive il riassunto. Si mostrano le notizie con almeno un punteggio che raggiunge la soglia.</li>
+      <li><strong>Argomenti e proposte</strong>: alla fine l'LLM assegna le notizie nuove agli argomenti e, se hai messo abbastanza cuori, propone come raffinare i tuoi interessi.</li>
+    </ul>
+    <p>Gradiens usa Claude Code con il tuo abbonamento Claude, senza costi in più. Le notizie senza cuore si cancellano 7 giorni dopo la pubblicazione. Ogni esecuzione ha un resoconto con metriche, problemi e token usati: lo apri dallo storico nella Home.</p>
+
+    <h2 id="pagine">Le pagine</h2>
+    <ul>
+      <li><strong>Home</strong>: la prossima esecuzione, l'ultima con il suo riepilogo, le notizie più pertinenti delle ultime 24 ore, gli avvisi e lo storico.</li>
+      <li><strong>Notizie</strong>: le notizie degli ultimi 7 giorni, con filtri per tipo, interesse, fonte, data e cuore, ordinate per pertinenza o per data.</li>
+      <li><strong>Timeline</strong>: gli argomenti e i loro sviluppi.</li>
+      <li><strong>Archivio</strong>: le notizie con il cuore, senza limite di tempo.</li>
+    </ul>
+    <p>Ogni notizia ha una sua pagina, con il riassunto completo, i punteggi per ogni interesse e il link all'originale.</p>
+
+    <h2 id="fonti">Fonti</h2>
+    <p>Basta una fonte, di qualsiasi tipo: non serve averle tutte.</p>
+    <ul>
+      <li><strong>YouTube</strong>: aggiungi un canale incollando un suo indirizzo qualsiasi. Video e short sono tipi diversi, così puoi filtrarli. Le dirette si elaborano quando sono finite. I video senza trascrizione compaiono solo nel resoconto.</li>
+      <li><strong>arXiv</strong>: scegli le categorie, per esempio <code>cs.CR</code>, e se vuoi dai loro un nome che vedrai al posto del codice. Un tetto limita i paper elaborati per esecuzione; se viene raggiunto, si tengono i più recenti.</li>
+      <li><strong>Siti web</strong>: vedi la sezione successiva.</li>
+    </ul>
+    <p>La stessa notizia pubblicata da due fonti diverse compare due volte, una per fonte. Dalla stessa fonte, invece, una notizia compare una volta sola.</p>
+
+    <h2 id="siti">Siti web e profili</h2>
+    <p>Per aggiungere un sito basta il suo indirizzo. Gradiens lo analizza una volta e salva il suo <strong>profilo</strong>: dove trovare gli articoli (feed, sitemap, pagine) e quali sezioni includere o escludere. Puoi modificarlo quando vuoi.</p>
+    <ul>
+      <li>Con l'indirizzo della home si segue tutto il sito, sottodomini compresi. Con l'indirizzo di una sezione si segue solo quella.</li>
+      <li>I domini esterni trovati nell'analisi compaiono come "siti collegati", disattivati: li attivi tu se ti interessano.</li>
+      <li>Se un sito si guasta per 3 esecuzioni di fila, il profilo si rigenera da solo, conservando le tue modifiche. "Nessun articolo nuovo" è normale e non conta come guasto.</li>
+      <li>Gradiens rispetta il robots.txt e non aggira paywall o protezioni anti-bot.</li>
+    </ul>
+
+    <h2 id="interessi">Interessi e raffinamento</h2>
+    <p>Un <strong>interesse</strong> ha un nome, che usi nei filtri, e una descrizione scritta da te, che l'LLM usa per valutare le notizie. Scrivi la descrizione come la spiegheresti a una persona: cosa ti interessa e cosa no. Serve almeno un interesse. Le modifiche valgono per le notizie nuove: quelle già valutate tengono i loro punteggi.</p>
+    <p>Il <strong>raffinamento</strong> è un testo aggiuntivo che precisa l'interesse. Quando metti il cuore a 3 nuove notizie dello stesso interesse, alla fine dell'esecuzione successiva l'LLM ne propone uno: lo trovi nelle Impostazioni, sezione Interessi, con le parole nuove evidenziate, e un avviso nella Home. Entra in vigore solo se lo approvi, e puoi modificarlo prima di approvarlo o scartarlo. La tua descrizione non viene mai cambiata.</p>
+    <p>Dai cuori l'LLM può proporre anche un <strong>interesse nuovo</strong>, con nome e descrizione da approvare: succede quando almeno 3 notizie a cui hai messo il cuore parlano di un tema che i tuoi interessi non coprono ancora.</p>
+
+    <h2 id="cuore">Il cuore e l'archivio</h2>
+    <p>Metti il <strong>cuore</strong> a una notizia che ti è piaciuta. La notizia entra nell'<strong>archivio</strong>, dove resta senza limite di tempo, e aiuta a raffinare i tuoi interessi. Puoi mettere il cuore anche dal messaggio Telegram. Se lo togli, la notizia torna alla regola dei 7 giorni.</p>
+
+    <h2 id="argomenti">Argomenti e timeline</h2>
+    <p>Un <strong>argomento</strong> è un singolo evento e i suoi sviluppi, per esempio "Attacco ransomware all'ASL X", non "ransomware" in generale. Alla fine di ogni esecuzione l'LLM assegna ogni notizia nuova a un argomento, oppure a nessuno. La Timeline mostra gli argomenti con almeno 2 notizie, in ordine di tempo. Dalla pagina di un argomento puoi rinominarlo, unirlo a un altro o eliminarlo.</p>
+
+    <h2 id="stati">Stati</h2>
+    <p>Gli stati compaiono sulle notizie, sui siti nelle Impostazioni e nel resoconto di un'esecuzione.</p>
+    <div class="tabella-scorre"><table>
+      <thead><tr><th>Stato</th><th>Cosa significa</th></tr></thead>
+      <tbody>
+        <tr><td><span class="stato">data incerta</span></td><td>Non si è trovata la data di pubblicazione: conta la data in cui la notizia è stata trovata.</td></tr>
+        <tr><td><span class="stato">contenuto parziale</span></td><td>Il testo è stato letto solo in parte, per esempio perché molto lungo o dietro un paywall. Il riassunto copre solo quella parte.</td></tr>
+        <tr><td><span class="stato">trascrizione assente</span></td><td>Il video non ha sottotitoli, nemmeno automatici: non si può riassumere.</td></tr>
+        <tr><td><span class="stato">diretta non ancora disponibile</span></td><td>La diretta non è ancora finita: si elabora in un'esecuzione successiva.</td></tr>
+        <tr><td><span class="stato ok">nessun articolo nuovo</span></td><td>Il sito non ha pubblicato nulla nella finestra. È normale.</td></tr>
+        <tr><td><span class="stato">profilo rigenerato</span></td><td>Il profilo del sito è stato ricreato dopo 3 guasti: controlla che vada bene.</td></tr>
+        <tr><td><span class="stato errore">non raggiungibile</span></td><td>La fonte non ha risposto durante la raccolta, per esempio per un problema di rete. Si riprova all'esecuzione successiva.</td></tr>
+        <tr><td><span class="stato errore">accesso bloccato</span></td><td>Il sito rifiuta le richieste. Gradiens non aggira i blocchi.</td></tr>
+        <tr><td><span class="stato errore">vietato da robots.txt</span></td><td>Il sito chiede di non leggere quella pagina, e Gradiens lo rispetta. La notizia compare solo nel resoconto.</td></tr>
+        <tr><td><span class="stato errore">errore di estrazione</span></td><td>La pagina è stata scaricata, ma non se ne è ricavato il testo dell'articolo. La notizia compare solo nel resoconto.</td></tr>
+        <tr><td><span class="stato errore">video non disponibile</span></td><td>Il video è privato, rimosso, con limiti di età o non riproducibile. Compare solo nel resoconto.</td></tr>
+        <tr><td><span class="stato errore">richiede JavaScript</span></td><td>Il sito mostra gli articoli solo con JavaScript. Prova a inserire a mano l'indirizzo di un feed nel profilo.</td></tr>
+        <tr><td><span class="stato errore">nessuna strategia funzionante</span></td><td>Nessun metodo trova articoli leggibili. Controlla il profilo o inserisci un feed.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h2 id="impostazioni">Impostazioni e segnali</h2>
+    <p>Le Impostazioni si aprono dall'ingranaggio in basso nella sidebar. Accanto al nome di una sezione possono comparire due segnali:</p>
+    <ul>
+      <li><span class="segnale avvertimento">{{ icona("avvertimento") }}</span> <strong>avvertimento</strong>: c'è un problema o mancano dati, per esempio un sito in errore, nessun interesse o il bot Telegram non collegato;</li>
+      <li><span class="segnale novita"></span> <strong>novità</strong>: c'è qualcosa da guardare o approvare, per esempio una proposta di raffinamento.</li>
+    </ul>
+    <p>Se una sezione ha un segnale, lo mostra anche l'ingranaggio. Passando sopra il segnale si legge il motivo, e dentro la sezione la voce da guardare è evidenziata.</p>
+
+    <h2 id="avvio">Avvio all'accensione</h2>
+    <p>Nelle Impostazioni, sezione Avvio, puoi far partire Gradiens all'accensione del PC, senza accedere al sistema e senza monitor: accendi il PC e lanci l'esecuzione da Telegram. Vale dal riavvio successivo.</p>
+    <ul>
+      <li><strong>Windows</strong>: Gradiens registra un'attività pianificata. Attivare o disattivare l'opzione chiede una conferma di amministratore sullo schermo del PC, quindi va fatto stando al PC. Se la conferma non può comparire, la sezione mostra i comandi da incollare in PowerShell aperto come amministratore.</li>
+      <li><strong>Linux</strong>: Gradiens registra un servizio utente di systemd. Se il sistema chiede la password di amministratore per farlo partire senza accesso, la sezione mostra il comando da lanciare in un terminale.</li>
+    </ul>
+    <p>Se sposti la cartella di Gradiens, spegni e riaccendi l'opzione.</p>
+
+    <h2 id="cli">Comandi da terminale</h2>
+    <p>Si lanciano dalla cartella di Gradiens, con <code>uv run</code> davanti (per esempio <code>uv run gradiens stato</code>), sia su Windows sia su Linux.</p>
+    <div class="tabella-scorre"><table>
+      <tbody>
+        <tr><td><code>gradiens avvia</code></td><td>Fa partire dashboard, programmazione giornaliera e bot Telegram, staccati dal terminale: continuano anche se lo chiudi.</td></tr>
+        <tr><td><code>gradiens esegui</code></td><td>Lancia un'esecuzione, ne mostra l'avanzamento e alla fine stampa le metriche. Se Gradiens è spento, lo avvia.</td></tr>
+        <tr><td><code>gradiens stato</code></td><td>Dice se Gradiens è acceso, e mostra l'esecuzione in corso o l'ultima e la prossima programmata.</td></tr>
+        <tr><td><code>gradiens spegni</code></td><td>Termina l'applicazione. Un'esecuzione in corso viene segnata come interrotta e le notizie rimaste si riprendono alla successiva.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h2 id="telegram">Comandi Telegram</h2>
+    <div class="tabella-scorre"><table>
+      <tbody>
+        {% for comando, spiegazione in COMANDI.items() %}
+        <tr><td><code>/{{ comando }}</code></td><td>{{ spiegazione|capitalize }}.</td></tr>
+        {% endfor %}
+        <tr><td>❤️ sotto il messaggio</td><td>Mette o toglie il cuore alla notizia con quel numero.</td></tr>
+      </tbody>
+    </table></div>
+    <p>Il bot risponde solo alla tua chat e ignora tutte le altre. Si collega dalle Impostazioni, sezione Telegram, con un tutorial passo dopo passo.</p>
+  </article>
+</main>
+{% endblock %}

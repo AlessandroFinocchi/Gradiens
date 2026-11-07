@@ -6,7 +6,7 @@
 {# INT-06: interesse nuovo proposto, con nome e descrizione modificabili prima di approvarlo. #}
 {% if proposta_nuova %}
 <form class="riga proposta" style="display: block" hx-post="/impostazioni/proposte/{{ proposta_nuova.id }}/approva" hx-target="#impostazioni">
-  <div class="titolo">Proposta di nuovo interesse, da {{ proposta_nuova.notizie }} notizie con il cuore che non corrispondono a nessun interesse</div>
+  <div class="titolo">Proposta di nuovo interesse, da {{ proposta_nuova.notizie }} notizie con il cuore su un tema che i tuoi interessi non coprono</div>
   <label class="etichetta-campo" for="proposta-nome">Nome</label>
   <input class="campo" id="proposta-nome" name="nome" value="{{ proposta_nuova.nome }}" maxlength="80" required>
   <label class="etichetta-campo" for="proposta-descrizione">Descrizione</label>

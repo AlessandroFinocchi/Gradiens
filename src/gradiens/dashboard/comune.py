@@ -7,10 +7,12 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
+from gradiens.app import avvio_sistema
+from gradiens.app.configurazione import RADICE
 from gradiens.dashboard import segnali
 from gradiens.dati import impostazioni
 from gradiens.dati.esecuzioni import STATI_BUONI
@@ -106,11 +108,16 @@ def sessione(request: Request) -> Iterator[Session]:
 Sessione = Annotated[Session, Depends(sessione)]
 
 
-def pagina(request: Request, s: Session, modello: str, nome: str, **contesto) -> HTMLResponse:
-    """Pagina intera: `nome` indica la voce attiva nella sidebar, l'ingranaggio mostra i segnali (UI-14)."""
+def pagina(request: Request, s: Session, modello: str, nome: str, **contesto) -> HTMLResponse | RedirectResponse:
+    """Pagina intera: `nome` indica la voce attiva nella sidebar, l'ingranaggio mostra i segnali (UI-14).
+    Finché la configurazione iniziale non è completata, ogni pagina porta lì (UI-11)."""
+    imp = impostazioni.leggi(s)
+    if not imp.configurazione_completata:
+        return RedirectResponse("/configurazione", status_code=303)
     return modelli.TemplateResponse(request, f"{modello}.html", {
-        "pagina": nome, "pagine": PAGINE, "tema": impostazioni.leggi(s).tema,
-        "segnale_globale": segnali.globale(segnali.segnali(s, request.app.state.bot.problema())), **contesto,
+        "pagina": nome, "pagine": PAGINE, "tema": imp.tema,
+        "segnale_globale": segnali.globale(segnali.segnali(s, request.app.state.bot.problema(),
+                                                           avvio_sistema.stato_avvio(RADICE).problema)), **contesto,
     })
 
 

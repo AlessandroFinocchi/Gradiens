@@ -22,6 +22,10 @@ class QuotaEsaurita(ErroreLLM):
 class Provider(Protocol):
     nome: str
 
+    async def pronto(self) -> None:
+        """Solleva ErroreLLM, con un messaggio per l'utente, se il provider non si può usare (ACC-15)."""
+        ...
+
     async def chiedi(self, *, sistema: str, messaggio: str, schema: dict, modello: str) -> Risposta:
         """`sistema` è la parte fissa dell'esecuzione (va in cache), `messaggio` quella variabile."""
         ...

@@ -160,8 +160,8 @@ def test_categorie_arxiv_validate(s):
     assert impostazioni.categorie_arxiv(s) == ["cs.CR"]
     with pytest.raises(ImpostazioneNonValida):
         impostazioni.aggiungi_categoria(s, "cs.CR OR 1=1")
-    with pytest.raises(ImpostazioneNonValida):  # ARX-01: almeno una categoria
-        impostazioni.rimuovi_categoria(s, "cs.CR")
+    impostazioni.rimuovi_categoria(s, "cs.CR")  # anche l'ultima: arXiv è facoltativo (decisione 56)
+    assert impostazioni.categorie_arxiv(s) == []
 
 
 def test_esecuzioni_rimaste_in_corso_diventano_interrotte(s):

@@ -82,6 +82,7 @@ h1 { margin: 0; font-family: var(--font-titoli); font-weight: 600; font-size: 22
 .sottotitolo { color: var(--tenue); font-size: 13px; }
 
 .bottone { display: inline-flex; align-items: center; gap: 8px; border: 0; cursor: pointer; background: var(--accento); color: var(--su-accento); border-radius: 8px; font-weight: 600; white-space: nowrap; padding: 7px 13px; font-size: 13.5px; text-decoration: none; }
+.bottone:disabled { opacity: .45; cursor: not-allowed; }
 .bottone .icona { width: 15px; height: 15px; }
 .bottone.secondario { background: var(--pannello); color: var(--testo); border: 1px solid var(--bordo); font-weight: 500; }
 .bottone.secondario:hover { background: var(--hover); }
@@ -330,6 +331,7 @@ tbody tr.cliccabile a { text-decoration: none; }
 .aiuto article h2 { font-family: var(--font-titoli); font-size: 20px; margin: 32px 0 8px; scroll-margin-top: 16px; }
 .aiuto article p, .aiuto article li { font-size: 15px; }
 .aiuto article ul { padding-left: 20px; }
+.aiuto td:first-child { white-space: nowrap; }
 .aiuto kbd, .aiuto code, .riga code, .intro code { font-family: ui-monospace, Consolas, monospace; font-size: .9em; background: var(--hover); padding: 1px 5px; border-radius: 4px; }
 .aiuto table td { white-space: normal; vertical-align: top; }
 
@@ -443,3 +445,4 @@ dialog.finestra::backdrop { background: var(--velo); }
 .modifica-proposta form { margin-top: 8px; display: grid; gap: 8px; justify-items: start; }
 .modifica-proposta textarea { width: 100%; }
 .confronto mark { background: var(--accento-tenue); color: inherit; border-radius: 3px; padding: 0 2px; }
+pre.comando { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; background: var(--hover); padding: 10px 12px; border-radius: 8px; white-space: pre-wrap; word-break: break-all; user-select: all; margin-top: 6px; }

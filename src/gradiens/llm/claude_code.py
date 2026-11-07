@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import shutil
+import subprocess
 from pathlib import Path
 
 from gradiens.app.avvio_sistema import eseguibile_claude
@@ -67,6 +68,10 @@ class ClaudeCode:
         self._limite = asyncio.Semaphore(parallelismo)
         self._timeout = timeout
 
+    async def pronto(self) -> None:
+        """Claude Code installato e collegato a un account (UI-11, ACC-15)."""
+        await asyncio.to_thread(stato_account, self._comando)
+
     async def chiedi(self, *, sistema: str, messaggio: str, schema: dict, modello: str) -> Risposta:
         try:
             return await self._una_chiamata(sistema, messaggio, schema, modello)
@@ -102,3 +107,18 @@ class ClaudeCode:
         if not uscita.strip():
             raise ErroreLLM(f"Claude Code è uscito senza risposta: {errori.decode('utf-8', 'replace')[:300]}")
         return interpreta(uscita.decode("utf-8", "replace"))
+
+
+def stato_account(comando: list[str] | None = None) -> str:
+    """UI-11: descrizione del collegamento di Claude Code a un account, per esempio "abbonamento Pro".
+    Solleva ErroreLLM, con un messaggio per l'utente, se Claude Code manca o non è collegato."""
+    try:
+        risultato = subprocess.run([*(comando or [str(trova_eseguibile())]), "auth", "status"], capture_output=True,
+                                   text=True, encoding="utf-8", errors="replace", timeout=30, env=_ambiente())
+        dati = json.loads(risultato.stdout)
+    except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
+        raise ErroreLLM("Claude Code non risponde: prova ad aprirlo in un terminale con il comando claude.") from None
+    if not dati.get("loggedIn"):
+        raise ErroreLLM("Claude Code non è collegato a un account.")
+    abbonamento = dati.get("subscriptionType")
+    return f"abbonamento {str(abbonamento).capitalize()}" if abbonamento else "collegato con una chiave API"

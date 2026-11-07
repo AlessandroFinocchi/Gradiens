@@ -124,7 +124,7 @@ def test_risposta_llm_non_valida_viene_ripulita(sessioni):
         if schema is prompt.SCHEMA_PREFILTRO:
             return {"pertinenti": [0, 7, "x"]}  # 7 e "x" non esistono
         return {"punteggi": [{"interesse": 99, "pertinenza": 100}, {"interesse": 1, "pertinenza": 150}],
-                "riassunto": "R", "titolo_it": ""}
+                "riassunto": "R", "titolo_it": "\"\""}  # due virgolette al posto della stringa vuota
 
     _, _, salvate, _ = esegui(sessioni, raccolta(candidata("sicurezza-x")), provider=Finto(sbagliato))
     assert [(p.interesse_id, p.punteggio) for p in salvate[0].pertinenze] == [(1, 100)]
@@ -176,6 +176,9 @@ def test_un_blocco_del_prefiltro_fallito_non_ferma_l_esecuzione(sessioni, monkey
 def test_spegnimento_durante_l_esecuzione_la_registra_come_interrotta(sessioni):
     class Lento:
         nome = "lento"
+
+        async def pronto(self):
+            pass
 
         async def chiedi(self, **_):
             await asyncio.sleep(60)
@@ -394,6 +397,9 @@ def test_proposta_di_raffinamento_a_fine_esecuzione(sessioni):
         if schema is prompt.SCHEMA_RAFFINAMENTO:
             assert "attacchi informatici" in sistema  # descrizione dell'utente, da non cambiare
             return {"raffinamento": "Soprattutto ransomware nella sanità."}
+        if schema is prompt.SCHEMA_NUOVO_INTERESSE:  # INT-06: gli stessi cuori, con i punteggi per interesse
+            assert '"punteggi": {"' in messaggio and ": 90}" in messaggio
+            return {"nome": "", "descrizione": ""}  # tutto già coperto: nessun interesse nuovo
         return risponditore(sistema, messaggio, schema)
 
     esecuzione, _, _, _ = esegui(sessioni, raccolta(candidata("sicurezza-alta")), provider=Finto(con_proposta))
@@ -402,3 +408,15 @@ def test_proposta_di_raffinamento_a_fine_esecuzione(sessioni):
         [p] = s.scalars(select(Proposta)).all()
         assert (p.interesse_id, p.testo, p.notizie) == (1, "Soprattutto ransomware nella sanità.", 3)
 
+
+
+def test_senza_claude_code_collegato_l_esecuzione_non_parte(sessioni):
+    """ACC-15: prima si fallivano tutti i blocchi del pre-filtro e l'esecuzione risultava "completata"."""
+    class Scollegato(Finto):
+        async def pronto(self):
+            raise ErroreLLM("Claude Code non è collegato a un account.")
+
+    provider = Scollegato(risponditore)
+    esecuzione, _, salvate, _ = esegui(sessioni, raccolta(candidata("sicurezza-alta")), provider=provider)
+    assert (esecuzione.stato, esecuzione.motivo) == ("fallita", "Claude Code non è collegato a un account.")
+    assert salvate == [] and provider.chiamate == []  # nessuna quota consumata

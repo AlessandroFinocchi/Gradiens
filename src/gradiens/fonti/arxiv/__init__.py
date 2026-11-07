@@ -21,8 +21,9 @@ def _spazi(testo: str) -> str:
     return " ".join(testo.split())
 
 
-def interpreta(atom: str) -> list[Candidata]:
-    """Notizie candidate da una risposta Atom dell'API di arXiv."""
+def interpreta(atom: str, categorie: list[str]) -> list[Candidata]:
+    """Notizie candidate da una risposta Atom dell'API di arXiv. La fonte è la categoria seguita che ha
+    fatto trovare il paper: quella primaria può essere un'altra, se il paper è anche nelle seguite (ARX-01)."""
     candidate = []
     for voce in feedparser.parse(atom).entries:
         if "published_parsed" not in voce or not voce.get("id"):
@@ -31,7 +32,8 @@ def interpreta(atom: str) -> list[Candidata]:
         if not url.startswith("https://arxiv.org/abs/"):  # dato esterno: finisce in un link della dashboard
             continue
         abstract = _spazi(voce.get("summary", ""))
-        categoria = voce.get("arxiv_primary_category", {}).get("term", "arXiv")
+        primaria = voce.get("arxiv_primary_category", {}).get("term", "arXiv")
+        categoria = next((c for c in [primaria, *(tag.term for tag in voce.get("tags", []))] if c in categorie), primaria)
         candidate.append(Candidata(
             tipo="arxiv",
             url=url,
@@ -58,7 +60,7 @@ async def raccogli(client: httpx.AsyncClient, categorie: list[str], dal: datetim
             "start": pagina * PER_PAGINA, "max_results": PER_PAGINA,
         }, headers={"User-Agent": USER_AGENT}, timeout=60)
         risposta.raise_for_status()
-        blocco = interpreta(risposta.text)
+        blocco = interpreta(risposta.text, categorie)
         trovate += [c for c in blocco if c.pubblicata_il >= dal]
         if len(blocco) < PER_PAGINA or blocco[-1].pubblicata_il < dal:
             break

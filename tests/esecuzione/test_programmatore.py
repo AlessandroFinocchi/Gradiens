@@ -25,7 +25,11 @@ class EsecutoreFinto:
 def sessioni(tmp_path):
     motore = crea_motore(tmp_path / "prova.db")
     migra(motore)
-    return fabbrica_sessioni(motore)
+    sessioni = fabbrica_sessioni(motore)
+    with sessioni() as s:
+        impostazioni.leggi(s).configurazione_completata = True
+        s.commit()
+    return sessioni
 
 
 def programmatore(sessioni, *ore: datetime):
@@ -116,3 +120,14 @@ def test_prossima_esecuzione(sessioni):
     p, _ = programmatore(sessioni, ora(7, 6, 0), ora(7, 8, 0))
     assert p.prossima() == ora(7, 7, 0)
     assert p.prossima() == ora(8, 7, 0) and ora(8, 7, 0) - ora(7, 7, 0) == timedelta(days=1)
+
+
+def test_niente_esecuzioni_prima_della_configurazione_iniziale(sessioni):
+    # UI-11: senza interessi né fonti l'esecuzione fallirebbe, e il recupero all'avvio la registrava come fallita.
+    with sessioni() as s:
+        impostazioni.leggi(s).configurazione_completata = False
+        s.commit()
+    p, e = programmatore(sessioni, ora(7, 9, 0), ora(8, 7, 0))
+    p.controlla()
+    p.controlla()
+    assert e.avviate == 0

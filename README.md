@@ -48,13 +48,13 @@ uv run pytest
 ## Uso
 
 ```
-uv run gradiens avvia     # dashboard, esecuzioni e (in futuro) bot Telegram, staccati dal terminale
+uv run gradiens avvia     # dashboard, esecuzioni e bot Telegram, staccati dal terminale
 uv run gradiens esegui    # lancia un'esecuzione e ne mostra l'avanzamento
 uv run gradiens stato     # dice se Gradiens è in esecuzione
 uv run gradiens spegni    # termina l'applicazione
 ```
 
-Poi apri http://127.0.0.1:8765/ e, dall'ingranaggio in basso a sinistra, configura interessi, siti, canali YouTube, categorie arXiv e il bot Telegram (la sezione Telegram ha un tutorial passo dopo passo). Dal bot puoi poi usare `/aggiorna`, `/stato`, `/ultima`, `/pausa`, `/riprendi` e `/help`.
+Poi apri http://127.0.0.1:8765/. La prima volta si apre la configurazione iniziale, in quattro passi: interessi, fonti (basta un canale YouTube, un sito o una categoria arXiv), Claude Code e bot Telegram, con un tutorial passo dopo passo. Dopo, tutto si cambia dall'ingranaggio in basso a sinistra. Dal bot puoi poi usare `/aggiorna`, `/stato`, `/ultima`, `/pausa`, `/riprendi` e `/help`.
 
 `gradiens avvia` stacca l'app dal terminale, quindi continua a girare anche se chiudi il terminale o la sessione SSH, su Windows come su Linux. Con `--primo-piano` resta collegata al terminale, il che è utile per il debug.
 
@@ -69,7 +69,12 @@ Cancellando la cartella si cancella tutto. Un clone nuovo parte senza configuraz
 
 ## Avvio all'accensione
 
-È previsto per Windows (attività pianificata, [ADR 0005](docs/adr/0005-avvio-all-accensione-con-attivita-pianificata.md)) e per Linux (servizio utente di systemd, [ADR 0007](docs/adr/0007-avvio-all-accensione-su-linux-con-systemd.md)). Arriva con l'ultima fetta del [piano](docs/architettura/piano-fase-4.md).
+Si accende dalla dashboard, nelle Impostazioni, sezione **Avvio**. Gradiens parte poi a ogni accensione del PC, senza bisogno di accedere al sistema: basta accendere il PC e lanciare l'esecuzione dal bot Telegram.
+
+- **Windows** ([ADR 0005](docs/adr/0005-avvio-all-accensione-con-attivita-pianificata.md)): Gradiens registra un'attività pianificata "Gradiens". Windows chiede la conferma di amministratore sullo schermo del PC, quindi l'interruttore va cambiato stando al PC. Se la conferma non può comparire (per esempio quando Gradiens è stato avviato proprio all'accensione), la dashboard mostra i comandi da incollare in PowerShell aperto come amministratore.
+- **Linux** ([ADR 0007](docs/adr/0007-avvio-all-accensione-su-linux-con-systemd.md)): Gradiens scrive il servizio utente `~/.config/systemd/user/gradiens.service` e attiva il "lingering" (`loginctl enable-linger`), che fa partire i servizi dell'utente senza accesso. Se la distribuzione chiede la password per il lingering, la dashboard mostra il comando da lanciare con `sudo`. I messaggi del servizio si leggono con `journalctl --user -u gradiens`.
+
+Vale dal prossimo avvio del PC. Spegnendo l'interruttore la registrazione si toglie (su Linux il lingering resta, perché può servire ad altri servizi). Se sposti la cartella di Gradiens, spegni e riaccendi l'interruttore.
 
 ## Sviluppo
 

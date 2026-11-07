@@ -2,10 +2,11 @@
 
 Gradiens gira anche su Linux. L'unica parte che dipende dal sistema operativo è l'avvio all'accensione (`AMB-04`), che su Windows usa un'attività pianificata ([ADR 0005](0005-avvio-all-accensione-con-attivita-pianificata.md)).
 
-Su Linux, quando l'interruttore è attivo, Gradiens scrive un servizio utente di systemd (`~/.config/systemd/user/gradiens.service`) e lo abilita con `systemctl --user enable --now gradiens`. Il servizio:
+Su Linux, quando l'interruttore è attivo, Gradiens scrive un servizio utente di systemd (`~/.config/systemd/user/gradiens.service`) e lo abilita con `systemctl --user enable gradiens`, senza `--now`: il Gradiens che mostra la dashboard è già acceso e occupa la porta, quindi il servizio parte dal prossimo avvio del PC. Il servizio:
 - lancia `gradiens avvia --primo-piano` con l'interprete della `.venv` del progetto e la cartella del progetto come cartella di lavoro;
 - gira con l'utente che possiede la repository, quindi i file restano suoi;
-- si riavvia da solo se l'app si blocca (`Restart=on-failure`), e i suoi messaggi finiscono anche nel registro di sistema (`journalctl --user -u gradiens`).
+- si riavvia da solo se l'app si blocca (`Restart=on-failure`), e i suoi messaggi finiscono anche nel registro di sistema (`journalctl --user -u gradiens`). `gradiens spegni` invece termina l'app in modo pulito, e il servizio resta spento fino al prossimo avvio;
+- riceve il percorso completo di Claude Code in `GRADIENS_CLAUDE`, letto al momento della registrazione: all'accensione senza accesso il servizio non ha il `PATH` della shell, dove `claude` sta di solito (`~/.local/bin`).
 
 Perché parta all'accensione senza che l'utente acceda, serve il "lingering" dell'utente: `loginctl enable-linger <utente>`. Su molte distribuzioni l'utente può attivarlo per sé; dove serve la password di amministratore, la dashboard mostra il comando da lanciare in un terminale. Quando l'interruttore viene spento, il servizio si disabilita e il suo file si cancella. Il lingering invece resta, perché può servire ad altri servizi dell'utente.
 

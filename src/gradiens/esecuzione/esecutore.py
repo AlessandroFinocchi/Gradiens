@@ -226,6 +226,8 @@ class Esecutore:
             raise ValueError("Serve almeno un interesse (Impostazioni).")
         prefiltro = self._fabbrica_provider(imp.provider_prefiltro)
         elaborazione = self._fabbrica_provider(imp.provider_elaborazione)
+        for provider in (prefiltro, elaborazione):  # ACC-15: es. Claude Code non collegato, l'esecuzione non parte
+            await provider.pronto()
         dal = notizie.adesso() - timedelta(days=imp.finestra_giorni)
         m.token["prefiltro"].update(provider=imp.provider_prefiltro, modello=imp.modello_prefiltro)
         m.token["elaborazione"].update(provider=imp.provider_elaborazione, modello=imp.modello_elaborazione)
@@ -328,18 +330,19 @@ class Esecutore:
 
     async def _proposte(self, s: Session, elaborazione: Provider, modello: str, soglia: int, m: Metriche) -> None:
         """INT-04, INT-06: proposte dai cuori nuovi. Se Claude non risponde si riprova alla prossima esecuzione."""
-        compiti = [(prompt.sistema_raffinamento(i), notizie_, prompt.SCHEMA_RAFFINAMENTO,
+        compiti = [(prompt.sistema_raffinamento(i), prompt.messaggio_proposta(notizie_[:proposte.MASSIMO_NOTIZIE]),
+                    prompt.SCHEMA_RAFFINAMENTO,
                     lambda dati, i=i, n=len(notizie_): proposte.registra_raffinamento(s, i, str(dati.get("raffinamento", "")), n))
                    for i, notizie_ in proposte.da_raffinare(s, soglia)]
-        if orfane := proposte.senza_interesse(s, soglia):
-            compiti.append((prompt.sistema_nuovo_interesse(interessi.elenca(s)), orfane, prompt.SCHEMA_NUOVO_INTERESSE,
-                            lambda dati, n=len(orfane): proposte.registra_interesse(
+        if cuori := proposte.per_interesse_nuovo(s):
+            compiti.append((prompt.sistema_nuovo_interesse(interessi.elenca(s)),
+                            prompt.messaggio_nuovo_interesse(cuori[:proposte.MASSIMO_NOTIZIE]), prompt.SCHEMA_NUOVO_INTERESSE,
+                            lambda dati, n=len(cuori): proposte.registra_interesse(
                                 s, str(dati.get("nome", "")), str(dati.get("descrizione", "")), n)))
         self._fase("proposte", len(compiti))
-        for sistema, notizie_, schema, registra in compiti:
+        for sistema, messaggio, schema, registra in compiti:
             try:
-                risposta = await elaborazione.chiedi(sistema=sistema, schema=schema, modello=modello,
-                                                     messaggio=prompt.messaggio_proposta(notizie_[:proposte.MASSIMO_NOTIZIE]))
+                risposta = await elaborazione.chiedi(sistema=sistema, schema=schema, modello=modello, messaggio=messaggio)
                 registra(risposta.dati)
             except QuotaEsaurita:
                 raise
@@ -413,6 +416,8 @@ class Esecutore:
             s.commit()
             return
         titolo_it = (dati.get("titolo_it") or "").strip()
+        if not titolo_it.strip("\"'“”«» "):  # l'LLM a volte scrive la stringa vuota come '""'
+            titolo_it = ""
         s.add(Notizia(
             tipo=c.tipo, url=c.url, fonte=c.fonte, titolo=c.titolo,
             titolo_it=titolo_it if titolo_it and titolo_it != c.titolo else None,

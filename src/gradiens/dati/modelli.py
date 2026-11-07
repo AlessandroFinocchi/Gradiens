@@ -41,6 +41,7 @@ class Impostazioni(Base):
     telegram_chat_id: Mapped[int | None] = mapped_column(BigInteger)
     telegram_chat_nome: Mapped[str | None] = mapped_column(String(200))
     ultima_proposta_interesse_il: Mapped[datetime | None]  # INT-06: contano i cuori messi dopo questa data
+    configurazione_completata: Mapped[bool] = mapped_column(default=False)  # UI-11: la procedura guidata non torna
 
 
 class Interesse(Base):

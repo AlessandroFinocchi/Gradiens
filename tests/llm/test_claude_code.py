@@ -96,3 +96,17 @@ def test_chiamata_cancellata_chiude_claude(finto):
 
     asyncio.run(prova())
     assert not (finto.cartella / "finito.txt").exists()  # il processo è stato chiuso prima di finire
+
+
+@pytest.mark.parametrize("uscita, atteso", [
+    ('{"loggedIn": true, "subscriptionType": "pro"}', None),
+    ('{"loggedIn": false}', "non è collegato"),
+    ("non è JSON", "non risponde"),
+])
+def test_pronto_controlla_il_collegamento_all_account(uscita, atteso):
+    provider = ClaudeCode(comando=[sys.executable, "-c", f"print({uscita!r})"])
+    if atteso is None:
+        asyncio.run(provider.pronto())
+    else:
+        with pytest.raises(ErroreLLM, match=atteso):
+            asyncio.run(provider.pronto())

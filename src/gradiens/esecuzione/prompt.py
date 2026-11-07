@@ -145,16 +145,18 @@ SCHEMA_RAFFINAMENTO = {"type": "object", "properties": {"raffinamento": {"type":
 
 
 def sistema_nuovo_interesse(interessi: list[Interesse]) -> str:
-    """INT-06: notizie con il cuore che non corrispondono a nessun interesse."""
+    """INT-06, decisione 57: è l'LLM a decidere se i cuori rivelano un tema che gli interessi non coprono."""
     return f"""Sei l'assistente di Gradiens che propone nuovi interessi all'utente.
 
 Interessi che l'utente ha già:
 {_interessi(interessi)}
 
-Ricevi in JSON notizie a cui l'utente ha messo il cuore ma che non corrispondono a nessuno di questi
-interessi. Se hanno un tema comune, proponi un interesse nuovo: nome (breve, al massimo 5 parole) e
-descrizione (1 o 2 frasi in italiano, come la scriverebbe l'utente). Se non hanno un tema comune,
-restituisci nome e descrizione vuoti."""
+Ricevi in JSON le ultime notizie a cui l'utente ha messo il cuore, ciascuna con il punteggio di
+pertinenza (0-100) che ha avuto per i suoi interessi. Chiediti se almeno 3 di queste notizie hanno in
+comune un tema che gli interessi esistenti non coprono già, nemmeno in parte: un tema nuovo, non un
+aspetto di un interesse che c'è già (per quello esiste il raffinamento). Solo in quel caso proponi un
+interesse nuovo: nome (breve, al massimo 5 parole) e descrizione (1 o 2 frasi in italiano, come la
+scriverebbe l'utente). Altrimenti, che è il caso più comune, restituisci nome e descrizione vuoti."""
 
 
 SCHEMA_NUOVO_INTERESSE = {
@@ -166,4 +168,10 @@ SCHEMA_NUOVO_INTERESSE = {
 
 def messaggio_proposta(notizie: list[Notizia]) -> str:
     return _notizie_con_cuore(notizie)
+
+
+def messaggio_nuovo_interesse(notizie: list[Notizia]) -> str:
+    voci = [{"titolo": n.titolo_it or n.titolo, "riassunto": n.riassunto[:600],
+             "punteggi": {p.interesse.nome: p.punteggio for p in n.pertinenze}} for n in notizie]
+    return json.dumps(voci, ensure_ascii=False)
 

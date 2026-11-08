@@ -1,18 +1,19 @@
 <h2>Esecuzione</h2>
 <form hx-post="/impostazioni/esecuzione" hx-target="#impostazioni">
-  <div class="riga">
+  <div class="riga{% if "pausa" in voci %} proposta{% endif %}">
     <div class="testo">
-      <div class="titolo">Esecuzione programmata</div>
+      <div class="titolo">Programmazione automatica</div>
+      <div class="descrizione">Un'esecuzione ogni giorno, all'orario scelto. Spenta, non parte nessuna esecuzione automatica, anche dopo un riavvio; le esecuzioni avviate a mano funzionano lo stesso. Su Telegram la spegni con <code>/pausa</code> e la riaccendi con <code>/riprendi</code>.</div>
+    </div>
+    <div class="controllo"><input type="checkbox" role="switch" class="interruttore" name="automatica" value="true"{% if not imp.programmazione_in_pausa %} checked{% endif %} aria-label="Programmazione automatica"></div>
+  </div>
+  {# Visibile solo con la programmazione automatica accesa: la regola in stile.css segue l'interruttore subito, senza salvare. #}
+  <div class="riga solo-se-automatica">
+    <div class="testo">
+      <div class="titolo">Orario dell'esecuzione</div>
       <div class="descrizione">Ogni giorno a quest'ora, nell'ora del PC. Se a quell'ora Gradiens è spento, l'esecuzione parte appena lo riaccendi.</div>
     </div>
     <div class="controllo"><input class="campo" type="time" name="orario" value="{{ imp.orario_programmato }}" required aria-label="Orario dell'esecuzione programmata"></div>
-  </div>
-  <div class="riga{% if "pausa" in voci %} proposta{% endif %}">
-    <div class="testo">
-      <div class="titolo">Programmazione in pausa</div>
-      <div class="descrizione">Nessuna esecuzione automatica finché la pausa è attiva, anche dopo un riavvio. Le esecuzioni avviate a mano funzionano lo stesso.</div>
-    </div>
-    <div class="controllo"><input type="checkbox" role="switch" class="interruttore" name="in_pausa" value="true"{% if imp.programmazione_in_pausa %} checked{% endif %} aria-label="Programmazione in pausa"></div>
   </div>
   <div class="riga">
     <div class="testo">

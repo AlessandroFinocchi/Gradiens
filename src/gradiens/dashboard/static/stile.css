@@ -446,3 +446,4 @@ dialog.finestra::backdrop { background: var(--velo); }
 .modifica-proposta textarea { width: 100%; }
 .confronto mark { background: var(--accento-tenue); color: inherit; border-radius: 3px; padding: 0 2px; }
 pre.comando { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; background: var(--hover); padding: 10px 12px; border-radius: 8px; white-space: pre-wrap; word-break: break-all; user-select: all; margin-top: 6px; }
+form:has(input[name="automatica"]:not(:checked)) .solo-se-automatica { display: none; }

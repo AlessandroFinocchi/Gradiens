@@ -6,9 +6,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block titolo %}{% endblock %} · Gradiens</title>
-<link rel="stylesheet" href="/static/stile.css">
-<script src="/static/htmx.min.js" defer></script>
-<script src="/static/app.js" defer></script>
+<link rel="stylesheet" href="{{ statico('stile.css') }}">
+<link rel="icon" type="image/png" href="{{ statico('gradiens.png') }}">
+<script src="{{ statico('htmx.min.js') }}" defer></script>
+<script src="{{ statico('app.js') }}" defer></script>
 </head>
 <body>
 <div class="app"{% if procedura %} data-senza-sidebar{% endif %}>

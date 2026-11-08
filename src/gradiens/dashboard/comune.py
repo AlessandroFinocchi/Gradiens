@@ -21,6 +21,12 @@ from gradiens.dati.notizie import nome_fonte
 CARTELLA = Path(__file__).parent
 modelli = Jinja2Templates(directory=CARTELLA / "templates")
 
+
+def statico(nome: str) -> str:
+    """Indirizzo di un file statico con la sua data di modifica: dopo un aggiornamento il browser lo
+    riscarica invece di usare la copia in cache (il server non manda una scadenza)."""
+    return f"/static/{nome}?v={int((CARTELLA / 'static' / nome).stat().st_mtime)}"
+
 PAGINE = {
     "home": ("Home", "/"),
     "notizie": ("Notizie", "/notizie"),
@@ -96,7 +102,7 @@ def token_brevi(n: int) -> str:
 
 modelli.env.filters.update(data_breve=data_breve, data_breve_giorno=data_breve_giorno, data_lunga=data_lunga, data_relativa=data_relativa,
                            durata=durata, migliaia=migliaia, token_brevi=token_brevi)
-modelli.env.globals.update(TIPI=TIPI, FONTI=FONTI, AVVIATA_DA=AVVIATA_DA, STATI_BUONI=STATI_BUONI, nome_fonte=nome_fonte,
+modelli.env.globals.update(statico=statico, TIPI=TIPI, FONTI=FONTI, AVVIATA_DA=AVVIATA_DA, STATI_BUONI=STATI_BUONI, nome_fonte=nome_fonte,
                            evidenzia=evidenzia)
 
 

@@ -5,10 +5,12 @@ richiesta arriva da questa pagina, tornano come passo della procedura (`rotte_im
 from typing import Annotated
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 
+from gradiens.app import avvio_sistema
+from gradiens.app.configurazione import RADICE
 from gradiens.dashboard.comune import Sessione, modelli
 from gradiens.dashboard.rotte_impostazioni import dati_sezione
 from gradiens.dati import impostazioni, interessi
@@ -76,10 +78,16 @@ def apri(request: Request, s: Sessione, passo_scelto: Annotated[str, Query(alias
 
 
 @router.post("/completa", response_class=HTMLResponse)
-def completa(request: Request, s: Sessione) -> Response:
+def completa(request: Request, s: Sessione, icone: Annotated[bool, Form()] = False) -> Response:
     fatti, _ = _fatti(request, s, con_claude=True)
     if mancanti := [MANCA[p] for p, fatto in fatti.items() if not fatto]:
         return passo(request, s, "telegram", errore=" ".join(mancanti))
+    if icone:  # AMB-05: l'icona del pannello di controllo, proposta alla fine (ADR 0009)
+        try:
+            avvio_sistema.crea_icone(RADICE)
+        except avvio_sistema.ErroreAvvio as errore:
+            return passo(request, s, "telegram", errore=f"{errore} Togli la spunta per continuare senza icona: "
+                                                         "potrai crearla dopo dalle Impostazioni, sezione Avvio.")
     impostazioni.leggi(s).configurazione_completata = True
     s.commit()
     return Response(status_code=204, headers={"HX-Redirect": "/"})

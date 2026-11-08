@@ -420,3 +420,22 @@ def test_senza_claude_code_collegato_l_esecuzione_non_parte(sessioni):
     esecuzione, _, salvate, _ = esegui(sessioni, raccolta(candidata("sicurezza-alta")), provider=provider)
     assert (esecuzione.stato, esecuzione.motivo) == ("fallita", "Claude Code non è collegato a un account.")
     assert salvate == [] and provider.chiamate == []  # nessuna quota consumata
+
+
+def test_aspetta_la_rete_prima_di_raccogliere(sessioni, monkeypatch):
+    """All'accensione la rete arriva dopo Gradiens: l'esecuzione recuperata falliva su tutte le fonti."""
+    from gradiens.esecuzione import esecutore as modulo
+
+    risposte = iter([False, False, True])
+    monkeypatch.setattr(modulo, "rete_disponibile", lambda: next(risposte))
+    monkeypatch.setattr(modulo, "PAUSA_RETE", 0)
+    esecuzione, _, salvate, _ = esegui(sessioni, raccolta(candidata("sicurezza-alta")))
+    assert esecuzione.stato == "completata" and len(salvate) == 1
+
+    monkeypatch.setattr(modulo, "rete_disponibile", lambda: False)
+    monkeypatch.setattr(modulo, "ATTESA_RETE", 0)
+    with sessioni() as s:
+        s.query(Esecuzione).delete()
+        s.commit()
+    esecuzione, _, _, _ = esegui(sessioni, raccolta(candidata("sicurezza-altra")))
+    assert (esecuzione.stato, esecuzione.motivo) == ("fallita", "Nessuna connessione a internet: controlla la rete e riprova.")

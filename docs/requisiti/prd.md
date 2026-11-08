@@ -18,7 +18,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
   - **a mano**, con `gradiens avvia`. È il valore predefinito.
 
   Quando l'interruttore viene disattivato, la registrazione nel sistema operativo viene rimossa. Su Windows cambiare l'interruttore richiede una conferma di amministratore sullo schermo del PC, quindi si fa stando al PC e non da remoto (vedi [ADR 0005](../adr/0005-avvio-all-accensione-con-attivita-pianificata.md)). Su Linux si usa un servizio utente di systemd; se il sistema chiede la password di amministratore per farlo partire senza accesso, la dashboard mostra il comando da lanciare in un terminale (vedi [ADR 0007](../adr/0007-avvio-all-accensione-su-linux-con-systemd.md)).
-- `AMB-05` Una persona senza familiarità con l'informatica deve poter accendere e spegnere Gradiens e vederne lo stato (spento, acceso, esecuzione in corso) con una piccola interfaccia grafica, senza usare il terminale, su Windows e su Linux. I comandi `gradiens avvia`, `stato` e `spegni` restano. Come realizzarla si decide nella fetta 8 del [piano della fase 4](../architettura/piano-fase-4.md), con un ADR.
+- `AMB-05` Una persona senza familiarità con l'informatica deve poter accendere e spegnere Gradiens e vederne lo stato (spento, acceso, esecuzione in corso) con una piccola interfaccia grafica, senza usare il terminale, su Windows e su Linux. I comandi `gradiens avvia`, `stato` e `spegni` restano. È una piccola finestra, il pannello di controllo, che si apre da un'icona sul desktop e nel menu delle applicazioni. L'icona si crea e si toglie con un interruttore nella sezione Avvio delle Impostazioni, e l'ultimo passo della configurazione iniziale propone di crearla. Vedi [ADR 0009](../adr/0009-pannello-di-controllo-con-tkinter.md).
 
 ## 3. Interessi
 
@@ -284,7 +284,7 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
   - **arXiv**: categorie e tetto di paper;
   - **Modelli LLM**: provider e modello per i due ruoli, stato di Claude Code, chiavi API;
   - **Esecuzione**: soglia di pertinenza, finestra di raccolta (da 1 a 7 giorni), interruttori di esclusione, orario dell'esecuzione programmata e sua pausa;
-  - **Avvio**: all'accensione o a mano;
+  - **Avvio**: all'accensione o a mano, e l'icona del pannello di controllo (`AMB-05`);
   - **Telegram**;
   - **Aspetto**: tema chiaro, scuro oppure come il sistema operativo, che è il valore predefinito.
 
@@ -342,7 +342,7 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
   - cancellando la cartella si cancella tutto ciò che riguarda l'app;
   - una copia scaricata da GitHub su un altro dispositivo parte senza configurazione e va configurata da capo.
 
-  L'unica eccezione è la registrazione dell'avvio all'accensione nel sistema operativo (`AMB-04`). Claude Code, quando è usato come provider, tiene il login e i propri file nella sua cartella utente (`~/.claude`): sono file di Claude Code, non di Gradiens, e Gradiens non vi fa salvare conversazioni (`LLM-05`).
+  Le eccezioni sono due, entrambe create solo su richiesta dell'utente e tolte con lo stesso interruttore: la registrazione dell'avvio all'accensione nel sistema operativo (`AMB-04`) e le icone del pannello di controllo sul desktop e nel menu (`AMB-05`). Claude Code, quando è usato come provider, tiene il login e i propri file nella sua cartella utente (`~/.claude`): sono file di Claude Code, non di Gradiens, e Gradiens non vi fa salvare conversazioni (`LLM-05`).
 - `PER-04` Chiavi API e token non finiscono mai in file versionati, nel codice o nei log.
 
 ## 11. Fuori dalla prima versione
@@ -371,7 +371,7 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
 - `ACC-08` Nessuna chiave o token compare nei file tracciati da git.
 - `ACC-09` Con l'avvio all'accensione attivo, sia su Windows sia su Linux, si accende il PC senza accedere al sistema e si manda `/aggiorna` al bot: l'esecuzione parte e il messaggio di fine esecuzione arriva.
 - `ACC-10` Dopo una configurazione completa e un'esecuzione, si verificano tre cose:
-  - nessun file dell'app è stato scritto fuori dalla cartella della repository, salvo la registrazione di `AMB-04` e i file propri di Claude Code;
+  - nessun file dell'app è stato scritto fuori dalla cartella della repository, salvo la registrazione di `AMB-04`, le icone del pannello di `AMB-05` e i file propri di Claude Code;
   - `git status` non mostra file di configurazione o di dati;
   - un clone nuovo della repository si apre sulla configurazione iniziale.
 - `ACC-11` Con la finestra di raccolta impostata a N giorni, l'esecuzione non raccoglie notizie pubblicate prima di N giorni fa.

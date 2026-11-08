@@ -55,3 +55,28 @@ def test_completare_sblocca_la_dashboard_e_non_torna_piu(client_nuovo):
     client_nuovo.post("/impostazioni/arxiv/categorie/rimuovi", data={"codice": "cs.CR"}, headers=h)
     pagina = client_nuovo.get("/notizie")
     assert pagina.url.path == "/notizie" and "3 sezioni delle Impostazioni da guardare" in pagina.text
+
+
+def test_alla_fine_si_puo_creare_l_icona_del_pannello(client_nuovo, monkeypatch):
+    from gradiens.app import avvio_sistema
+
+    create = []
+    monkeypatch.setattr(avvio_sistema, "crea_icone", lambda radice: create.append(radice))
+    h = {"HX-Request": "true"}
+    assert 'name="icone" value="true" checked' in client_nuovo.get("/configurazione?passo=telegram").text
+    client_nuovo.post("/impostazioni/interessi", data={"nome": "AI", "descrizione": "Modelli"}, headers=h)
+    client_nuovo.post("/impostazioni/arxiv/categorie", data={"codice": "cs.CR"}, headers=h)
+    with client_nuovo.app.state.sessioni() as s:
+        impostazioni.leggi(s).telegram_chat_id = 4242
+        s.commit()
+    client_nuovo.app.state.conf.telegram_token = "presente"
+    def rotto(radice):
+        raise avvio_sistema.ErroreAvvio("Icone non create: PowerShell bloccato.")
+
+    monkeypatch.setattr(avvio_sistema, "crea_icone", rotto)
+    errore = client_nuovo.post("/configurazione/completa", data={"icone": "true"}, headers=h).text
+    assert "Togli la spunta per continuare senza icona" in errore  # le Impostazioni non si aprono ancora
+
+    monkeypatch.setattr(avvio_sistema, "crea_icone", lambda radice: create.append(radice))
+    assert client_nuovo.post("/configurazione/completa", data={"icone": "true"}, headers=h).status_code == 204
+    assert create  # AMB-05, ADR 0009

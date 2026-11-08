@@ -8,6 +8,7 @@ from gradiens.app.configurazione import Configurazione
 from gradiens.app.servizio import crea_app
 from gradiens.dashboard import rotte_configurazione
 from gradiens.dati import impostazioni
+from gradiens.esecuzione import esecutore
 
 
 def porta_libera() -> int:
@@ -20,6 +21,7 @@ def porta_libera() -> int:
 def senza_avvio_registrato(monkeypatch):
     """I test non leggono la registrazione vera dell'avvio all'accensione (systemd o Utilità di pianificazione)."""
     monkeypatch.setattr(avvio_sistema, "_cache", (float("inf"), avvio_sistema.StatoAvvio(False)))
+    monkeypatch.setattr(esecutore, "rete_disponibile", lambda: True)  # né la rete vera
 
 
 @pytest.fixture

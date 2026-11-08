@@ -8,6 +8,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import socket
 import time
 from collections import Counter
 from collections.abc import Awaitable, Callable
@@ -88,6 +89,19 @@ class Metriche:
         self.token[ruolo]["uscita"] += risposta.token_uscita
 
 
+ATTESA_RETE, PAUSA_RETE = 300, 5  # secondi: all'accensione del PC la rete arriva di solito dopo pochi secondi
+HOST_DI_PROVA = ("one.one.one.one", 443)  # un nome che si risolve in ogni rete collegata a internet
+
+
+def rete_disponibile() -> bool:
+    """C'è internet? Basta risolvere un nome: stamattina, all'accensione, falliva proprio la risoluzione dei nomi."""
+    try:
+        socket.getaddrinfo(*HOST_DI_PROVA)
+    except OSError:
+        return False
+    return True
+
+
 class Esecutore:
     def __init__(
         self,
@@ -151,6 +165,16 @@ class Esecutore:
             log.info("Esecuzione %s %s %s", id, stato, motivo or "")
             if self.al_termine is not None and motivo != SPENTO:  # allo spegnimento non si manda niente
                 await self.al_termine(id)
+
+    async def _attendi_rete(self) -> None:
+        """L'esecuzione recuperata all'accensione partiva prima della rete e falliva su tutte le fonti,
+        segnando i siti come guasti. Si aspetta la rete per qualche minuto; poi l'esecuzione fallisce con il motivo."""
+        fine = time.monotonic() + ATTESA_RETE
+        while not await asyncio.to_thread(rete_disponibile):
+            if time.monotonic() > fine:
+                raise RuntimeError("Nessuna connessione a internet: controlla la rete e riprova.")
+            self._fase("attesa della rete", 0)
+            await asyncio.sleep(PAUSA_RETE)
 
     async def _raccogli(self, client: httpx.AsyncClient, s: Session, dal, m: Metriche) -> list[Candidata]:
         """Tutte le fonti in parallelo: una fonte irraggiungibile non ferma le altre."""
@@ -228,6 +252,7 @@ class Esecutore:
         elaborazione = self._fabbrica_provider(imp.provider_elaborazione)
         for provider in (prefiltro, elaborazione):  # ACC-15: es. Claude Code non collegato, l'esecuzione non parte
             await provider.pronto()
+        await self._attendi_rete()
         dal = notizie.adesso() - timedelta(days=imp.finestra_giorni)
         m.token["prefiltro"].update(provider=imp.provider_prefiltro, modello=imp.modello_prefiltro)
         m.token["elaborazione"].update(provider=imp.provider_elaborazione, modello=imp.modello_elaborazione)

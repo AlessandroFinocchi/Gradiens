@@ -258,3 +258,104 @@ def _stato_windows(radice: Path) -> StatoAvvio:
     if r.returncode != 0:  # attività inesistente
         return StatoAvvio(False)
     return stato_da_xml(r.stdout, radice, sys.executable)
+
+
+# ---- Icone del pannello di controllo sul desktop e nel menu (AMB-05, ADR 0009) ----
+
+ICONA = Path(__file__).resolve().parents[1] / "dashboard" / "static" / "gradiens"  # .png e .ico
+NOME_ICONA = "Gradiens"
+
+
+def _pythonw() -> str:
+    """Su Windows il pannello si apre con pythonw.exe, senza la finestra nera della console."""
+    python = Path(sys.executable)
+    senza_console = python.with_name("pythonw.exe")
+    return str(senza_console if os.name == "nt" and senza_console.exists() else python)
+
+
+def icone_presenti() -> bool:
+    if os.name == "nt":  # il menu Start dell'utente sta sempre qui: niente PowerShell, che è lento
+        menu = Path(os.environ.get("APPDATA", "")) / "Microsoft" / "Windows" / "Start Menu" / "Programs"
+        return (menu / f"{NOME_ICONA}.lnk").exists()
+    return _file_menu().exists()
+
+
+def crea_icone(radice: Path) -> None:
+    if os.name == "nt":
+        r = _esegui([_powershell(), "-NoProfile", "-NonInteractive", "-Command", script_icone_windows(radice, _pythonw())])
+        if r.returncode != 0:
+            raise ErroreAvvio(f"Icone non create: {r.stderr.strip()[:300]}")
+        return
+    contenuto = voce_desktop(radice, sys.executable)
+    _file_menu().parent.mkdir(parents=True, exist_ok=True)
+    for file in _file_icone():
+        file.write_text(contenuto, encoding="utf-8")
+        file.chmod(0o755)  # sul desktop KDE e GNOME avviano solo i file .desktop eseguibili
+
+
+def togli_icone() -> None:
+    if os.name == "nt":
+        _esegui([_powershell(), "-NoProfile", "-NonInteractive", "-Command",
+                 "foreach ($c in 'Desktop', 'Programs') { Remove-Item -Force -ErrorAction SilentlyContinue "
+                 f"(Join-Path ([Environment]::GetFolderPath($c)) '{NOME_ICONA}.lnk') }}"])
+        return
+    for file in _file_icone():
+        file.unlink(missing_ok=True)
+
+
+# Linux: file .desktop nel menu delle applicazioni e sul desktop.
+
+def _file_menu() -> Path:
+    base = os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share"
+    return Path(base) / "applications" / "gradiens.desktop"
+
+
+def _file_icone() -> list[Path]:
+    """Il file nel menu e, se c'è un desktop, quello sul desktop."""
+    return [_file_menu(), *([desktop / "gradiens.desktop"] if (desktop := _cartella_desktop()) else [])]
+
+
+def _cartella_desktop() -> Path | None:
+    """Il desktop ha il nome nella lingua del sistema (es. ~/Scrivania): lo dice xdg-user-dir. Senza un desktop
+    configurato (es. un server) xdg-user-dir risponde con la cartella home: lì l'icona non va."""
+    trovata = _esegui(["xdg-user-dir", "DESKTOP"]).stdout.strip() if shutil.which("xdg-user-dir") else ""
+    desktop = Path(trovata) if trovata else Path.home() / "Desktop"
+    return desktop if desktop.is_dir() and desktop != Path.home() else None
+
+
+def _argomento_desktop(valore: str) -> str:
+    """Argomento di Exec tra virgolette, come chiede la specifica dei file .desktop."""
+    for carattere in ("\\", '"', "`", "$"):
+        valore = valore.replace(carattere, "\\" + carattere)
+    return '"' + valore.replace("%", "%%") + '"'
+
+
+def voce_desktop(radice: Path, python: str) -> str:
+    return "\n".join([
+        "[Desktop Entry]",
+        "Type=Application",
+        f"Name={NOME_ICONA}",
+        "Comment=Accendi, spegni e guarda lo stato di Gradiens",
+        "Exec=" + " ".join(_argomento_desktop(a) for a in [python, "-m", "gradiens", "pannello"]),
+        f"Path={radice}",
+        f"Icon={ICONA.with_suffix('.png')}",
+        "Terminal=false",
+        "Categories=Utility;",
+    ]) + "\n"
+
+
+# Windows: collegamenti .lnk creati con WScript.Shell, che trova anche il desktop spostato su OneDrive.
+
+def script_icone_windows(radice: Path, pythonw: str) -> str:
+    return "\n".join([
+        "$shell = New-Object -ComObject WScript.Shell",
+        "foreach ($cartella in 'Desktop', 'Programs') {",
+        f"  $c = $shell.CreateShortcut((Join-Path ([Environment]::GetFolderPath($cartella)) {_ps(NOME_ICONA + '.lnk')}))",
+        f"  $c.TargetPath = {_ps(pythonw)}",
+        "  $c.Arguments = '-m gradiens pannello'",
+        f"  $c.WorkingDirectory = {_ps(str(radice))}",
+        f"  $c.IconLocation = {_ps(str(ICONA.with_suffix('.ico')))}",
+        "  $c.Description = 'Accendi, spegni e guarda lo stato di Gradiens'",
+        "  $c.Save()",
+        "}",
+    ])

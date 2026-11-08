@@ -76,12 +76,17 @@ def stato(conf: Configurazione) -> int:
     return 0
 
 
+def richiedi_spegnimento(conf: Configurazione) -> None:
+    """Chiede al servizio di spegnersi (anche dal pannello di controllo); solleva httpx.HTTPError."""
+    httpx.post(f"{conf.indirizzo_locale}/api/spegni", headers=INTESTAZIONE_CLI, timeout=5).raise_for_status()
+
+
 def spegni(conf: Configurazione) -> int:
     if leggi_stato(conf) is None:
         print("Gradiens non è in esecuzione.")
         return 0
     try:
-        httpx.post(f"{conf.indirizzo_locale}/api/spegni", headers=INTESTAZIONE_CLI, timeout=5).raise_for_status()
+        richiedi_spegnimento(conf)
     except httpx.HTTPError as errore:
         print(f"Spegnimento non riuscito: {errore}", file=sys.stderr)
         return 1
@@ -159,6 +164,7 @@ def main(argv: list[str] | None = None) -> int:
     comandi.add_parser("esegui", help="lancia un'esecuzione, ne mostra l'avanzamento e le metriche")
     comandi.add_parser("stato", help="mostra se Gradiens è in esecuzione")
     comandi.add_parser("spegni", help="termina l'applicazione")
+    comandi.add_parser("pannello", help="apre il pannello di controllo: accendi, spegni e stato senza terminale")
     args = parser.parse_args(argv)
 
     conf = configurazione()
@@ -168,4 +174,8 @@ def main(argv: list[str] | None = None) -> int:
         return esegui(conf)
     if args.comando == "stato":
         return stato(conf)
+    if args.comando == "pannello":
+        from gradiens.app import pannello  # import qui: Tkinter serve solo al pannello
+
+        return pannello.apri(conf)
     return spegni(conf)

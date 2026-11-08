@@ -124,12 +124,19 @@ def test_impostazioni_arxiv_ed_esecuzione(dati):
     assert "va da 1 a 7" in dati.post("/impostazioni/esecuzione", data={"soglia": 60, "finestra_giorni": 9}, headers=HTMX).text
     assert "non è un orario valido" in dati.post(
         "/impostazioni/esecuzione", data={"soglia": 60, "finestra_giorni": 7, "orario": "25:00"}, headers=HTMX).text
-    dati.post("/impostazioni/esecuzione", data={"soglia": 75, "finestra_giorni": 3, "orario": "06:45", "in_pausa": "true"}, headers=HTMX)
+    sezione = dati.get("/impostazioni/esecuzione", headers=HTMX).text
+    assert 'name="automatica" value="true" checked' in sezione  # programmazione automatica accesa
+    assert '<div class="riga solo-se-automatica">' in sezione  # l'orario sparisce quando la si spegne
+    # Interruttore spento: la casella non viene inviata, ed è la pausa di /pausa (TG-10).
+    dati.post("/impostazioni/esecuzione", data={"soglia": 75, "finestra_giorni": 3, "orario": "06:45"}, headers=HTMX)
     with dati.app.state.sessioni() as s:
         imp = impostazioni.leggi(s)
         assert (imp.soglia, imp.finestra_giorni) == (75, 3)
         assert (imp.orario_programmato, imp.programmazione_in_pausa) == ("06:45", True)
     assert dati.get("/api/stato").json()["prossima_esecuzione"] is None  # in pausa
+    dati.post("/impostazioni/esecuzione", data={"soglia": 75, "finestra_giorni": 3, "orario": "06:45", "automatica": "true"},
+              headers=HTMX)
+    assert dati.get("/api/stato").json()["prossima_esecuzione"] is not None
 
 
 def test_home_senza_esecuzioni(client):
@@ -337,3 +344,22 @@ def test_aiuto(client):
         assert f'id="{sezione}"' in pagina and f'href="#{sezione}"' in pagina  # UI-12, con l'indice
     assert "<code>/riprendi</code>" in pagina and "Windows" in pagina and "Linux" in pagina
     assert 'aria-current="page"' in pagina.split("Aiuto</span>")[0].rsplit("<a", 1)[1]  # voce attiva nella sidebar
+
+
+def test_interruttore_dell_icona_del_pannello(client, monkeypatch):
+    create = []
+    monkeypatch.setattr(avvio_sistema, "crea_icone", lambda radice: create.append(radice))
+    monkeypatch.setattr(avvio_sistema, "togli_icone", lambda: create.clear())
+    assert "Icona Gradiens sul desktop e nel menu" in client.get("/impostazioni/avvio", headers=HTMX).text
+    assert "Icona Gradiens creata" in client.post("/impostazioni/avvio/icone", data={"attivo": "true"}, headers=HTMX).text
+    assert create
+    assert "Icona Gradiens tolta" in client.post("/impostazioni/avvio/icone", headers=HTMX).text and not create
+
+
+def test_i_file_statici_hanno_la_versione_nell_indirizzo(client):
+    # Senza, dopo un aggiornamento il browser usava il vecchio stile.css dalla cache.
+    pagina = client.get("/").text
+    for nome in ("stile.css", "app.js", "htmx.min.js", "gradiens.png"):
+        assert f'/static/{nome}?v=' in pagina
+    indirizzo = pagina.split('<link rel="stylesheet" href="')[1].split('"')[0]
+    assert client.get(indirizzo).status_code == 200

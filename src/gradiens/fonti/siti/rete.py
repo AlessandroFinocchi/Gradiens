@@ -86,6 +86,7 @@ class Navigatore:
         self.client = client
         self.pagine_massime = pagine_massime
         self.letture = 0
+        self._senza_rete: set[str] = set()  # origini il cui robots.txt non ha risposto per un errore di rete
 
     async def consentito(self, url: str) -> bool:
         """robots.txt (RFC 9309): 4xx = tutto permesso, 5xx o rete irraggiungibile = tutto vietato."""
@@ -102,10 +103,15 @@ class Navigatore:
             return regole, vietato
         regole, vietato = None, False
         risposta = await self._scarica(origine + "/robots.txt", seguendo_redirect=True)
+        if risposta.codice == ERRORE_RETE:
+            # Rete assente (es. PC appena acceso): non si legge niente, ma non è un divieto del sito
+            # e non si ricorda, così appena torna la rete il sito si legge di nuovo.
+            self._senza_rete.add(origine)
+            return None, True
         if risposta.ok:
             regole = RobotFileParser()
             regole.parse(risposta.testo.splitlines())
-        elif risposta.codice >= 500 or risposta.codice in (ERRORE_RETE, 429):
+        elif risposta.codice >= 500 or risposta.codice == 429:
             vietato = True
         _robots[origine] = (time.monotonic() + DURATA_ROBOTS, regole, vietato)
         return regole, vietato
@@ -116,7 +122,7 @@ class Navigatore:
             if self.letture >= self.pagine_massime:
                 return Pagina(url, TETTO)
             if not await self.consentito(url):
-                return Pagina(url, VIETATA)
+                return Pagina(url, ERRORE_RETE if _origine(url) in self._senza_rete else VIETATA)
             self.letture += 1
             pagina = await self._scarica(url)
             if pagina.codice not in (301, 302, 303, 307, 308):

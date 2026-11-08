@@ -1,4 +1,4 @@
-{# Sezione Avvio (AMB-04): l'interruttore registra o toglie l'avvio all'accensione nel sistema operativo. #}
+{# Sezione Avvio: avvio all'accensione (AMB-04) e icona del pannello di controllo (AMB-05, ADR 0009). #}
 <h2>Avvio</h2>
 {% if esito %}<div class="esito ok" role="status">{{ esito }}</div>{% endif %}
 <form hx-post="/impostazioni/avvio" hx-trigger="change" hx-target="#impostazioni" hx-disabled-elt="find input">
@@ -29,3 +29,13 @@
 <p class="nota" style="margin-top: 12px">{% if windows %}Apri PowerShell come amministratore (tasto destro sul menu Start, "Terminale (Admin)"), incolla questi comandi e premi Invio. Poi riapri questa sezione.{% else %}Lancia questo comando in un terminale, poi riapri questa sezione.{% endif %}</p>
 <pre class="comando">{{ comando }}</pre>
 {% endif %}
+<h3>Pannello di controllo</h3>
+<form hx-post="/impostazioni/avvio/icone" hx-trigger="change" hx-target="#impostazioni" hx-disabled-elt="find input">
+  <div class="riga">
+    <div class="testo">
+      <div class="titolo">Icona Gradiens sul desktop e nel menu</div>
+      <div class="descrizione">Apre una piccola finestra per accendere e spegnere Gradiens e vedere se è acceso, senza terminale. Si apre anche con <code>gradiens pannello</code>.</div>
+    </div>
+    <div class="controllo"><input type="checkbox" role="switch" class="interruttore" name="attivo" value="true"{% if icone %} checked{% endif %} aria-label="Icona del pannello di controllo"></div>
+  </div>
+</form>

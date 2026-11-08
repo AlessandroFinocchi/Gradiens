@@ -70,7 +70,8 @@ def dati_sezione(request: Request, s: Session, sezione: str) -> dict:
     if sezione == "arxiv":
         return {"categorie": impostazioni.elenca_categorie(s)}
     if sezione == "avvio":
-        return {"avvio": avvio_sistema.stato_avvio(RADICE), "windows": avvio_sistema.su_windows()}
+        return {"avvio": avvio_sistema.stato_avvio(RADICE), "windows": avvio_sistema.su_windows(),
+                "icone": avvio_sistema.icone_presenti()}
     return {}
 
 
@@ -241,10 +242,11 @@ def tetto_arxiv(request: Request, s: Sessione, tetto: Numero):
 @router.post("/esecuzione", response_class=HTMLResponse)
 def esecuzione(request: Request, s: Sessione, soglia: Numero, finestra_giorni: Numero,
                escludi_sponsorizzati: Annotated[bool, Form()] = False, escludi_pagamento: Annotated[bool, Form()] = False,
-               orario: Annotated[str | None, Form()] = None, in_pausa: Annotated[bool, Form()] = False):
+               orario: Annotated[str | None, Form()] = None, automatica: Annotated[bool, Form()] = False):
     # Una casella non spuntata non viene inviata: per questo il valore di base qui è False.
+    # "Programmazione automatica" è il contrario della pausa di /pausa e /riprendi (TG-10).
     return _esegui(request, s, "esecuzione", lambda: impostazioni.salva_esecuzione(
-        s, soglia, finestra_giorni, escludi_sponsorizzati, escludi_pagamento, orario, in_pausa))
+        s, soglia, finestra_giorni, escludi_sponsorizzati, escludi_pagamento, orario, not automatica))
 
 
 # ---------- Telegram (TG-01): tutorial, prova, cambio di chat ----------
@@ -325,4 +327,18 @@ def avvio(request: Request, s: Sessione, attivo: Annotated[bool, Form()] = False
     except avvio_sistema.ErroreAvvio as errore:
         return finestra(request, s, "avvio", errore=str(errore), comando=errore.comando)
     esito = "Avvio all'accensione registrato." if attivo else "Avvio all'accensione tolto: Gradiens si avvia a mano."
+    return finestra(request, s, "avvio", esito=esito)
+
+
+@router.post("/avvio/icone", response_class=HTMLResponse)
+def icone(request: Request, s: Sessione, attivo: Annotated[bool, Form()] = False):
+    """AMB-05: l'icona che apre il pannello di controllo, sul desktop e nel menu."""
+    try:
+        if attivo:
+            avvio_sistema.crea_icone(RADICE)
+        else:
+            avvio_sistema.togli_icone()
+    except avvio_sistema.ErroreAvvio as errore:
+        return finestra(request, s, "avvio", errore=str(errore))
+    esito = "Icona Gradiens creata sul desktop e nel menu." if attivo else "Icona Gradiens tolta dal desktop e dal menu."
     return finestra(request, s, "avvio", esito=esito)

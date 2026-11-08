@@ -239,7 +239,7 @@ summary.interesse-testa::-webkit-details-marker { display: none; }
 .avvisi { list-style: none; margin: 0; padding: 0; }
 .avvisi li { border-bottom: 1px solid var(--bordo); }
 .avvisi li:last-child { border-bottom: 0; }
-.avvisi a { display: flex; gap: 10px; align-items: flex-start; padding: 10px 4px; text-decoration: none; border-radius: 8px; }
+.avvisi a, .avvisi .fisso { display: flex; gap: 10px; align-items: flex-start; padding: 10px 4px; text-decoration: none; border-radius: 8px; }
 .avvisi a:hover { background: var(--hover); }
 .avvisi .segnale { width: 16px; height: 20px; }
 .avvisi .icona-argomento { color: var(--tenue); }
@@ -447,3 +447,4 @@ dialog.finestra::backdrop { background: var(--velo); }
 .confronto mark { background: var(--accento-tenue); color: inherit; border-radius: 3px; padding: 0 2px; }
 pre.comando { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; background: var(--hover); padding: 10px 12px; border-radius: 8px; white-space: pre-wrap; word-break: break-all; user-select: all; margin-top: 6px; }
 form:has(input[name="automatica"]:not(:checked)) .solo-se-automatica { display: none; }
+.filtri .cerca { width: 190px; flex: 0 1 190px; }

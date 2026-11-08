@@ -14,6 +14,7 @@ from tkinter import messagebox, ttk
 
 import httpx
 
+from gradiens.app import aggiornamento
 from gradiens.app.cli import ATTESA_MASSIMA, _avvia_staccato, leggi_stato, richiedi_spegnimento
 from gradiens.app.configurazione import Configurazione
 
@@ -40,7 +41,9 @@ class Pannello:
         self._conf = conf
         self._letture: queue.Queue = queue.Queue()  # dal thread che legge lo stato: Tkinter si usa solo nel principale
         self._dati: dict | None = None
-        self._attesa: tuple[str, float] | None = None  # ("accensione" | "spegnimento", scadenza)
+        self._attesa: tuple[str, float] | None = None  # ("accensione" | "spegnimento" | "aggiornamento", scadenza)
+        self._passo = ""  # cosa sta facendo l'aggiornamento, scritto dal suo thread
+        self._esiti: queue.Queue = queue.Queue()  # (testo, è un errore) alla fine dell'aggiornamento
 
         self.finestra = tk.Tk()
         self.finestra.title("Gradiens")
@@ -61,7 +64,8 @@ class Pannello:
         self._accendi = ttk.Button(bottoni, text="Accendi", command=self._premi_accendi)
         self._spegni = ttk.Button(bottoni, text="Spegni", command=self._premi_spegni)
         self._apri = ttk.Button(bottoni, text="Apri la dashboard", command=lambda: webbrowser.open(conf.indirizzo_locale))
-        for colonna, bottone in enumerate((self._accendi, self._spegni, self._apri)):
+        self._aggiorna = ttk.Button(bottoni, text="Aggiorna", command=self._premi_aggiorna)
+        for colonna, bottone in enumerate((self._accendi, self._spegni, self._apri, self._aggiorna)):
             bottone.grid(row=0, column=colonna, padx=(0, 8))
 
         threading.Thread(target=self._leggi_sempre, daemon=True).start()
@@ -79,7 +83,13 @@ class Pannello:
                 self._dati = self._letture.get_nowait()
         except queue.Empty:
             pass
-        if self._attesa:
+        try:
+            testo, errore = self._esiti.get_nowait()
+            self._attesa = None
+            (messagebox.showerror if errore else messagebox.showinfo)("Gradiens", testo)
+        except queue.Empty:
+            pass
+        if self._attesa and self._attesa[0] != "aggiornamento":
             cosa, scadenza = self._attesa
             if (cosa == "accensione") == (self._dati is not None):
                 self._attesa = None
@@ -92,7 +102,9 @@ class Pannello:
         self.finestra.after(500, self._controlla)
 
     def _mostra(self) -> None:
-        if self._attesa:
+        if self._attesa and self._attesa[0] == "aggiornamento":
+            stato, titolo, dettaglio = "attesa", "Aggiornamento in corso…", self._passo
+        elif self._attesa:
             stato, titolo = "attesa", "Si sta accendendo…" if self._attesa[0] == "accensione" else "Si sta spegnendo…"
             dettaglio = "Ci vuole qualche secondo."
         else:
@@ -104,6 +116,7 @@ class Pannello:
         self._accendi.state(["!disabled"] if self._dati is None and not self._attesa else ["disabled"])
         self._spegni.state(["!disabled"] if acceso else ["disabled"])
         self._apri.state(["!disabled"] if acceso else ["disabled"])
+        self._aggiorna.state(["disabled"] if self._attesa else ["!disabled"])
 
     def _premi_accendi(self) -> None:
         self._attesa = "accensione", time.monotonic() + ATTESA_MASSIMA
@@ -123,6 +136,22 @@ class Pannello:
             return
         self._attesa = "spegnimento", time.monotonic() + ATTESA_MASSIMA
         self._mostra()
+
+
+    def _premi_aggiorna(self) -> None:
+        self._attesa, self._passo = ("aggiornamento", float("inf")), "Controllo se c'è una versione nuova…"
+
+        def lavora() -> None:
+            try:
+                self._esiti.put((aggiornamento.aggiorna(self._conf, self._imposta_passo), False))
+            except Exception as errore:  # anche un errore imprevisto deve sbloccare il pannello
+                self._esiti.put((str(errore), True))
+
+        threading.Thread(target=lavora, daemon=True).start()
+        self._mostra()
+
+    def _imposta_passo(self, testo: str) -> None:
+        self._passo = testo
 
 
 def apri(conf: Configurazione) -> int:

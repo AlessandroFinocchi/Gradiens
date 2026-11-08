@@ -363,3 +363,17 @@ def test_i_file_statici_hanno_la_versione_nell_indirizzo(client):
         assert f'/static/{nome}?v=' in pagina
     indirizzo = pagina.split('<link rel="stylesheet" href="')[1].split('"')[0]
     assert client.get(indirizzo).status_code == 200
+
+
+def test_avviso_del_login_di_claude_code_nella_home(client, monkeypatch):
+    from gradiens.dashboard import rotte
+
+    assert "Login di Claude Code" not in client.get("/").text
+    monkeypatch.setattr(rotte.claude_code, "avviso_login", lambda: "Il login di Claude Code scade il 10/11 alle 04:23")
+    assert "Il login di Claude Code scade il 10/11 alle 04:23" in client.get("/").text
+
+
+def test_ricerca_nella_pagina_notizie(dati):
+    pagina = dati.get("/notizie", params={"q": "parola-che-non-esiste"}).text
+    assert 'id="cerca"' in pagina and 'value="parola-che-non-esiste"' in pagina
+    assert "Nessuna notizia contiene tutte le parole cercate" in pagina

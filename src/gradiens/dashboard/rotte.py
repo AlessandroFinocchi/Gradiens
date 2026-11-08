@@ -19,6 +19,7 @@ from gradiens.dati.modelli import Esecuzione, Notizia
 from gradiens.dati.impostazioni import ImpostazioneNonValida
 from gradiens.dati.notizie import Filtri
 from gradiens.esecuzione.esecutore import GiaInCorso
+from gradiens.llm import claude_code
 from gradiens.telegram.messaggi import COMANDI
 
 router = APIRouter()
@@ -43,7 +44,7 @@ def home(request: Request, s: Sessione):
         ultima=ultima, riepilogo=ultima and esecuzioni.riepilogo(ultima),
         evidenza=notizie.in_evidenza(s, impostazioni.leggi(s).soglia),
         nomi_categorie=impostazioni.nomi_categorie(s),
-        siti_in_errore=dati_siti.in_errore(s), proposte=proposte.pendenti(s),
+        siti_in_errore=dati_siti.in_errore(s), proposte=proposte.pendenti(s), avviso_login=claude_code.avviso_login(),
         argomenti_nuovi=[r for r in argomenti.timeline(s, ultima and ultima.id) if r.nuove],  # UI-02, avvisi
         storico=[(e, esecuzioni.riepilogo(e)) for e in esecuzioni.storico(s)],
     )
@@ -131,6 +132,7 @@ def leggi_filtri(q: QueryParams, archivio: bool) -> Filtri:
         fonte=q.get("fonte") or None,
         giorni=_intero(q.get("giorni")),
         solo_cuore=q.get("cuore") == "1",
+        testo=(q.get("q") or "").strip()[:200],
         ordine="data" if ordine == "data" else "pertinenza",
         crescente=verso == "asc",
     )
@@ -148,7 +150,8 @@ def _elenco(request: Request, s: Sessione, archivio: bool) -> HTMLResponse:
         request, s, "notizie", nome,
         archivio=archivio, filtri=filtri, soglia=soglia,
         notizie=notizie.elenca(s, filtri, soglia),
-        filtrata=bool(request.query_params.get("tipo") or filtri.interesse_id or filtri.fonte or filtri.giorni or filtri.solo_cuore),
+        filtrata=bool(request.query_params.get("tipo") or filtri.interesse_id or filtri.fonte or filtri.giorni or filtri.solo_cuore
+                      or filtri.testo),
         interessi=interessi.elenca(s), fonti=fonti, nomi_categorie=nomi_categorie, ultima=esecuzioni.ultima(s),
         avanzamento=request.app.state.esecutore.avanzamento,
     )

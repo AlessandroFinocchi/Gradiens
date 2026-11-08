@@ -50,8 +50,13 @@
 
       <section class="blocco" aria-labelledby="t-avvisi">
         <h2 id="t-avvisi">Avvisi</h2>
-        {% if proposte or siti_in_errore or argomenti_nuovi %}
+        {% if avviso_login or proposte or siti_in_errore or argomenti_nuovi %}
         <ul class="avvisi">
+          {% if avviso_login %}
+          <li><div class="fisso">
+            <span class="segnale avvertimento">{{ icona("avvertimento") }}</span>
+            <span><strong>Login di Claude Code</strong><br><span class="descrizione">{{ avviso_login }}</span></span></div></li>
+          {% endif %}
           {% for p in proposte %}
           <li><a href="#" hx-get="/impostazioni/interessi" hx-target="#impostazioni">
             <span class="segnale novita"></span>

@@ -110,3 +110,26 @@ def test_pronto_controlla_il_collegamento_all_account(uscita, atteso):
     else:
         with pytest.raises(ErroreLLM, match=atteso):
             asyncio.run(provider.pronto())
+
+
+def test_avviso_prima_che_il_login_scada(tmp_path, monkeypatch):
+    from datetime import datetime
+
+    from gradiens.llm import claude_code
+
+    adesso = datetime(2026, 11, 8, 12, 0)
+    assert claude_code.avviso_login(adesso) is None  # nessun file delle credenziali: niente avviso
+
+    def scade(giorno, ora=4):
+        millisecondi = datetime(2026, 11, giorno, ora, 23).timestamp() * 1000
+        (tmp_path / "claude").mkdir(exist_ok=True)
+        (tmp_path / "claude" / ".credentials.json").write_text(json.dumps(
+            {"claudeAiOauth": {"accessToken": "segreto", "refreshTokenExpiresAt": millisecondi}}), encoding="utf-8")
+
+    scade(20)
+    assert claude_code.avviso_login(adesso) is None  # tra 12 giorni
+    scade(10)
+    assert claude_code.avviso_login(adesso).startswith("Il login di Claude Code scade il 10/11 alle 04:23")
+    scade(8)
+    avviso = claude_code.avviso_login(adesso)
+    assert avviso.startswith("Il login di Claude Code è scaduto il 08/11") and "/login" in avviso and "segreto" not in avviso

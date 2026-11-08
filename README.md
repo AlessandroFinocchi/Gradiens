@@ -53,6 +53,7 @@ uv run gradiens esegui    # lancia un'esecuzione e ne mostra l'avanzamento
 uv run gradiens stato     # dice se Gradiens è in esecuzione
 uv run gradiens spegni    # termina l'applicazione
 uv run gradiens pannello  # apre il pannello di controllo
+uv run gradiens aggiorna  # scarica la versione nuova e riaccende Gradiens se era acceso
 ```
 
 Poi apri http://127.0.0.1:8765/. La prima volta si apre la configurazione iniziale, in quattro passi: interessi, fonti (basta un canale YouTube, un sito o una categoria arXiv), Claude Code e bot Telegram, con un tutorial passo dopo passo. Dopo, tutto si cambia dall'ingranaggio in basso a sinistra. Dal bot puoi poi usare `/aggiorna`, `/stato`, `/ultima`, `/pausa`, `/riprendi` e `/help`.
@@ -64,13 +65,20 @@ Poi apri http://127.0.0.1:8765/. La prima volta si apre la configurazione inizia
 Tutto resta nella cartella del progetto, escluso da git ([PRD PER-02, PER-03](docs/requisiti/prd.md)):
 
 - `.env`: segreti e opzioni di avvio (prefisso `GRADIENS_`, per esempio `GRADIENS_PORTA=8765`), compreso il token del bot Telegram, che la dashboard scrive da sola;
-- `.gradiens/`: database, log e cache.
+- `.gradiens/`: database, log e cache;
+- `.gradiens/backup/`: copie del database fatte da Gradiens, una al giorno (le ultime 7) e una prima di ogni aggiornamento del database (le ultime 3).
+
+Per tornare a una copia: spegni Gradiens (`uv run gradiens spegni`), copia il file scelto da `.gradiens/backup/` al posto di `.gradiens/gradiens.db` e riaccendi.
 
 Cancellando la cartella si cancella tutto. Un clone nuovo parte senza configurazione: per spostare Gradiens su un altro PC copia anche `.gradiens/` e `.env`.
 
+## Aggiornare Gradiens
+
+`uv run gradiens aggiorna`, oppure il bottone "Aggiorna" del pannello di controllo, scarica la versione nuova da GitHub (`git`), aggiorna le dipendenze (`uv sync`) e riaccende Gradiens se era acceso. Il database si aggiorna da solo alla riaccensione, dopo una copia di sicurezza. Se nella cartella ci sono modifiche locali al codice, l'aggiornamento non parte, per non perderle. Su Windows, se le dipendenze non si aggiornano perché un file è in uso, chiudi il pannello e lancia `uv sync` nella cartella di Gradiens.
+
 ## Pannello di controllo
 
-Per chi non usa il terminale c'è una piccola finestra, il pannello di controllo, che mostra se Gradiens è spento, acceso o con un'esecuzione in corso e ha tre bottoni: Accendi, Spegni, Apri la dashboard ([ADR 0009](docs/adr/0009-pannello-di-controllo-con-tkinter.md)). Chiuderla non spegne Gradiens.
+Per chi non usa il terminale c'è una piccola finestra, il pannello di controllo, che mostra se Gradiens è spento, acceso o con un'esecuzione in corso e ha quattro bottoni: Accendi, Spegni, Apri la dashboard, Aggiorna ([ADR 0009](docs/adr/0009-pannello-di-controllo-con-tkinter.md)). Chiuderla non spegne Gradiens.
 
 Si apre da un'icona "Gradiens" sul desktop e nel menu: l'ultimo passo della configurazione iniziale propone di crearla, e si crea o si toglie quando vuoi dalle Impostazioni, sezione Avvio. Su Windows è un collegamento nel desktop e nel menu Start; su Linux un file `.desktop` sul desktop (la cartella nella lingua del sistema, per esempio `~/Scrivania`) e in `~/.local/share/applications`. Da terminale si apre con `uv run gradiens pannello`.
 

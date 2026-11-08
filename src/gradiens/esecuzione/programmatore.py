@@ -8,12 +8,14 @@ un'attesa lunga fino all'orario, regge cambi dell'ora legale e PC sospeso: conta
 
 import asyncio
 import logging
+import sqlite3
 from collections.abc import Callable
 from datetime import UTC, datetime, time, timedelta
 
 from sqlalchemy.orm import Session, sessionmaker
 
 from gradiens.dati import esecuzioni, impostazioni, notizie
+from gradiens.dati.database import copia_giornaliera
 from gradiens.esecuzione.esecutore import Esecutore, GiaInCorso
 
 log = logging.getLogger(__name__)
@@ -47,6 +49,10 @@ class Programmatore:
         adesso, ultimo = self._adesso(), self._ultimo_controllo
         with self._sessioni() as s:
             if ultimo is None or ultimo.date() != adesso.date():  # ESE-09: almeno una volta al giorno
+                try:  # prima della pulizia: la copia contiene ancora le notizie che stanno per scadere
+                    copia_giornaliera(s.get_bind())
+                except (OSError, sqlite3.Error):
+                    log.exception("Copia giornaliera del database non riuscita")
                 notizie.cancella_scadute(s)
             imp = impostazioni.leggi(s)
             scadenza = _scadenza(adesso, imp.orario_programmato)

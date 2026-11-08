@@ -359,3 +359,14 @@ def script_icone_windows(radice: Path, pythonw: str) -> str:
         "  $c.Save()",
         "}",
     ])
+
+
+# ---- Programmi esterni per l'aggiornamento (gradiens aggiorna) ----
+
+def eseguibile(nome: str) -> str | None:
+    """`git` o `uv`: dal PATH, oppure da `~/.local/bin`, dove li mettono gli installer ufficiali su Windows e su
+    Linux. Il pannello aperto dal menu può avere un PATH senza quella cartella."""
+    if trovato := shutil.which(nome):
+        return trovato
+    locale = Path.home() / ".local" / "bin" / (nome + ".exe" if os.name == "nt" else nome)
+    return str(locale) if locale.exists() else None

@@ -18,10 +18,11 @@ def porta_libera() -> int:
 
 
 @pytest.fixture(autouse=True)
-def senza_avvio_registrato(monkeypatch):
+def senza_avvio_registrato(monkeypatch, tmp_path):
     """I test non leggono la registrazione vera dell'avvio all'accensione (systemd o Utilità di pianificazione)."""
     monkeypatch.setattr(avvio_sistema, "_cache", (float("inf"), avvio_sistema.StatoAvvio(False)))
     monkeypatch.setattr(esecutore, "rete_disponibile", lambda: True)  # né la rete vera
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path / "claude"))  # né il login vero di Claude Code
 
 
 @pytest.fixture

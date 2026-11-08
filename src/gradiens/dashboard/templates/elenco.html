@@ -33,7 +33,7 @@
   <div class="vuoto-pagina">
     {{ icona("notizie") }}
     <h2>Nessuna notizia con questi filtri</h2>
-    <p>Prova a togliere qualche filtro o ad allargare l'intervallo di date.</p>
+    <p>{% if filtri.testo %}Nessuna notizia contiene tutte le parole cercate. {% endif %}Prova a togliere qualche filtro o ad allargare l'intervallo di date.</p>
     <a class="bottone secondario" href="{{ '/archivio' if archivio else '/notizie' }}">Azzera i filtri</a>
   </div>
   {% elif archivio %}

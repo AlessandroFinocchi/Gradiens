@@ -302,7 +302,6 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
     - Interessi: proposte di raffinamento da approvare;
     - Siti web: un profilo è stato rigenerato e le differenze sono da guardare (`WEB-25`), oppure un sito appena aggiunto o con il profilo appena rigenerato propone siti collegati non ancora attivati (`WEB-07`). Questi segnali durano fino alla raccolta successiva: dopo, i siti collegati restano attivabili dal profilo ma senza segnale;
     - arXiv: nell'ultima esecuzione è stato raggiunto il tetto di paper;
-    - Esecuzione: la programmazione è in pausa.
 
   Se una sezione ha entrambi i tipi di segnale, si mostra l'avvertimento. Il segnale sparisce da solo quando la causa viene risolta.
 - `UI-11` **Configurazione iniziale**: si apre la prima volta, finché non è stata completata, e la dashboard non si usa finché non è completa. Dopo, se un dato obbligatorio manca, la dashboard resta usabile e lo segnala sulla sezione delle Impostazioni (`UI-14`). I dati obbligatori sono:

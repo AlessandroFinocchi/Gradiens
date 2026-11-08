@@ -169,3 +169,19 @@ def test_esecuzioni_rimaste_in_corso_diventano_interrotte(s):
     assert esecuzioni.segna_interrotte(s) == 1
     s.expire_all()
     assert s.get(Esecuzione, e.id).stato == "interrotta"
+
+
+def test_ricerca_su_titolo_traduzione_riassunto_e_fonte(s):
+    a = interessi.aggiungi(s, "A", "a")
+    ransomware = notizia(s, "rw", punteggi=[(a.id, 80)], cuore=True)
+    ransomware.titolo, ransomware.titolo_it, ransomware.riassunto = "Ransomware hits hospital", "Ransomware colpisce un ospedale", "Attacco all'ASL di Roma."
+    notizia(s, "chip", tipo="sito", fonte="hwupgrade.it", punteggi=[(a.id, 80)])
+    notizia(s, "100%", punteggi=[(a.id, 80)])
+    s.commit()
+    cerca = lambda testo, **altri: titoli(notizie.elenca(s, Filtri(testo=testo, **altri), 60))  # noqa: E731
+    assert cerca("RANSOMWARE") == ["rw"]  # maiuscole e minuscole
+    assert cerca("ospedale roma") == ["rw"]  # ogni parola, anche in campi diversi
+    assert cerca("ospedale milano") == []
+    assert cerca("hwupgrade") == ["chip"]  # anche la fonte
+    assert cerca("%") == ["100%"]  # i caratteri speciali di LIKE valgono come testo
+    assert titoli(notizie.elenca(s, Filtri(archivio=True, testo="asl"), 60)) == ["rw"]  # anche nell'Archivio

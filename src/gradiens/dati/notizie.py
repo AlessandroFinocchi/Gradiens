@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from gradiens.dati.modelli import TIPI_NOTIZIA, Argomento, Notizia, NotiziaVista, Pertinenza
@@ -26,6 +26,7 @@ class Filtri:
     interesse_id: int | None = None
     fonte: str | None = None
     giorni: int | None = None  # solo le notizie pubblicate negli ultimi N giorni
+    testo: str = ""  # ricerca: ogni parola deve comparire nel titolo, nella traduzione, nel riassunto o nella fonte
     solo_cuore: bool = False
     ordine: str = "pertinenza"  # oppure "data"
     crescente: bool = False
@@ -61,6 +62,11 @@ def elenca(sessione: Session, filtri: Filtri, soglia: int) -> list[Notizia]:
         query = query.where(Notizia.pubblicata_il >= adesso() - timedelta(days=filtri.giorni))
     if filtri.solo_cuore:
         query = query.where(Notizia.cuore)
+    # shortcut: LIKE di SQLite ignora maiuscole e minuscole solo per le lettere senza accento ("È" non trova "è").
+    # Per qualche migliaio di notizie basta; con molte di più servirebbe la ricerca full-text (FTS5).
+    for parola in filtri.testo.split():
+        query = query.where(or_(*(campo.icontains(parola, autoescape=True)
+                                   for campo in (Notizia.titolo, Notizia.titolo_it, Notizia.riassunto, Notizia.fonte))))
 
     chiave = punteggio if filtri.ordine == "pertinenza" else Notizia.pubblicata_il
     query = query.order_by(chiave.asc() if filtri.crescente else chiave.desc(), Notizia.pubblicata_il.desc())

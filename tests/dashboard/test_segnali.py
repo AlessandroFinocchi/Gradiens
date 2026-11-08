@@ -49,7 +49,7 @@ def test_siti_errore_rigenerato_e_collegati_nuovi(s):
     assert siti.tipo == "novita" and siti.motivi == ["https://buono.it/: profilo rigenerato"]
 
 
-def test_tetto_canale_irraggiungibile_e_pausa(s):
+def test_tetto_canale_irraggiungibile_e_niente_segnale_per_la_pausa(s):
     configura(s)
     e = esecuzioni.inizia(s, "programmazione")
     esecuzioni.termina(s, e.id, "completata", {"fonti": {
@@ -60,7 +60,7 @@ def test_tetto_canale_irraggiungibile_e_pausa(s):
     trovati = segnali.segnali(s)
     assert (trovati["arxiv"].tipo, trovati["arxiv"].voci) == ("novita", {"tetto"})
     assert trovati["canali-youtube"].motivi == ["Lab: non raggiungibile"]  # solo i canali ancora seguiti
-    assert trovati["esecuzione"].voci == {"pausa"}
+    assert "esecuzione" not in trovati  # la programmazione spenta è una scelta, non qualcosa da guardare
     sezione, segnale = segnali.globale(trovati)
     assert sezione == "canali-youtube" and segnale.tipo == "avvertimento"
-    assert segnale.motivo == "3 sezioni delle Impostazioni da guardare"
+    assert segnale.motivo == "2 sezioni delle Impostazioni da guardare"

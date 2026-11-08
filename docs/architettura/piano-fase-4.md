@@ -38,6 +38,10 @@ Le preview approvate in `mockup/` sono la base dei template Jinja2.
 - **Esecuzione all'accensione senza rete** (8 nov): il recupero dell'esecuzione delle 7:00 è partito all'accensione, prima della rete. Tutte le fonti hanno fallito, e per i siti il robots.txt irraggiungibile è diventato "robots.txt ora vieta …", ricordato per un'ora. Ora l'esecuzione aspetta la rete fino a 5 minuti (`Esecutore._attendi_rete`, fase "attesa della rete") e poi fallisce con il motivo; un robots.txt irraggiungibile per la rete è un errore di rete, non un divieto, e non si ricorda (`rete.Navigatore._regole`).
 - **Quota**: alla prima esecuzione la finestra è di 7 giorni. Con categorie arXiv molto attive (es. `cs.AI`, migliaia di paper a settimana) il pre-filtro costa molte chiamate: conviene scegliere categorie precise o un modello locale per il pre-filtro (`LLM-03`).
 
+## Miglioramenti dopo la fase 4 (8 nov)
+
+Scelti dall'utente tra le proposte: copie di sicurezza del database, ricerca in Notizie e Archivio, fonti con problemi nel messaggio Telegram, `gradiens aggiorna` con il bottone del pannello. Scartato "Non mi interessa". Da provare su Windows: l'aggiornamento con il pannello aperto (file delle dipendenze in uso).
+
 ## Sviluppi futuri
 
 - **7a, Modelli LLM** (rimandata il 7 nov): sezione Modelli LLM delle Impostazioni con provider e modello per pre-filtro ed elaborazione (`LLM-03`), provider API di Claude con la chiave in `.env` e provider compatibile OpenAI per Ollama e LM Studio (`LLM-02`), stato di Claude Code con il bottone "Verifica" e segnale della sezione (`UI-14`, `ACC-15`). La preview è in `mockup/app.js` (sezione `modelli`). Il modello locale va provato su un PC con GPU (il PC Windows con la RTX 3070). Finché manca, provider e modello restano quelli predefiniti (Claude Code, Haiku) e la configurazione iniziale (7c) controlla solo Claude Code.

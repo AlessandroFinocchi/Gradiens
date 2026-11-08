@@ -1,9 +1,11 @@
+import sqlite3
+
 import pytest
 from alembic import command
 from alembic.config import Config
 
 from gradiens.dati import impostazioni
-from gradiens.dati.database import CARTELLA_MIGRAZIONI, crea_motore, fabbrica_sessioni, migra
+from gradiens.dati.database import CARTELLA_MIGRAZIONI, copia_giornaliera, crea_motore, fabbrica_sessioni, migra
 
 
 @pytest.fixture
@@ -63,3 +65,37 @@ def test_un_gradiens_gia_in_uso_salta_la_configurazione_iniziale(tmp_path, con_i
     migra(motore)
     with fabbrica_sessioni(motore)() as s:
         assert impostazioni.leggi(s).configurazione_completata is con_interessi
+
+
+def test_copia_prima_di_una_migrazione_ma_non_su_un_database_nuovo(tmp_path):
+    motore = crea_motore(tmp_path / "prova.db")
+    migra(motore)  # database nuovo: niente da salvare
+    assert not (tmp_path / "backup").exists()
+
+    vecchio = crea_motore(tmp_path / "vecchio" / "gradiens.db")
+    config = Config()
+    config.set_main_option("script_location", str(CARTELLA_MIGRAZIONI))
+    with vecchio.begin() as c:
+        config.attributes["connection"] = c
+        command.upgrade(config, "0010")
+        c.exec_driver_sql("INSERT INTO interessi (id, nome, descrizione) VALUES (1, 'AI', 'AI')")
+    migra(vecchio)
+    [copia] = (tmp_path / "vecchio" / "backup").glob("gradiens-*-migrazione.db")
+    with sqlite3.connect(copia) as c:  # la copia è il database prima della migrazione, con i dati
+        assert c.execute("SELECT version_num FROM alembic_version").fetchone() == ("0010",)
+        assert c.execute("SELECT nome FROM interessi").fetchall() == [("AI",)]
+    migra(vecchio)  # già aggiornato: nessuna copia in più
+    assert len(list((tmp_path / "vecchio" / "backup").iterdir())) == 1
+
+
+def test_copie_giornaliere_una_al_giorno_e_al_massimo_sette(tmp_path):
+    motore = crea_motore(tmp_path / "gradiens.db")
+    migra(motore)
+    cartella = tmp_path / "backup"
+    cartella.mkdir()
+    for giorno in range(1, 10):  # copie di giorni passati
+        (cartella / f"gradiens-202610{giorno:02d}-070000-giornaliera.db").write_bytes(b"")
+    assert copia_giornaliera(motore) is not None
+    assert copia_giornaliera(motore) is None  # stesso giorno, anche dopo un riavvio
+    rimaste = sorted(p.name for p in cartella.glob("*-giornaliera.db"))
+    assert len(rimaste) == 7 and rimaste[0] == "gradiens-20261004-070000-giornaliera.db"  # via le più vecchie

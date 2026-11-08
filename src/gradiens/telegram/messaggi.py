@@ -5,11 +5,13 @@ from datetime import UTC, datetime
 from html import escape
 
 from gradiens.dashboard.comune import AVVIATA_DA, FONTI, durata, token_brevi
+from gradiens.dati.esecuzioni import STATI_BUONI
 from gradiens.dati.modelli import Esecuzione, Notizia
 from gradiens.dati.notizie import nome_fonte
 
 ICONE = {"siti": "🌐", "youtube": "▶️", "arxiv": "📄"}
 MAX_TITOLO, MAX_RIASSUNTO = 120, 220  # 9 notizie stanno nei 4096 caratteri di un messaggio
+MAX_PROBLEMI = 5  # fonti con un problema elencate nel messaggio: le altre sono nel resoconto
 COMANDI = {
     "aggiorna": "avvia un'esecuzione",
     "stato": "esecuzione in corso o ultima conclusa, e prossima programmata",
@@ -40,7 +42,7 @@ def riga_metriche(r: dict) -> str:
 
 
 def fine_esecuzione(e: Esecuzione, r: dict, gruppi: dict[str, list[Notizia]],
-                    nomi_categorie: dict[str, str]) -> tuple[str, list[Notizia]]:
+                    nomi_categorie: dict[str, str], avviso: str | None = None) -> tuple[str, list[Notizia]]:
     """TG-03, TG-04, ESE-13: testo del messaggio e notizie numerate, nell'ordine dei bottoni ❤️."""
     righe = [f"<b>Esecuzione {escape(e.stato)}</b> · {_quando(e)} · avviata da: {AVVIATA_DA.get(e.avviata_da, e.avviata_da)}"]
     if e.motivo:
@@ -57,6 +59,14 @@ def fine_esecuzione(e: Esecuzione, r: dict, gruppi: dict[str, list[Notizia]],
             righe.append(f"<i>{escape(nome_fonte(n.tipo, n.fonte, nomi_categorie))} · {escape(migliore.interesse.nome)} {migliore.punteggio}</i>")
             righe.append(escape(_due_frasi(n.riassunto)))
     righe.append(f"\n{riga_metriche(r)}")
+    # Un sito in errore o un canale irraggiungibile si vedrebbero solo aprendo la dashboard.
+    if problemi := [st for st in r["stati"] if st["stato"] not in STATI_BUONI]:
+        righe.append("\n⚠️ <b>Fonti con problemi</b>")
+        righe += [f"• {escape(st['fonte'])}: {escape(st['stato'])}" for st in problemi[:MAX_PROBLEMI]]
+        if len(problemi) > MAX_PROBLEMI:
+            righe.append(f"… e altre {len(problemi) - MAX_PROBLEMI}: le trovi nel resoconto, nella dashboard.")
+    if avviso:  # es. il login di Claude Code che scade: lo si legge ogni giorno, senza aprire la dashboard
+        righe.append(f"\n⚠️ {escape(avviso)}")
     return "\n".join(righe), numerate
 
 

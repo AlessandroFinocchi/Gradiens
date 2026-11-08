@@ -6,6 +6,7 @@ import logging
 import os
 import shutil
 import subprocess
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from gradiens.app.avvio_sistema import eseguibile_claude
@@ -109,6 +110,10 @@ class ClaudeCode:
         return interpreta(uscita.decode("utf-8", "replace"))
 
 
+RIMEDIO_LOGIN = "apri un terminale, scrivi claude e poi /login (su un PC senza browser: claude setup-token)."
+GIORNI_AVVISO_LOGIN = 3
+
+
 def stato_account(comando: list[str] | None = None) -> str:
     """UI-11: descrizione del collegamento di Claude Code a un account, per esempio "abbonamento Pro".
     Solleva ErroreLLM, con un messaggio per l'utente, se Claude Code manca o non è collegato."""
@@ -119,6 +124,28 @@ def stato_account(comando: list[str] | None = None) -> str:
     except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
         raise ErroreLLM("Claude Code non risponde: prova ad aprirlo in un terminale con il comando claude.") from None
     if not dati.get("loggedIn"):
-        raise ErroreLLM("Claude Code non è collegato a un account.")
+        raise ErroreLLM(f"Claude Code non è collegato a un account: {RIMEDIO_LOGIN}")
     abbonamento = dati.get("subscriptionType")
     return f"abbonamento {str(abbonamento).capitalize()}" if abbonamento else "collegato con una chiave API"
+
+
+def scadenza_login() -> datetime | None:
+    """Quando scade il rinnovo del login di Claude Code (`refreshTokenExpiresAt` nelle sue credenziali, ora
+    del PC). Dopo quella data Claude Code non rinnova più il login da solo e le esecuzioni falliscono. Si legge
+    solo la data: i token non si usano né si copiano. None se il file non c'è (es. login tenuto nel Keychain)."""
+    cartella = Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
+    try:
+        millisecondi = json.loads((cartella / ".credentials.json").read_text(encoding="utf-8"))["claudeAiOauth"]["refreshTokenExpiresAt"]
+        return datetime.fromtimestamp(millisecondi / 1000) if millisecondi else None
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+def avviso_login(adesso: datetime | None = None) -> str | None:
+    """Testo per l'utente se il login di Claude Code scade entro pochi giorni, o è già scaduto."""
+    scadenza, adesso = scadenza_login(), adesso or datetime.now()
+    if scadenza is None or scadenza - adesso > timedelta(days=GIORNI_AVVISO_LOGIN):
+        return None
+    if scadenza <= adesso:
+        return f"Il login di Claude Code è scaduto il {scadenza:%d/%m alle %H:%M}: {RIMEDIO_LOGIN}"
+    return f"Il login di Claude Code scade il {scadenza:%d/%m alle %H:%M}: per non far fallire le esecuzioni, {RIMEDIO_LOGIN}"

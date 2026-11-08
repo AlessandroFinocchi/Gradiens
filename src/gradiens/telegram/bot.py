@@ -21,6 +21,7 @@ from gradiens.app.configurazione import Configurazione
 from gradiens.dati import esecuzioni, impostazioni, notizie
 from gradiens.dati.modelli import Esecuzione, Notizia
 from gradiens.esecuzione.esecutore import Esecutore, GiaInCorso
+from gradiens.llm import claude_code
 from gradiens.telegram import messaggi
 
 log = logging.getLogger(__name__)
@@ -159,7 +160,8 @@ class BotGradiens:
     def _messaggio_esecuzione(self, s: Session, id: int) -> tuple[str, InlineKeyboardMarkup | None]:
         e = s.get_one(Esecuzione, id)
         gruppi = notizie.in_evidenza(s, impostazioni.leggi(s).soglia, esecuzione_id=id)
-        testo, numerate = messaggi.fine_esecuzione(e, esecuzioni.riepilogo(e), gruppi, impostazioni.nomi_categorie(s))
+        testo, numerate = messaggi.fine_esecuzione(e, esecuzioni.riepilogo(e), gruppi, impostazioni.nomi_categorie(s),
+                                                   claude_code.avviso_login())
         return testo, _tastiera(numerate)
 
     async def invia_esecuzione(self, id: int) -> None:

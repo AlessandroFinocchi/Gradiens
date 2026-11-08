@@ -250,3 +250,27 @@ def test_messaggio_di_prova_prova_prima_a_ricollegare(monkeypatch):
     monkeypatch.setattr(bot, "_chat", lambda: CHAT)
     asyncio.run(bot.invia_prova())
     assert inviati and "funziona" in inviati[0]
+
+
+def test_avviso_del_login_in_fondo_al_messaggio_di_fine_esecuzione(ambiente, monkeypatch):
+    client, id = ambiente
+    monkeypatch.setattr(telegram.claude_code, "avviso_login", lambda: "Il login di Claude Code scade il 10/11: rifallo <subito>")
+    b, inviati = bot_di(client)
+    asyncio.run(b.invia_esecuzione(id))
+    assert inviati[0][1].endswith("⚠️ Il login di Claude Code scade il 10/11: rifallo &lt;subito&gt;")
+
+
+def test_fonti_con_problemi_nel_messaggio_di_fine_esecuzione(ambiente):
+    client, id = ambiente
+    stati = [{"fonte": "redhotcyber.com", "stato": "nessuna strategia funzionante"}, {"fonte": "e.org", "stato": "ok"},
+             {"fonte": "nature.com", "stato": "nessun articolo nuovo"}]
+    stati += [{"fonte": f"Canale <{n}>", "stato": "non raggiungibile"} for n in range(6)]
+    with client.app.state.sessioni() as s:
+        esecuzioni.termina(s, id, "completata", {"durata_s": 75, "fonti": {"siti": {"esaminate": 10, "stati": stati}}})
+    b, inviati = bot_di(client)
+    asyncio.run(b.invia_esecuzione(id))
+    testo = inviati[0][1]
+    assert "⚠️ <b>Fonti con problemi</b>\n• redhotcyber.com: nessuna strategia funzionante" in testo
+    assert "e.org" not in testo.split("Fonti con problemi")[1] and "nature.com" not in testo  # gli esiti normali no
+    assert "• Canale &lt;3&gt;: non raggiungibile" in testo and "Canale &lt;4&gt;" not in testo  # al massimo 5
+    assert "… e altre 2: le trovi nel resoconto, nella dashboard." in testo

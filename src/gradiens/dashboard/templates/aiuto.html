@@ -38,7 +38,7 @@
       <li><strong>Timeline</strong>: gli argomenti e i loro sviluppi.</li>
       <li><strong>Archivio</strong>: le notizie con il cuore, senza limite di tempo.</li>
     </ul>
-    <p>Ogni notizia ha una sua pagina, con il riassunto completo, i punteggi per ogni interesse e il link all'originale.</p>
+    <p>In Notizie e nell'Archivio il campo <strong>Cerca</strong> trova le notizie che contengono tutte le parole scritte, nel titolo, nella traduzione, nel riassunto o nella fonte. Ogni notizia ha una sua pagina, con il riassunto completo, i punteggi per ogni interesse e il link all'originale.</p>
 
     <h2 id="fonti">Fonti</h2>
     <p>Basta una fonte, di qualsiasi tipo: non serve averle tutte.</p>
@@ -105,7 +105,7 @@
       <li><strong>Linux</strong>: Gradiens registra un servizio utente di systemd. Se il sistema chiede la password di amministratore per farlo partire senza accesso, la sezione mostra il comando da lanciare in un terminale.</li>
     </ul>
     <p>Se sposti la cartella di Gradiens, spegni e riaccendi l'opzione.</p>
-    <p>Nella stessa sezione puoi creare l'<strong>icona Gradiens</strong> sul desktop e nel menu. Apre il pannello di controllo, una piccola finestra con lo stato (spento, acceso, esecuzione in corso) e tre bottoni: Accendi, Spegni, Apri la dashboard. Chiudere il pannello non spegne Gradiens.</p>
+    <p>Nella stessa sezione puoi creare l'<strong>icona Gradiens</strong> sul desktop e nel menu. Apre il pannello di controllo, una piccola finestra con lo stato (spento, acceso, esecuzione in corso) e quattro bottoni: Accendi, Spegni, Apri la dashboard, Aggiorna. Chiudere il pannello non spegne Gradiens.</p>
 
     <h2 id="cli">Comandi da terminale</h2>
     <p>Si lanciano dalla cartella di Gradiens, con <code>uv run</code> davanti (per esempio <code>uv run gradiens stato</code>), sia su Windows sia su Linux.</p>
@@ -114,6 +114,7 @@
         <tr><td><code>gradiens avvia</code></td><td>Fa partire dashboard, programmazione giornaliera e bot Telegram, staccati dal terminale: continuano anche se lo chiudi.</td></tr>
         <tr><td><code>gradiens esegui</code></td><td>Lancia un'esecuzione, ne mostra l'avanzamento e alla fine stampa le metriche. Se Gradiens è spento, lo avvia.</td></tr>
         <tr><td><code>gradiens stato</code></td><td>Dice se Gradiens è acceso, e mostra l'esecuzione in corso o l'ultima e la prossima programmata.</td></tr>
+        <tr><td><code>gradiens aggiorna</code></td><td>Scarica la versione nuova di Gradiens, aggiorna le dipendenze e lo riaccende se era acceso. Lo fa anche il bottone "Aggiorna" del pannello.</td></tr>
         <tr><td><code>gradiens pannello</code></td><td>Apre il pannello di controllo, la stessa finestra dell'icona Gradiens.</td></tr>
         <tr><td><code>gradiens spegni</code></td><td>Termina l'applicazione. Un'esecuzione in corso viene segnata come interrotta e le notizie rimaste si riprendono alla successiva.</td></tr>
       </tbody>
@@ -128,7 +129,7 @@
         <tr><td>❤️ sotto il messaggio</td><td>Mette o toglie il cuore alla notizia con quel numero.</td></tr>
       </tbody>
     </table></div>
-    <p>Il bot risponde solo alla tua chat e ignora tutte le altre. Si collega dalle Impostazioni, sezione Telegram, con un tutorial passo dopo passo.</p>
+    <p>Il messaggio di fine esecuzione elenca in fondo le fonti con un problema (per esempio un sito in errore) e gli avvisi, come il login di Claude Code che sta per scadere. Il bot risponde solo alla tua chat e ignora tutte le altre. Si collega dalle Impostazioni, sezione Telegram, con un tutorial passo dopo passo.</p>
   </article>
 </main>
 {% endblock %}

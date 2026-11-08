@@ -72,8 +72,6 @@ def segnali(s: Session, problema_telegram: str | None = None, problema_avvio: st
         segnala("telegram", "avvertimento", problema_telegram, "bot")
     if problema_avvio:  # registrazione dell'avvio all'accensione da rifare o incompleta (AMB-04)
         segnala("avvio", "avvertimento", problema_avvio, "stato")
-    if impostazioni.leggi(s).programmazione_in_pausa:
-        segnala("esecuzione", "novita", "La programmazione è in pausa", "pausa")
     return trovati
 
 

@@ -165,6 +165,7 @@ def main(argv: list[str] | None = None) -> int:
     comandi.add_parser("stato", help="mostra se Gradiens è in esecuzione")
     comandi.add_parser("spegni", help="termina l'applicazione")
     comandi.add_parser("pannello", help="apre il pannello di controllo: accendi, spegni e stato senza terminale")
+    comandi.add_parser("aggiorna", help="scarica la versione nuova di Gradiens e lo riaccende se era acceso")
     args = parser.parse_args(argv)
 
     conf = configurazione()
@@ -174,6 +175,15 @@ def main(argv: list[str] | None = None) -> int:
         return esegui(conf)
     if args.comando == "stato":
         return stato(conf)
+    if args.comando == "aggiorna":
+        from gradiens.app import aggiornamento  # import qui: il modulo importa questo
+
+        try:
+            print(aggiornamento.aggiorna(conf))
+        except aggiornamento.ErroreAggiornamento as errore:
+            print(errore, file=sys.stderr)
+            return 1
+        return 0
     if args.comando == "pannello":
         from gradiens.app import pannello  # import qui: Tkinter serve solo al pannello
 

@@ -120,7 +120,10 @@ def test_impostazioni_arxiv_ed_esecuzione(dati):
     assert "non sembra una categoria" in dati.post("/impostazioni/arxiv/categorie", data={"codice": "<b>x</b>"}, headers=HTMX).text
     assert "cs.AI" in dati.post("/impostazioni/arxiv/categorie", data={"codice": "cs.AI"}, headers=HTMX).text
     con_nome = dati.post("/impostazioni/arxiv/categorie", data={"codice": "cs.IR", "nome": "Ricerca <i>"}, headers=HTMX).text
-    assert "cs.IR · Ricerca &lt;i&gt;" in con_nome
+    assert '<div class="titolo"><code>cs.IR</code> · Ricerca &lt;i&gt;</div>' in con_nome  # codice e nome sulla stessa riga
+    righe = [con_nome.index(f'<div class="titolo"><code>{c}</code>') for c in ("cs.AI", "cs.CR", "cs.IR")]
+    assert righe == sorted(righe)  # in ordine di codice, non di inserimento
+    assert con_nome.index("Tetto di paper") < con_nome.index("Categorie seguite") < con_nome.index("<code>cs.IR</code>")
     assert "va da 1 a 7" in dati.post("/impostazioni/esecuzione", data={"soglia": 60, "finestra_giorni": 9}, headers=HTMX).text
     assert "non è un orario valido" in dati.post(
         "/impostazioni/esecuzione", data={"soglia": 60, "finestra_giorni": 7, "orario": "25:00"}, headers=HTMX).text
@@ -271,6 +274,9 @@ def test_impostazioni_siti(dati, monkeypatch):
     monkeypatch.setattr(siti, "analizza", analizza)
     finestra = dati.post("/impostazioni/siti", data={"indirizzo": "redhotcyber.com"}, headers=HTMX).text
     assert "redhotcyber.com" in finestra and "mai raccolto" in finestra
+    # Sito nuovo con un sito collegato da attivare: è una novità, e la riga dice perché è evidenziata.
+    assert '<div class="riga proposta"' in finestra and "evidenziata" not in finestra.split("Siti seguiti")[1]
+    assert "L'analisi ha trovato un sito collegato: esterno.example" in finestra
     assert "già tra quelli seguiti" in dati.post("/impostazioni/siti", data={"indirizzo": "redhotcyber.com"}, headers=HTMX).text
     assert "Indirizzo non valido" in dati.post("/impostazioni/siti", data={"indirizzo": "rotto"}, headers=HTMX).text
 
@@ -377,3 +383,20 @@ def test_ricerca_nella_pagina_notizie(dati):
     pagina = dati.get("/notizie", params={"q": "parola-che-non-esiste"}).text
     assert 'id="cerca"' in pagina and 'value="parola-che-non-esiste"' in pagina
     assert "Nessuna notizia contiene tutte le parole cercate" in pagina
+
+
+def test_righe_compatte_delle_fonti(dati, monkeypatch):
+    from gradiens.dati import impostazioni as imp
+    from gradiens.dati import siti as dati_siti
+
+    with dati.app.state.sessioni() as s:
+        imp.aggiungi_canale(s, "UC123", "Lab di Sicurezza")
+        id = dati_siti.aggiungi(s, "https://e.org/", {"url": "https://e.org/", "perimetro": "e.org"}, None).id
+        dati_siti.registra_esito(s, id, "accesso bloccato", "Il sito rifiuta le richieste.", True)
+    canali = dati.get("/impostazioni/canali-youtube", headers=HTMX).text
+    assert '<div class="titolo"><a href="https://www.youtube.com/channel/UC123"' in canali and ">Lab di Sicurezza</a>" in canali
+    assert "youtube.com/channel/UC123</a>" not in canali  # niente più link sotto il nome
+    siti = dati.get("/impostazioni/siti", headers=HTMX).text.split("Siti seguiti")[1]
+    assert 'class="riga evidenziata"' in siti  # il problema si vede dallo sfondo della riga
+    riga, menu = siti.split("<details", 1)
+    assert "accesso bloccato" not in riga and "accesso bloccato" in menu  # lo stato è nel menu

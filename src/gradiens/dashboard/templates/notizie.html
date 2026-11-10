@@ -11,7 +11,7 @@
         <h1>{{ titolo }}</h1>
         <div class="sottotitolo">
           {% if archivio %}Notizie con il cuore, conservate senza limite di tempo. Togliendo il cuore, una notizia torna alla regola dei 7 giorni.
-          {% else %}Ultimi 7 giorni{% if ultima %} · ultima esecuzione {{ ultima.avviata_il|data_relativa }}{% if ultima.stato != "completata" %} ({{ ultima.stato }}){% endif %}{% endif %}
+          {% else %}Ultimi 7 giorni{% if ultima %} · ultima esecuzione {{ ultima.avviata_il|data_relativa }}{% if ultima.stato != "completata" %} ({{ ultima.stato | replace("_", " ") }}){% endif %}{% endif %}
           {% endif %}
         </div>
       </div>

@@ -9,7 +9,7 @@
 {% else %}
 <div id="avanzamento" class="avanzamento-esecuzione" role="status">
   {% if mostra_esito and ultima %}
-  <span>Esecuzione {{ ultima.stato }}{% if ultima.motivo %}: {{ ultima.motivo }}{% endif %}</span>
+  <span>Esecuzione {{ ultima.stato | replace("_", " ") }}{% if ultima.motivo %}: {{ ultima.motivo }}{% endif %}</span>
   {% endif %}
   <button type="button" class="bottone" hx-post="/esecuzione" hx-target="#avanzamento" hx-swap="outerHTML">{{ icona("avvia") }}Avvia esecuzione</button>
 </div>

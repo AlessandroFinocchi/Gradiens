@@ -10,14 +10,12 @@
 <h3>Siti seguiti</h3>
 {% for sito, p in siti %}
 {% set problema = sito.stato and sito.stato not in ("ok", "nessun articolo nuovo") %}
+{# WEB-07: i siti collegati da attivare si propongono solo finché il sito è nuovo (c'è il segnale). #}
+{% set proposti = p.collegati_proposti if "sito-" ~ sito.id in voci else [] %}
 <div class="riga{% if problema and sito.stato != 'profilo rigenerato' %} evidenziata{% elif "sito-" ~ sito.id in voci %} proposta{% endif %}" style="display: block">
   <div style="display: flex; gap: 12px; align-items: flex-start">
     <div class="testo">
-      <div class="titolo">{{ p.perimetro or sito.url }}</div>
-      <div class="descrizione">
-        {% if sito.stato %}<span class="stato{% if sito.stato == 'ok' %} ok{% elif problema and sito.stato != 'profilo rigenerato' %} errore{% endif %}">{{ sito.stato }}</span>{% else %}<span class="nota">mai raccolto</span>{% endif %}
-        {% if sito.dettaglio %} {{ sito.dettaglio }}{% endif %}
-      </div>
+      <div class="titolo"><a href="{{ sito.url }}" target="_blank" rel="noopener noreferrer">{{ p.perimetro or sito.url }}</a></div>
     </div>
     <div class="controllo">
       <button type="button" class="bottone secondario piccolo" hx-post="/impostazioni/siti/{{ sito.id }}/rigenera" hx-target="#impostazioni"
@@ -26,8 +24,15 @@
               hx-confirm="Smettere di seguire {{ sito.url }}?" aria-label="Rimuovi {{ sito.url }}" title="Rimuovi">{{ icona("cestino") }}</button>
     </div>
   </div>
+  {# Riga compatta: stato, dettagli e profilo stanno qui; lo sfondo della riga segnala un problema o una novità. #}
   <details class="profilo-sito">
-    <summary>Profilo{% if p.strategie %}: {{ p.strategie | join(", ") }}{% endif %}{% if p.piattaforma %} · {{ p.piattaforma }}{% endif %}</summary>
+    <summary>Stato e profilo</summary>
+    <p class="descrizione" style="margin: 8px 0">
+      {% if sito.stato %}<span class="stato{% if sito.stato == 'ok' %} ok{% elif problema and sito.stato != 'profilo rigenerato' %} errore{% endif %}">{{ sito.stato }}</span>{% else %}<span class="nota">mai raccolto</span>{% endif %}
+      {% if sito.dettaglio %} {{ sito.dettaglio }}{% endif %}
+    </p>
+    {% if proposti %}<p class="descrizione"><span class="segnale novita"></span> L'analisi ha trovato {{ "un sito collegato" if proposti | length == 1 else proposti | length ~ " siti collegati" }}: {{ proposti | join(", ") }}. Se ti interessano, attivali qui sotto; altrimenti non serve fare niente.</p>{% endif %}
+    <p class="etichetta-campo">Profilo{% if p.strategie %}: {{ p.strategie | join(", ") }}{% endif %}{% if p.piattaforma %} · {{ p.piattaforma }}{% endif %}</p>
     <dl>
       <dt>Feed</dt><dd>{% for f in p.feed %}<code>{{ f }}</code> {% else %}nessuno{% endfor %}</dd>
       <dt>Sitemap</dt><dd>{% for f in p.sitemap %}<code>{{ f }}</code> {% else %}nessuna{% endfor %}</dd>

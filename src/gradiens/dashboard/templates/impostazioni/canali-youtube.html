@@ -8,8 +8,7 @@
 {% for c in canali %}
 <div class="riga{% if "canale-" ~ c.nome in voci %} evidenziata{% endif %}">
   <div class="testo">
-    <div class="titolo">{{ c.nome }}</div>
-    <div class="descrizione"><a class="link" href="https://www.youtube.com/channel/{{ c.id }}" target="_blank" rel="noopener noreferrer">youtube.com/channel/{{ c.id }}</a></div>
+    <div class="titolo"><a href="https://www.youtube.com/channel/{{ c.id }}" target="_blank" rel="noopener noreferrer">{{ c.nome }}</a></div>
   </div>
   <div class="controllo">
     <button type="button" class="bottone secondario piccolo" hx-post="/impostazioni/youtube/rimuovi" hx-vals='{"id": "{{ c.id }}"}'

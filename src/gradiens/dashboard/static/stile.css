@@ -178,7 +178,9 @@ textarea.campo { resize: vertical; line-height: 1.5; }
 .riga.evidenziata { background: var(--errore-tenue); margin: 0 -12px; padding: 14px 12px; border-radius: 10px; border-bottom-color: transparent; }
 .interesse.evidenziata, .campo-riga.evidenziata { outline: 2px solid var(--errore-tenue); outline-offset: 4px; border-radius: 10px; }
 .sezione-voce .segnale.novita::before { margin-right: 4px; }
-.riga.proposta { background: var(--accento-tenue); margin: 0 -12px; padding: 14px 12px; border-radius: 10px; border-bottom-color: transparent; }
+/* Novità: grigio con una barra del colore dell'accento, diverso dal rosso dei problemi (nel tema scuro
+   l'accento tenue e l'errore tenue erano quasi lo stesso colore). */
+.riga.proposta { background: var(--hover); box-shadow: inset 3px 0 0 var(--accento); margin: 0 -12px; padding: 14px 12px; border-radius: 10px; border-bottom-color: transparent; }
 
 .interesse { border: 1px solid var(--bordo); background: var(--pannello); border-radius: 12px; padding: 14px 16px; margin-top: 12px; }
 .interesse-testa { display: flex; align-items: center; gap: 10px; }
@@ -448,3 +450,6 @@ dialog.finestra::backdrop { background: var(--velo); }
 pre.comando { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; background: var(--hover); padding: 10px 12px; border-radius: 8px; white-space: pre-wrap; word-break: break-all; user-select: all; margin-top: 6px; }
 form:has(input[name="automatica"]:not(:checked)) .solo-se-automatica { display: none; }
 .filtri .cerca { width: 190px; flex: 0 1 190px; }
+/* Il nome di una fonte è anche il suo link: stesso aspetto del titolo, sottolineato al passaggio. */
+.riga .titolo a { color: inherit; text-decoration: none; }
+.riga .titolo a:hover { text-decoration: underline; text-underline-offset: 3px; }

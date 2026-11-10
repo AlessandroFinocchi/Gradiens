@@ -48,15 +48,13 @@ def segnali(s: Session, problema_telegram: str | None = None, problema_avvio: st
         for sezione, voce in (("canali-youtube", "aggiungi"), ("siti", "aggiungi"), ("arxiv", "categorie")):
             segnala(sezione, "avvertimento", "Serve almeno una fonte: un canale YouTube, un sito o una categoria arXiv", voce)
 
-    # Ultima esecuzione conclusa: canali irraggiungibili e tetto arXiv.
+    # Ultima esecuzione conclusa: canali irraggiungibili. Il tetto arXiv raggiunto non si segnala (decisione 60).
     conclusa = next((e for e in esecuzioni.storico(s, 2) if e.stato != "in_corso"), None)
     fonti = esecuzioni.riepilogo(conclusa)["fonti"] if conclusa else {}
     seguiti = {c.nome for c in canali}
     for st in fonti.get("youtube", {}).get("stati", []):
         if st["stato"] not in STATI_BUONI and st["fonte"] in seguiti:
             segnala("canali-youtube", "avvertimento", f"{st['fonte']}: {st['stato']}", f"canale-{st['fonte']}")
-    if fonti.get("arxiv", {}).get("oltre_tetto"):
-        segnala("arxiv", "novita", "Tetto di paper raggiunto nell'ultima esecuzione", "tetto")
 
     for sito in elenco_siti:
         voce = f"sito-{sito.id}"

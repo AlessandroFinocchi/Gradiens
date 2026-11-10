@@ -34,6 +34,11 @@ class Profilo:
     articoli_massimi: int = 100  # per esecuzione (WEB-19)
     modificati: list[str] = field(default_factory=list)
 
+    @property
+    def collegati_proposti(self) -> list[str]:
+        """Siti collegati trovati dall'analisi e non ancora attivati (WEB-07)."""
+        return [dominio for dominio, attivo in self.siti_collegati.items() if not attivo]
+
     def come_dict(self) -> dict:
         return asdict(self)
 

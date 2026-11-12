@@ -1,5 +1,6 @@
+import os
 import subprocess
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from types import SimpleNamespace
 
 import pytest
@@ -49,7 +50,7 @@ def systemd(tmp_path, monkeypatch):
 
 
 def test_unita_systemd_con_virgolette_e_percento():
-    unita = avvio_sistema.unita_systemd(Path("/home/a/Gradiens 100%"), "/home/a/x/python", "/home/a/.local/bin/claude")
+    unita = avvio_sistema.unita_systemd(PurePosixPath("/home/a/Gradiens 100%"), "/home/a/x/python", "/home/a/.local/bin/claude")
     assert "WorkingDirectory=/home/a/Gradiens 100%%\n" in unita
     assert 'ExecStart="/home/a/x/python" "-m" "gradiens" "avvia" "--primo-piano"\n' in unita
     assert 'Environment="GRADIENS_CLAUDE=/home/a/.local/bin/claude"\n' in unita  # niente PATH della shell al boot
@@ -130,13 +131,13 @@ def test_icone_linux_nel_menu_e_sul_desktop_nella_lingua_del_sistema(tmp_path, m
     assert not avvio_sistema.icone_presenti()
     avvio_sistema.crea_icone(tmp_path / "Gradiens")
     assert avvio_sistema.icone_presenti() and desktop.read_text(encoding="utf-8") == menu.read_text(encoding="utf-8")
-    assert desktop.stat().st_mode & 0o111  # KDE e GNOME avviano solo i .desktop eseguibili
+    assert os.name == "nt" or desktop.stat().st_mode & 0o111  # KDE e GNOME avviano solo i .desktop eseguibili; Windows non ha il bit
     avvio_sistema.togli_icone()
     assert not menu.exists() and not desktop.exists()
 
 
 def test_voce_desktop_con_virgolette_e_percento():
-    voce = avvio_sistema.voce_desktop(Path("/home/a/Gradiens"), '/home/a/"x"/100%/python')
+    voce = avvio_sistema.voce_desktop(PurePosixPath("/home/a/Gradiens"), '/home/a/"x"/100%/python')
     assert 'Exec="/home/a/\\"x\\"/100%%/python" "-m" "gradiens" "pannello"\n' in voce
     assert "Path=/home/a/Gradiens\n" in voce and "Terminal=false\n" in voce and voce.startswith("[Desktop Entry]\n")
 
@@ -150,6 +151,7 @@ def test_script_icone_windows_con_apostrofi():
 def test_senza_desktop_l_icona_va_solo_nel_menu(tmp_path, monkeypatch):
     # Senza un desktop configurato (es. un server) xdg-user-dir risponde con la cartella home.
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))  # Path.home() su Windows
     monkeypatch.setattr(avvio_sistema, "os", SimpleNamespace(name="posix", environ={"XDG_DATA_HOME": str(tmp_path / "dati")}))
     monkeypatch.setattr(avvio_sistema.shutil, "which", lambda nome: f"/usr/bin/{nome}")
     monkeypatch.setattr(avvio_sistema, "_esegui",

@@ -52,7 +52,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 ### 4.2 arXiv
 
 - `ARX-01` L'utente sceglie le categorie arXiv nelle Impostazioni (es. `cs.CR`, `cs.AI`). Le categorie sono facoltative, come canali e siti: basta una fonte di qualsiasi tipo (`UI-11`). A ogni categoria può dare un nome facoltativo (es. "Crittografia e Sicurezza" per `cs.CR`), che la dashboard mostra al posto del codice: nel filtro delle fonti, nelle notizie dell'elenco e nella pagina della notizia.
-- `ARX-02` Tutti i paper nuovi delle categorie scelte passano dal pre-filtro.
+- `ARX-02` I paper nuovi delle categorie scelte passano dal pre-filtro dal più recente, a blocchi, finché i promossi raggiungono il tetto (`ARX-03`); gli altri entrano nel registro delle notizie già viste (ADR 0010).
 - `ARX-03` Un tetto configurabile limita il numero di paper elaborati per esecuzione. Se il tetto viene superato si elaborano i paper più recenti e il resoconto segnala "tetto raggiunto". I paper oltre il tetto entrano nel registro delle notizie già viste e non si riprendono nelle esecuzioni successive.
 - `ARX-04` Per un paper, il contenuto che l'LLM valuta e riassume è l'abstract restituito dall'API di arXiv, insieme al titolo. Il PDF non si scarica. Per leggere il paper intero c'è il link all'originale.
 
@@ -158,7 +158,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 **Raccolta e filtro**
 
 - `ESE-03` Si raccolgono solo le notizie pubblicate nella **finestra di raccolta**, che si configura nelle Impostazioni da 1 a 7 giorni (valore predefinito 7). Per le notizie con data incerta conta la data di scoperta.
-- `ESE-04` **Pre-filtro**: l'LLM legge a blocchi titolo e sommario delle notizie nuove e scarta quelle fuori tema e quelle escluse (vedi `WEB-22` e `WEB-23`).
+- `ESE-04` **Pre-filtro**: l'LLM legge a blocchi titolo e sommario delle notizie nuove (dei paper arXiv solo quelli che servono a riempire il tetto, `ARX-02`) e scarta quelle fuori tema e quelle escluse (vedi `WEB-22` e `WEB-23`).
 - `ESE-05` **Valutazione completa**: per le notizie che passano il pre-filtro si scarica il testo completo o la trascrizione. L'LLM assegna un punteggio di pertinenza da 0 a 100 per ogni interesse pertinente, quindi una notizia può corrispondere a più interessi. Nella stessa fase l'LLM:
   - scrive il riassunto in italiano. Il riassunto deve essere corretto e completo: riporta solo ciò che c'è nel contenuto, senza aggiunte, e ne copre tutti i punti principali, non solo l'inizio. Se il contenuto è parziale, il riassunto lo dice;
   - traduce il titolo in italiano, se la notizia è in un'altra lingua.

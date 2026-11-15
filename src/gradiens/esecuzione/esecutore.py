@@ -31,6 +31,7 @@ from gradiens.llm.base import ErroreLLM, Provider, QuotaEsaurita
 log = logging.getLogger(__name__)
 
 BLOCCO_PREFILTRO = 30  # notizie per chiamata di pre-filtro (ADR 0006)
+GIRO_PREFILTRO = 3  # blocchi di paper lanciati insieme in un giro del pre-filtro (ADR 0010)
 BLOCCO_ARGOMENTI = 40  # notizie per chiamata del passo degli argomenti (ADR 0008)
 MAX_CONTENUTO = 60_000  # caratteri (~15.000 token): oltre, la notizia è "contenuto parziale"
 
@@ -268,14 +269,16 @@ class Esecutore:
                 for stato in conta.stati:
                     stato["nuove"] = per_fonte[(nome, stato["fonte"])]
 
-            passate = await self._prefiltra(s, nuove, prefiltro, prompt.sistema_prefiltro(elenco_interessi, imp.escludi_sponsorizzati),
-                                            imp.modello_prefiltro, m)
+            passate, non_prefiltrati = await self._prefiltra(
+                s, nuove, prefiltro, prompt.sistema_prefiltro(elenco_interessi, imp.escludi_sponsorizzati),
+                imp.modello_prefiltro, imp.tetto_arxiv, m)
 
-            # Tetto arXiv (ARX-03): si elaborano i paper più recenti; gli altri si considerano visti.
+            # Tetto arXiv (ARX-03): si elaborano i paper più recenti; gli altri, compresi quelli mai
+            # pre-filtrati (ARX-02), si considerano visti.
             paper = sorted((c for c in passate if c.tipo == "arxiv"), key=lambda c: c.pubblicata_il, reverse=True)
-            oltre = paper[imp.tetto_arxiv:]
+            oltre = paper[imp.tetto_arxiv:] + non_prefiltrati
             passate = [c for c in passate if c.tipo != "arxiv"] + paper[:imp.tetto_arxiv]
-            if paper:
+            if oltre:
                 m.di("arxiv").oltre_tetto = len(oltre)
             notizie.segna_viste(s, [c.url for c in oltre])
             s.commit()
@@ -376,12 +379,33 @@ class Esecutore:
             self.avanzamento.fatti += 1
 
     async def _prefiltra(self, s: Session, nuove: list[Candidata], prefiltro: Provider, sistema: str,
-                         modello: str, m: Metriche) -> list[Candidata]:
-        """Pre-filtro a blocchi (ESE-04, ARX-02); le notizie scartate entrano nel registro delle viste."""
-        blocchi = [nuove[i:i + BLOCCO_PREFILTRO] for i in range(0, len(nuove), BLOCCO_PREFILTRO)]
-        self._fase("pre-filtro", len(blocchi))
+                         modello: str, tetto: int, m: Metriche) -> tuple[list[Candidata], list[Candidata]]:
+        """Pre-filtro a blocchi (ESE-04); le notizie scartate entrano nel registro delle viste.
+        Siti e video passano tutti. I paper (ARX-02, ADR 0010) passano dal più recente, a giri, finché i
+        promossi riempiono il tetto. Restituisce le promosse e i paper rimasti senza pre-filtro."""
+        paper = sorted((c for c in nuove if c.tipo == "arxiv"), key=lambda c: c.pubblicata_il, reverse=True)
+        altre = [c for c in nuove if c.tipo != "arxiv"]
+        self._fase("pre-filtro", 0)  # il totale cresce a ogni giro: all'inizio non si sa quanti giri servono
 
-        async def filtra(blocco: list[Candidata]) -> list[Candidata]:
+        async def filtra_blocchi(notizie_: list[Candidata]) -> list[list[Candidata] | None]:
+            blocchi = [notizie_[i:i + BLOCCO_PREFILTRO] for i in range(0, len(notizie_), BLOCCO_PREFILTRO)]
+            self.avanzamento.totale += len(blocchi)
+            return await _tutti(filtra(b) for b in blocchi)
+
+        async def filtra_paper() -> tuple[list[Candidata], list[Candidata]]:
+            promossi, resto = [], paper
+            while resto and len(promossi) < tetto:
+                giro = min(GIRO_PREFILTRO, -(-(tetto - len(promossi)) // BLOCCO_PREFILTRO)) * BLOCCO_PREFILTRO
+                esiti = await filtra_blocchi(resto[:giro])
+                resto = resto[giro:]
+                promossi += [c for esito in esiti if esito for c in esito]
+                if None in esiti:  # un blocco fallito: niente giri nuovi, il resto si riprende la volta dopo
+                    for c in resto:
+                        m.di(c.tipo).errori += 1
+                    return promossi, []
+            return promossi, resto
+
+        async def filtra(blocco: list[Candidata]) -> list[Candidata] | None:
             try:
                 risposta = await prefiltro.chiedi(sistema=sistema, messaggio=prompt.messaggio_prefiltro(blocco),
                                                   schema=prompt.SCHEMA_PREFILTRO, modello=modello)
@@ -391,7 +415,7 @@ class Esecutore:
                 log.warning("Pre-filtro fallito per un blocco di %s notizie: %s", len(blocco), errore)
                 for c in blocco:
                     m.di(c.tipo).errori += 1
-                return []
+                return None
             finally:
                 self.avanzamento.fatti += 1
             m.conta_token("prefiltro", risposta)
@@ -412,7 +436,8 @@ class Esecutore:
                     m.di(c.tipo).scartate_prefiltro += 1
             return [blocco[i] for i in sorted(indici)]
 
-        return [c for blocco in await _tutti(filtra(b) for b in blocchi) for c in blocco]
+        esiti_altre, (promossi, non_prefiltrati) = await _tutti([filtra_blocchi(altre), filtra_paper()])
+        return [c for esito in esiti_altre if esito for c in esito] + promossi, non_prefiltrati
 
     async def _completa(self, client: httpx.AsyncClient, c: Candidata) -> Candidata:
         fonte = self._fonti.get(FONTE_DI_TIPO[c.tipo])

@@ -25,7 +25,7 @@
     <p>Un'<strong>esecuzione</strong> è un giro completo su tutte le fonti. Parte ogni giorno all'orario scelto nelle Impostazioni, oppure a mano: con il bottone "Avvia esecuzione" nella Home, con <code>gradiens esegui</code> o con <code>/aggiorna</code> su Telegram. Ne gira una sola alla volta. Se all'orario programmato Gradiens è spento, l'esecuzione parte appena lo riaccendi.</p>
     <ul>
       <li><strong>Raccolta</strong>: si prendono le notizie pubblicate nella finestra di raccolta, da 1 a 7 giorni. Una notizia già vista non si elabora di nuovo.</li>
-      <li><strong>Pre-filtro</strong>: l'LLM legge titolo e sommario e scarta ciò che è fuori tema e, se lo chiedi, ciò che è sponsorizzato.</li>
+      <li><strong>Pre-filtro</strong>: l'LLM legge titolo e sommario e scarta ciò che è fuori tema e, se lo chiedi, ciò che è sponsorizzato. I paper arXiv si leggono dal più recente e ci si ferma quando quelli rimasti riempiono il tetto: gli altri non si elaborano.</li>
       <li><strong>Valutazione</strong>: per le notizie rimaste l'LLM legge il testo completo, la trascrizione o, per i paper arXiv, l'abstract, dà un punteggio di pertinenza da 0 a 100 per ogni interesse e scrive il riassunto. Si mostrano le notizie con almeno un punteggio che raggiunge la soglia.</li>
       <li><strong>Argomenti e proposte</strong>: alla fine l'LLM assegna le notizie nuove agli argomenti e, se hai messo abbastanza cuori, propone come raffinare i tuoi interessi.</li>
     </ul>
@@ -44,7 +44,7 @@
     <p>Basta una fonte, di qualsiasi tipo: non serve averle tutte.</p>
     <ul>
       <li><strong>YouTube</strong>: aggiungi un canale incollando un suo indirizzo qualsiasi. Video e short sono tipi diversi, così puoi filtrarli. Le dirette si elaborano quando sono finite. I video senza trascrizione compaiono solo nel resoconto.</li>
-      <li><strong>arXiv</strong>: scegli le categorie, per esempio <code>cs.CR</code>, e se vuoi dai loro un nome che vedrai al posto del codice. Un tetto limita i paper elaborati per esecuzione; se viene raggiunto, si tengono i più recenti.</li>
+      <li><strong>arXiv</strong>: scegli le categorie, per esempio <code>cs.CR</code>, e se vuoi dai loro un nome che vedrai al posto del codice. Un tetto, 30 all'inizio, limita i paper elaborati per esecuzione: si tengono i più recenti tra quelli che passano il pre-filtro.</li>
       <li><strong>Siti web</strong>: vedi la sezione successiva.</li>
     </ul>
     <p>La stessa notizia pubblicata da due fonti diverse compare due volte, una per fonte. Dalla stessa fonte, invece, una notizia compare una volta sola.</p>

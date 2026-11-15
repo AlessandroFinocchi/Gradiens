@@ -1,8 +1,8 @@
 # Il pre-filtro dei paper arXiv si ferma quando i promossi riempiono il tetto
 
-**Stato**: accettato, da implementare (decisione dell'utente del 13 novembre 2026, n. 8 di
-[decisioni.md](../miglioramenti/decisioni.md)). Il codice e il PRD descrivono ancora il comportamento
-precedente: il PRD si aggiorna insieme al codice.
+**Stato**: accettato (decisione dell'utente del 13 novembre 2026, n. 8 di
+[decisioni.md](../miglioramenti/decisioni.md)); implementato il 15 novembre 2026 in `esecuzione/esecutore.py`
+(`_prefiltra`), con il tetto a 30 della decisione 9 (migrazione `0012`). PRD aggiornato (`ARX-02`, `ESE-04`).
 
 Oggi tutti i paper nuovi delle categorie seguite passano dal pre-filtro (`ARX-02`) e solo dopo si applica
 il tetto (`ARX-03`): i paper promossi oltre il tetto vengono scartati senza valutazione. Nelle esecuzioni
@@ -46,6 +46,10 @@ già viste."
   più. Il totale della fase di pre-filtro non è noto all'inizio, quindi l'avanzamento si aggiorna a ogni
   giro.
 - Se un blocco fallisce non si lanciano giri nuovi; i paper non filtrati restano non visti e si
-  riprendono all'esecuzione successiva, come oggi.
+  riprendono all'esecuzione successiva, come oggi. Contano come `errori`, così la somma di `ESE-11` torna.
+- Un giro lancia i blocchi che potrebbero riempire il tetto (⌈mancanti / 30⌉), al massimo 3 insieme
+  (`GIRO_PREFILTRO`). Siti e video si pre-filtrano in blocchi propri, senza paper, in parallelo ai giri.
+- Tetto a 30 (decisione 9): la migrazione `0012` porta a 30 il vecchio predefinito (50) e il tetto usato fino
+  ad allora (10); un tetto scelto diverso resta com'è.
 - La modifica sta tutta nell'esecutore: l'interfaccia dei provider LLM non cambia
   ([ADR 0006](0006-claude-code-come-provider-predefinito.md)) e non c'è differenza tra Windows e Linux.

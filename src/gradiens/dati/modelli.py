@@ -27,7 +27,7 @@ class Impostazioni(Base):
     tema: Mapped[str] = mapped_column(String(5), default="auto")
     soglia: Mapped[int] = mapped_column(default=60)  # ESE-06
     finestra_giorni: Mapped[int] = mapped_column(default=7)  # ESE-03
-    tetto_arxiv: Mapped[int] = mapped_column(default=50)  # ARX-03
+    tetto_arxiv: Mapped[int] = mapped_column(default=30)  # ARX-03; il valore vero lo fissa la migrazione 0012
     provider_prefiltro: Mapped[str] = mapped_column(String(20), default="claude-code")  # LLM-03
     modello_prefiltro: Mapped[str] = mapped_column(String(60), default="haiku")
     provider_elaborazione: Mapped[str] = mapped_column(String(20), default="claude-code")

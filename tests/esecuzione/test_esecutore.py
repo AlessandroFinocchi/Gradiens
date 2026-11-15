@@ -531,31 +531,131 @@ class Concorrente(Finto):
             self.in_corso -= prefiltro
 
 
-def test_il_prefiltro_dei_paper_manda_tutto_a_blocchi_e_poi_si_applica_il_tetto(sessioni):
-    """T-02. Oggi tutti i paper passano dal pre-filtro, a blocchi partiti insieme, e il tetto si applica dopo.
-    L'ADR 0010 cambia numero, ordine e momento delle chiamate; devono restare: il tetto sceglie i più recenti
-    tra i promossi e gli altri entrano nel registro delle viste."""
-    paper = [candidata(f"sicurezza-alta-{i:02d}", ore_fa=i + 1) for i in range(65)]  # date diverse: 00 è il più recente
-    provider = Concorrente(risponditore)
-    _, metriche, salvate, _ = esegui(sessioni, raccolta(*paper), provider=provider, tetto_arxiv=5)
+def blocchi_prefiltro(provider: Finto) -> list[list[str]]:
+    """I titoli di ogni chiamata di pre-filtro, nell'ordine delle chiamate."""
+    return [[v["titolo"] for v in json.loads(m)] for sistema, m in provider.chiamate if sistema.startswith("Sei il pre-filtro")]
 
-    blocchi = [json.loads(m) for sistema, m in provider.chiamate if sistema.startswith("Sei il pre-filtro")]
-    assert sorted(len(b) for b in blocchi) == [5, 30, 30]  # ceil(65 / BLOCCO_PREFILTRO) chiamate
-    assert provider.massimo == 3  # partite insieme
-    assert sorted(v["titolo"] for b in blocchi for v in b) == sorted(c.titolo for c in paper)  # ogni paper una volta
+
+# ADR 0010: i paper passano dal pre-filtro dal più recente, a giri, finché i promossi riempiono il tetto.
+# Sostituiscono T-02, che fissava il comportamento precedente (tutti i paper pre-filtrati, poi il tetto).
+
+def test_prefiltro_arxiv_si_ferma_quando_i_promossi_riempiono_il_tetto(sessioni):
+    paper = [candidata(f"sicurezza-alta-{i:02d}", ore_fa=i + 1) for i in range(100)]  # 00 è il più recente
+    provider = Finto(risponditore)
+    _, _, salvate, _ = esegui(sessioni, raccolta(*paper), provider=provider, tetto_arxiv=5)
+
+    assert blocchi_prefiltro(provider) == [[f"sicurezza-alta-{i:02d}" for i in range(30)]]  # 1 chiamata, non 4
     assert sorted(n.titolo for n in salvate) == [f"sicurezza-alta-{i:02d}" for i in range(5)]
-    assert sum(sistema.startswith("Sei il valutatore") for sistema, _ in provider.chiamate) == 5
+
+
+def test_i_paper_non_prefiltrati_sono_visti_e_contano_come_oltre_il_tetto(sessioni):
+    paper = [candidata(f"sicurezza-alta-{i:02d}", ore_fa=i + 1) for i in range(100)]
+    _, metriche, _, _ = esegui(sessioni, raccolta(*paper), tetto_arxiv=5)
+
+    a = metriche["fonti"]["arxiv"]  # 25 promossi in eccesso + 70 mai pre-filtrati
+    assert (a["esaminate"], a["scartate_prefiltro"], a["oltre_tetto"], a["mostrate"]) == (100, 0, 95, 5)
+    with sessioni() as s:  # non si valutano e non tornano (ARX-02, ARX-03)
+        assert notizie.gia_viste(s, [c.url for c in paper]) == {c.url for c in paper}
+
+
+def test_con_pochi_promossi_i_giri_continuano_fino_all_ultimo_paper(sessioni, monkeypatch):
+    """Ogni giro lancia solo i blocchi che potrebbero riempire il tetto, al massimo GIRO_PREFILTRO insieme."""
+    from gradiens.esecuzione import esecutore as modulo
+
+    monkeypatch.setattr(modulo, "BLOCCO_PREFILTRO", 1)
+    nomi = ["sicurezza-alta-0", "sicurezza-alta-1", "cucina-2", "cucina-3", "sicurezza-alta-4", "cucina-5",
+            "cucina-6", "cucina-7", "sicurezza-alta-8"]
+    provider = Concorrente(risponditore)
+    _, metriche, salvate, _ = esegui(sessioni, raccolta(*(candidata(n, ore_fa=i + 1) for i, n in enumerate(nomi))),
+                                     provider=provider, tetto_arxiv=4)
+
+    # giro 1: 3 blocchi (mancano 4, al massimo 3 insieme), 2 promossi; giro 2: 2 blocchi, 1 promosso;
+    # giri 3-5: 1 blocco, nessun promosso; giro 6: 1 blocco, il quarto promosso.
+    assert blocchi_prefiltro(provider) == [[n] for n in nomi]
+    assert provider.massimo == 3
+    assert sorted(n.titolo for n in salvate) == ["sicurezza-alta-0", "sicurezza-alta-1", "sicurezza-alta-4",
+                                                 "sicurezza-alta-8"]
     a = metriche["fonti"]["arxiv"]
-    assert (a["esaminate"], a["scartate_prefiltro"], a["oltre_tetto"], a["mostrate"]) == (65, 0, 60, 5)
-    with sessioni() as s:  # i promossi oltre il tetto non si valutano e non tornano
-        assert notizie.gia_viste(s, [c.url for c in paper[5:]]) == {c.url for c in paper[5:]}
+    assert (a["scartate_prefiltro"], a["oltre_tetto"]) == (5, 0)
+
+
+def test_i_paper_valutati_sono_i_piu_recenti_tra_i_promossi(sessioni, monkeypatch):
+    """Elenco atteso scritto a mano. La raccolta non è in ordine di data: il pre-filtro parte dal più recente."""
+    from gradiens.esecuzione import esecutore as modulo
+
+    monkeypatch.setattr(modulo, "BLOCCO_PREFILTRO", 2)
+    ore = {"sicurezza-alta-a": 2, "cucina-b": 1, "sicurezza-alta-c": 5, "sicurezza-alta-d": 3, "cucina-e": 4,
+           "sicurezza-alta-f": 6, "sicurezza-alta-g": 7}
+    provider = Finto(risponditore)
+    _, metriche, salvate, _ = esegui(sessioni, raccolta(*(candidata(n, ore_fa=o) for n, o in ore.items())),
+                                     provider=provider, tetto_arxiv=3)
+
+    # giro 1: due blocchi, promossi a e d; giro 2: un blocco, promossi c e f (uno in eccesso); g mai pre-filtrato.
+    assert blocchi_prefiltro(provider) == [["cucina-b", "sicurezza-alta-a"], ["sicurezza-alta-d", "cucina-e"],
+                                           ["sicurezza-alta-c", "sicurezza-alta-f"]]
+    assert sorted(n.titolo for n in salvate) == ["sicurezza-alta-a", "sicurezza-alta-c", "sicurezza-alta-d"]
+    assert metriche["fonti"]["arxiv"]["oltre_tetto"] == 2  # f promosso in eccesso, g non pre-filtrato
+    with sessioni() as s:
+        assert notizie.gia_viste(s, ["https://arxiv.org/abs/sicurezza-alta-f", "https://arxiv.org/abs/sicurezza-alta-g"]) == {
+            "https://arxiv.org/abs/sicurezza-alta-f", "https://arxiv.org/abs/sicurezza-alta-g"}
+
+
+def test_dopo_un_blocco_fallito_non_partono_giri_nuovi(sessioni, monkeypatch):
+    """I paper mai pre-filtrati restano non visti e contano come errori: si riprendono la volta dopo (ADR 0010)."""
+    from gradiens.esecuzione import esecutore as modulo
+
+    monkeypatch.setattr(modulo, "BLOCCO_PREFILTRO", 1)
+    paper = [candidata("sicurezza-alta-rotto" if i == 1 else f"sicurezza-alta-{i}", ore_fa=i + 1) for i in range(6)]
+    provider = guasto_su("rotto", prompt.SCHEMA_PREFILTRO, ErroreLLM("timeout"))
+    esecuzione, metriche, salvate, _ = esegui(sessioni, raccolta(*paper), provider=provider, tetto_arxiv=5)
+
+    assert esecuzione.stato == "completata"
+    assert blocchi_prefiltro(provider) == [["sicurezza-alta-0"], ["sicurezza-alta-rotto"], ["sicurezza-alta-2"]]
+    assert sorted(n.titolo for n in salvate) == ["sicurezza-alta-0", "sicurezza-alta-2"]
+    a = metriche["fonti"]["arxiv"]
+    assert (a["errori"], a["oltre_tetto"]) == (4, 0)  # il blocco fallito più i tre paper mai pre-filtrati
+    with sessioni() as s:
+        assert notizie.gia_viste(s, [c.url for c in paper[1:2] + paper[3:]]) == set()
+
+
+def test_siti_e_youtube_si_prefiltrano_tutti_e_non_si_mescolano_ai_paper(sessioni):
+    from gradiens.dati import siti as dati_siti
+    from gradiens.fonti import siti
+
+    with sessioni() as s:
+        impostazioni.aggiungi_canale(s, "UC" + "a" * 22, "Lab di Sicurezza")
+        dati_siti.aggiungi(s, "https://buono.it/", siti.Profilo(url="https://buono.it/").come_dict())
+
+    def video(i):
+        c = candidata(f"sicurezza-alta-video-{i:02d}")
+        c.tipo, c.url, c.fonte = "video", f"https://www.youtube.com/watch?v=v{i:02d}", "Lab di Sicurezza"
+        return c
+
+    async def raccogli_yt(client, canale, dal):
+        return [video(i) for i in range(35)]
+
+    async def raccogli_sito(client, profilo, dal):
+        return siti.EsitoSito([di_sito("sicurezza-alta-articolo", "https://buono.it/articolo")], "ok", False, "")
+
+    paper = [candidata(f"sicurezza-alta-paper-{i}", ore_fa=i + 1) for i in range(5)]
+    fonti = {**raccolta(*paper), "youtube": SimpleNamespace(raccogli=raccogli_yt),
+             "siti": SimpleNamespace(raccogli=raccogli_sito)}
+    provider = Finto(risponditore)
+    _, metriche, salvate, _ = esegui(sessioni, fonti, provider=provider, tetto_arxiv=1)
+
+    blocchi = blocchi_prefiltro(provider)
+    di_paper = [b for b in blocchi if any("paper" in t for t in b)]
+    assert di_paper == [[c.titolo for c in paper]]  # un blocco di soli paper
+    assert sorted(len(b) for b in blocchi if b not in di_paper) == [6, 30]  # 35 video e un articolo, tutti
+    assert len(salvate) == 35 + 1 + 1
+    assert metriche["fonti"]["arxiv"]["oltre_tetto"] == 4
 
 
 ESITI = ("scartate_prefiltro", "escluse", "oltre_tetto", "senza_contenuto", "scartate_valutazione", "mostrate", "errori")
 
 
-@pytest.mark.parametrize("scenario", ["tetto", "esclusioni e senza contenuto", "blocco fallito", "valutazione fallita",
-                                      "diretta"])
+@pytest.mark.parametrize("scenario", ["tetto", "tetto con paper non pre-filtrati", "esclusioni e senza contenuto",
+                                      "blocco fallito", "valutazione fallita", "diretta"])
 def test_i_contatori_di_una_fonte_tornano(sessioni, monkeypatch, scenario):
     """T-03, ESE-11: `esaminate` è la somma degli esiti. Non vale con le dirette (YT-04: non entrano in nessun
     contatore) e quando `errori` conta anche errori di fonte o di sito (`_raccogli`, `_raccogli_sito`)."""
@@ -565,6 +665,9 @@ def test_i_contatori_di_una_fonte_tornano(sessioni, monkeypatch, scenario):
                  candidata("cucina")]
     imp, provider, esito_atteso = {}, None, "errori"
     if scenario == "tetto":
+        imp, esito_atteso = {"tetto_arxiv": 1}, "oltre_tetto"
+    elif scenario == "tetto con paper non pre-filtrati":  # ADR 0010: un paper a blocco, ci si ferma al primo promosso
+        monkeypatch.setattr(modulo, "BLOCCO_PREFILTRO", 1)
         imp, esito_atteso = {"tetto_arxiv": 1}, "oltre_tetto"
     elif scenario == "esclusioni e senza contenuto":
         a_pagamento = candidata("sicurezza-alta-paywall")

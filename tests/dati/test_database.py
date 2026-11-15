@@ -67,6 +67,23 @@ def test_un_gradiens_gia_in_uso_salta_la_configurazione_iniziale(tmp_path, con_i
         assert impostazioni.leggi(s).configurazione_completata is con_interessi
 
 
+@pytest.mark.parametrize(("prima", "dopo"), [(None, 30), (50, 30), (10, 30), (20, 20)])
+def test_il_tetto_arxiv_predefinito_e_30(tmp_path, prima, dopo):
+    """ADR 0010, decisione 9: database nuovo, vecchio predefinito (50) e tetto di prima (10) passano a 30;
+    un tetto scelto diverso resta com'è."""
+    motore = crea_motore(tmp_path / "prova.db")
+    if prima is not None:
+        config = Config()
+        config.set_main_option("script_location", str(CARTELLA_MIGRAZIONI))
+        with motore.begin() as c:
+            config.attributes["connection"] = c
+            command.upgrade(config, "0011")
+            c.exec_driver_sql("UPDATE impostazioni SET tetto_arxiv = ?", (prima,))
+    migra(motore)
+    with fabbrica_sessioni(motore)() as s:
+        assert impostazioni.leggi(s).tetto_arxiv == dopo
+
+
 def test_copia_prima_di_una_migrazione_ma_non_su_un_database_nuovo(tmp_path):
     motore = crea_motore(tmp_path / "prova.db")
     migra(motore)  # database nuovo: niente da salvare
@@ -101,13 +118,13 @@ def test_copie_giornaliere_una_al_giorno_e_al_massimo_sette(tmp_path):
     assert len(rimaste) == 7 and rimaste[0] == "gradiens-20261004-070000-giornaliera.db"  # via le più vecchie
 
 
-MIGRAZIONE_0012_FINTA = '''"""Migrazione finta per T-01: come farà l'ADR 0011, una colonna nuova in `siti`, con la tabella ricreata."""
+MIGRAZIONE_0013_FINTA = '''"""Migrazione finta per T-01: come farà l'ADR 0011, una colonna nuova in `siti`, con la tabella ricreata."""
 
 import sqlalchemy as sa
 from alembic import op
 
-revision = "0012"
-down_revision = "0011"
+revision = "0013"
+down_revision = "0012"
 branch_labels = None
 depends_on = None
 
@@ -122,8 +139,9 @@ TABELLE = ("interessi", "siti", "esecuzioni", "argomenti", "notizie", "pertinenz
 
 
 def test_la_migrazione_dei_siti_non_perde_dati_e_si_ripete_senza_errori(tmp_path, monkeypatch):
-    """T-01 (doc. 02, decisione 26): prima della migrazione vera della tabella `siti` (ADR 0011) si prova una 0012
-    finta su un database alla 0011 con dati in tutte le tabelle. Quando la 0012 vera esiste, si passa alla vera."""
+    """T-01 (doc. 02, decisione 26): prima della migrazione vera della tabella `siti` (ADR 0011) si prova una 0013
+    finta su un database alla 0011 con dati in tutte le tabelle. Quando la 0013 vera esiste, si passa alla vera.
+    (La 0012 è quella del tetto arXiv, ADR 0010.)"""
     import json
     import shutil
 
@@ -166,13 +184,13 @@ def test_la_migrazione_dei_siti_non_perde_dati_e_si_ripete_senza_errori(tmp_path
     prima = stato_dei_dati()
     cartella = tmp_path / "migrazioni"
     shutil.copytree(CARTELLA_MIGRAZIONI, cartella, ignore=shutil.ignore_patterns("__pycache__"))
-    (cartella / "versions" / "0012_finta.py").write_text(MIGRAZIONE_0012_FINTA, encoding="utf-8")
+    (cartella / "versions" / "0013_finta.py").write_text(MIGRAZIONE_0013_FINTA, encoding="utf-8")
     monkeypatch.setattr(database, "CARTELLA_MIGRAZIONI", cartella)
 
     migra(motore)
     assert stato_dei_dati() == prima and prima[0]["siti"] == 13
     with motore.connect() as c:
-        assert c.exec_driver_sql("SELECT version_num FROM alembic_version").scalar() == "0012"
+        assert c.exec_driver_sql("SELECT version_num FROM alembic_version").scalar() == "0013"
         assert "coperto_fino_a" in [r[1] for r in c.exec_driver_sql("PRAGMA table_info(siti)")]
         assert c.exec_driver_sql("PRAGMA foreign_key_check").all() == []
     assert len(list((tmp_path / "backup").glob("gradiens-*-migrazione.db"))) == 1

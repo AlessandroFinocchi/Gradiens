@@ -322,6 +322,36 @@ def test_articoli_a_pagamento_e_sponsorizzati_secondo_gli_interruttori(sessioni,
     assert ("sponsorizzati" in prefiltro) is escludi
 
 
+def test_un_video_segnalato_come_sponsorizzato_si_valuta_comunque(sessioni):
+    """S-01, decisione 36: l'esclusione degli sponsorizzati non vale per i video; per i siti sì."""
+    from gradiens.dati import siti as dati_siti
+    from gradiens.fonti import siti
+
+    with sessioni() as s:
+        impostazioni.aggiungi_canale(s, "UC" + "a" * 22, "Lab di Sicurezza")
+        dati_siti.aggiungi(s, "https://buono.it/", siti.Profilo(url="https://buono.it/").come_dict())
+
+    def di_tipo(nome, tipo, url, fonte):
+        c = candidata(nome)
+        c.tipo, c.url, c.fonte = tipo, url, fonte
+        return c
+
+    async def raccogli_yt(client, canale, dal):
+        return [di_tipo("offerta-alta-video", "video", "https://www.youtube.com/watch?v=v1", "Lab di Sicurezza")]
+
+    async def raccogli_sito(client, profilo, dal):
+        return siti.EsitoSito([di_tipo("offerta-alta-sconto", "sito", "https://buono.it/sconto", "buono.it")], "ok", False, "")
+
+    fonti = {**raccolta(), "youtube": SimpleNamespace(raccogli=raccogli_yt), "siti": SimpleNamespace(raccogli=raccogli_sito)}
+    _, metriche, salvate, _ = esegui(sessioni, fonti)
+
+    assert [(n.tipo, n.titolo) for n in salvate] == [("video", "offerta-alta-video")]
+    assert metriche["fonti"]["youtube"]["escluse"] == 0
+    assert [e["motivo"] for e in metriche["fonti"]["siti"]["notizie_escluse"]] == ["sponsorizzato o offerta"]
+    with sessioni() as s:
+        assert notizie.gia_viste(s, ["https://buono.it/sconto"]) == {"https://buono.it/sconto"}
+
+
 def test_avviso_di_fine_esecuzione_ma_non_allo_spegnimento(sessioni):
     avvisate = []
 

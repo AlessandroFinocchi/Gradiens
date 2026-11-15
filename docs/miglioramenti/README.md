@@ -57,7 +57,9 @@ Tutte e sei le fasi hanno un documento e le decisioni dell'utente sono in [decis
 **Ordine suggerito per l'implementazione** (dai documenti delle fasi 2, 3 e 4)
 1. I primi 10 test di caratterizzazione (decisione 26).
 2. I cinque passi di refactoring (decisione 28).
-3. La correzione dei video YouTube (decisione 36): piccola e indipendente.
+3. La correzione dei video YouTube (decisione 36): piccola e indipendente. **Fatta (15 nov 2026)**: test
+   `test_un_video_segnalato_come_sponsorizzato_si_valuta_comunque`, correzione in `esecuzione/esecutore.py`
+   (`filtra`), `WEB-23` aggiornato nel PRD.
 4. ADR 0010, poi ADR 0011 con la protezione del profilo (decisione 21).
 5. Le correzioni della fase 4 che hanno una soluzione pronta; ruff come linter e `pytest-cov`.
 6. ADR 0013; ADR 0012 per ultimo.
@@ -76,7 +78,7 @@ Tutte e sei le fasi hanno un documento e le decisioni dell'utente sono in [decis
 - **Documenti non riscritti dopo le riletture o le decisioni**: 03, 04, 05, 06a, 06b e 06c hanno in testa una
   nota o una sezione "Esito della rilettura" che vale sul testo sotto.
 - **Documenti esistenti da allineare al codice quando lo si implementa**: PRD (`ARX-02`, `ESE-04`, `WEB-08`,
-  `WEB-23`, `WEB-24`, `AMB-02`, `TG-03`, `ESE-01`), `struttura.md` (proprietari, contratto delle fonti,
+  `WEB-24`, `AMB-02`, `TG-03`, `ESE-01`), `struttura.md` (proprietari, contratto delle fonti,
   sicurezza della dashboard, `llm/compatibile_openai` che non esiste) e l'ADR 0006 (tre punti superati e il
   rischio di `--bare`).
 
@@ -196,6 +198,7 @@ silenzio (S-05), migrazione fallita a metà (S-18).
   10 (7 su 7) sono stati esclusi dal pre-filtro come "sponsorizzato o offerta", ma l'utente li
   voleva. Oggi YouTube non produce nessuna notizia. Ipotesi da verificare: la descrizione del
   video, usata come sommario, contiene link di sponsor e affiliazioni.
+  **Corretto il 15 nov 2026** (decisione 36): i video segnalati come sponsorizzati passano alla valutazione.
 
 Le osservazioni raccolte durante la mappa (fase 1) sono nell'ultima sezione di
 [mappa-moduli.md](../architettura/mappa-moduli.md). Passano nelle liste delle fasi 2 (test di

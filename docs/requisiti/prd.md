@@ -117,7 +117,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 
 - `WEB-21` Le offerte commerciali si escludono nel profilo, escludendo la sezione o il percorso. All'analisi del sito l'applicazione propone già come escluse le sezioni commerciali.
 - `WEB-22` I contenuti sponsorizzati mescolati agli articoli li riconosce il pre-filtro LLM.
-- `WEB-23` Nelle Impostazioni ci sono due interruttori globali, entrambi attivi per default: "Escludi contenuti sponsorizzati e offerte" ed "Escludi articoli a pagamento". Se il secondo è disattivo, gli articoli a pagamento vengono mostrati con il riassunto della parte pubblica e lo stato "contenuto parziale (paywall)".
+- `WEB-23` Nelle Impostazioni ci sono due interruttori globali, entrambi attivi per default: "Escludi contenuti sponsorizzati e offerte" ed "Escludi articoli a pagamento". Se il secondo è disattivo, gli articoli a pagamento vengono mostrati con il riassunto della parte pubblica e lo stato "contenuto parziale (paywall)". L'interruttore "Escludi contenuti sponsorizzati e offerte" vale per gli articoli dei siti e per i paper arXiv, **non per i video YouTube** (tipi video e short): un video che il pre-filtro segnala come sponsorizzato passa comunque alla valutazione completa, che decide con gli interessi (decisione 36 di `docs/miglioramenti/decisioni.md`, 15 nov 2026).
 
 **Rigenerazione e stati**
 

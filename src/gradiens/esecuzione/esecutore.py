@@ -403,6 +403,8 @@ class Esecutore:
 
             indici = validi("pertinenti")
             sponsorizzate = validi("sponsorizzate") - indici  # WEB-23, solo con l'esclusione attiva
+            video = {n for n in sponsorizzate if blocco[n].tipo in ("video", "short")}
+            indici, sponsorizzate = indici | video, sponsorizzate - video  # decisione 36: i video si valutano comunque
             scartate = [c for n, c in enumerate(blocco) if n not in indici]
             notizie.segna_viste(s, [c.url for c in scartate])
             s.commit()

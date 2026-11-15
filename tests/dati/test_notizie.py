@@ -169,6 +169,7 @@ def test_esecuzioni_rimaste_in_corso_diventano_interrotte(s):
     assert esecuzioni.segna_interrotte(s) == 1
     s.expire_all()
     assert s.get(Esecuzione, e.id).stato == "interrotta"
+    assert s.get(Esecuzione, e.id).motivo == "Gradiens è stato spento durante l'esecuzione."
 
 
 def test_ricerca_su_titolo_traduzione_riassunto_e_fonte(s):

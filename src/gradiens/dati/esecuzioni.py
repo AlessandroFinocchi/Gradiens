@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 from gradiens.dati.modelli import Esecuzione
 from gradiens.dati.notizie import adesso
 
+SPENTO = "Gradiens è stato spento durante l'esecuzione."
+
 
 def inizia(sessione: Session, avviata_da: str) -> Esecuzione:
     esecuzione = Esecuzione(avviata_il=adesso(), avviata_da=avviata_da, stato="in_corso")
@@ -30,7 +32,7 @@ def segna_interrotte(sessione: Session) -> int:
     risultato = sessione.execute(
         update(Esecuzione)
         .where(Esecuzione.stato == "in_corso")
-        .values(stato="interrotta", finita_il=adesso(), motivo="Gradiens è stato spento durante l'esecuzione.")
+        .values(stato="interrotta", finita_il=adesso(), motivo=SPENTO)
     )
     sessione.commit()
     return risultato.rowcount

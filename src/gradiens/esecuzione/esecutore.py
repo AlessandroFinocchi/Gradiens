@@ -21,7 +21,8 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from gradiens.dati import argomenti, esecuzioni, impostazioni, interessi, notizie, proposte
 from gradiens.dati import siti as dati_siti
-from gradiens.dati.modelli import Notizia, Pertinenza
+from gradiens.dati.esecuzioni import SPENTO
+from gradiens.dati.modelli import FONTE_DI_TIPO, Notizia, Pertinenza
 from gradiens.esecuzione import prompt
 from gradiens.fonti import Candidata, ContenutoAssente, NonAncoraDisponibile, arxiv, siti, youtube
 from gradiens.llm import crea_provider
@@ -32,10 +33,6 @@ log = logging.getLogger(__name__)
 BLOCCO_PREFILTRO = 30  # notizie per chiamata di pre-filtro (ADR 0006)
 BLOCCO_ARGOMENTI = 40  # notizie per chiamata del passo degli argomenti (ADR 0008)
 MAX_CONTENUTO = 60_000  # caratteri (~15.000 token): oltre, la notizia è "contenuto parziale"
-FONTE_DI_TIPO = {"arxiv": "arxiv", "video": "youtube", "short": "youtube", "sito": "siti"}
-
-
-SPENTO = "Gradiens è stato spento durante l'esecuzione."
 
 
 class GiaInCorso(Exception):

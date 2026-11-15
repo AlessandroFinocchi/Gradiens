@@ -6,10 +6,9 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from gradiens.dati.modelli import TIPI_NOTIZIA, Argomento, Notizia, NotiziaVista, Pertinenza
+from gradiens.dati.modelli import FONTE_DI_TIPO, TIPI_NOTIZIA, Argomento, Notizia, NotiziaVista, Pertinenza
 
 GIORNI_CONSERVAZIONE = 7  # ESE-09
-GRUPPI_EVIDENZA = {"sito": "siti", "video": "youtube", "short": "youtube", "arxiv": "arxiv"}  # UI-02
 
 
 def adesso() -> datetime:
@@ -80,7 +79,7 @@ def in_evidenza(sessione: Session, soglia: int, esecuzione_id: int | None = None
     dal = adesso() - timedelta(hours=24)
     gruppi: dict[str, list[Notizia]] = {"siti": [], "youtube": [], "arxiv": []}
     for n in elenca(sessione, Filtri(), soglia):  # già in ordine di pertinenza
-        gruppo = gruppi[GRUPPI_EVIDENZA[n.tipo]]
+        gruppo = gruppi[FONTE_DI_TIPO[n.tipo]]  # UI-02
         scelta = n.esecuzione_id == esecuzione_id if esecuzione_id is not None else n.scoperta_il >= dal
         if scelta and len(gruppo) < quante:
             gruppo.append(n)

@@ -53,7 +53,7 @@ Regole fissate nella fetta 1 che le fette successive rispettano senza cambiarle.
 - `url` è l'indirizzo canonico, sempre `https://`: è la chiave del registro delle notizie viste e diventa un link nella dashboard, quindi la fonte scarta tutto ciò che non è un indirizzo web valido;
 - le date sono in UTC senza fuso orario; con la data incerta si usa quella di scoperta e `data_incerta=True` (`WEB-15`);
 - `sommario` serve al pre-filtro e viene accorciato a 1.500 caratteri; `contenuto` serve alla valutazione: testo pulito, senza HTML, vuoto finché `completa` non lo riempie;
-- `tipo` è uno di `arxiv`, `sito`, `video`, `short`; `stato` contiene stati come "contenuto parziale";
+- `tipo` è uno di `arxiv`, `sito`, `video`, `short` (`dati/modelli.TIPI_NOTIZIA`); la fonte di ogni tipo sta una volta sola in `dati/modelli.FONTE_DI_TIPO`, usata dall'esecutore e da `notizie.in_evidenza`; `stato` contiene stati come "contenuto parziale";
 - le richieste usano `fonti.USER_AGENT`, generico e senza dati personali (`WEB-18`).
 
 **Provider LLM** (`llm/base.py`). Un provider ha `nome` e `async def chiedi(*, sistema, messaggio, schema, modello) -> Risposta`:
@@ -62,7 +62,7 @@ Regole fissate nella fetta 1 che le fette successive rispettano senza cambiarle.
 - solleva `QuotaEsaurita` quando la quota è finita (l'esecuzione si interrompe) ed `ErroreLLM` per tutto il resto (la notizia si riprova la volta dopo);
 - un nuovo provider si registra in `llm/__init__.py` (`PROVIDER`).
 
-**Esecuzione** (`esecuzione/esecutore.py`). `Esecutore.avvia(avviata_da)` è l'unico modo di far partire un'esecuzione (dashboard, CLI, Telegram, programmazione). Rifiuta la seconda con `GiaInCorso` (`ESE-02`). L'avanzamento sta in `Esecutore.avanzamento`, e lo spegnimento chiama `Esecutore.ferma()`. La risposta dell'LLM è un dato esterno: si accettano solo id di interessi esistenti e punteggi da 0 a 100.
+**Esecuzione** (`esecuzione/esecutore.py`). `Esecutore.avvia(avviata_da)` è l'unico modo di far partire un'esecuzione (dashboard, CLI, Telegram, programmazione). Rifiuta la seconda con `GiaInCorso` (`ESE-02`). L'avanzamento sta in `Esecutore.avanzamento`, e lo spegnimento chiama `Esecutore.ferma()`: l'esecuzione resta "interrotta" con il motivo `dati/esecuzioni.SPENTO`, lo stesso che `esecuzioni.segna_interrotte` scrive all'avvio del servizio per quelle rimaste in corso (`ESE-12`). La risposta dell'LLM è un dato esterno: si accettano solo id di interessi esistenti e punteggi da 0 a 100.
 
 **Programmazione** (`esecuzione/programmatore.py`). `Programmatore.gira()` parte con il servizio e ogni 30 secondi chiama `controlla()`: avvia l'esecuzione quando l'orario delle Impostazioni viene superato tra un controllo e il successivo, oppure, al primo controllo dopo l'avvio, la recupera se l'orario di oggi è passato e da allora non ne è partita nessuna (`ESE-01`). In pausa non avvia niente (`TG-10`). Al primo controllo di ogni giorno cancella le notizie scadute (`ESE-09`), come fa anche l'esecutore all'inizio di ogni esecuzione. Le ore sono quelle del PC, senza fuso; `prossima()` serve a `gradiens stato` e alla Home.
 

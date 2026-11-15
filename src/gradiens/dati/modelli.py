@@ -10,7 +10,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 TEMI = ("auto", "light", "dark")
 TIPI_NOTIZIA = ("arxiv", "sito", "video", "short")
-STATI_ESECUZIONE = ("in_corso", "completata", "interrotta", "fallita")
+FONTE_DI_TIPO = {"arxiv": "arxiv", "video": "youtube", "short": "youtube", "sito": "siti"}
 
 
 class Base(DeclarativeBase):

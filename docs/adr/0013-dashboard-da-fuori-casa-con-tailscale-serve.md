@@ -1,0 +1,70 @@
+# La dashboard si apre da fuori casa solo dalla rete Tailscale dell'utente, tramite Tailscale Serve
+
+**Stato**: accettato, da implementare (decisioni dell'utente del 15 novembre 2026, n. 50-57 di
+[decisioni.md](../miglioramenti/decisioni.md)). Il codice, il PRD e `struttura.md` descrivono ancora il
+comportamento precedente: si aggiornano insieme al codice.
+
+Oggi la dashboard ascolta solo su `127.0.0.1` e non ha autenticazione. L'utente vuole aprirla da fuori casa,
+solo lui e solo dai suoi dispositivi; non ha un dominio e usa già Tailscale su questa macchina. L'analisi è in
+[06c-dashboard-da-internet.md](../miglioramenti/06c-dashboard-da-internet.md); la sezione "Esito della
+rilettura di sicurezza" di quel documento corregge la protezione proposta nella bozza e fa parte di questa
+decisione.
+
+Gradiens continua ad ascoltare solo sul PC. L'accesso da fuori casa passa da `tailscale serve` sullo stesso
+PC, configurato una volta dall'utente: fa da proxy HTTPS e risponde solo ai dispositivi della rete Tailscale
+dell'utente. Non c'è autenticazione nell'app: la fa Tailscale. Si fa la versione completa: una sezione
+"Accesso da fuori casa" nelle Impostazioni e, quando l'accesso è attivo, un link al resoconto dell'esecuzione
+nel messaggio Telegram.
+
+## Che cosa si può fare da remoto e che cosa solo dal PC
+
+Da remoto: leggere, mettere il cuore, avviare un'esecuzione, aggiungere fonti e interessi.
+
+Solo dal PC su cui gira Gradiens: spegnere Gradiens; cambiare l'avvio all'accensione; creare o togliere le
+icone del pannello; cambiare il bot o la chat di Telegram; **togliere i cuori**; **eliminare interessi e
+fonti**; **alzare i tetti** (paper arXiv, pagine e articoli dei siti, finestra di raccolta).
+
+## Vincoli di sicurezza (dalla rilettura)
+
+- **Il controllo "questa richiesta viene dal PC" non deve dipendere dal proxy.** Un controllo basato su `Host`
+  locale e assenza di `X-Forwarded-For` si aggira da un dispositivo della rete privata con una richiesta
+  scritta a mano, a meno che Serve aggiunga `X-Forwarded-For`: un comportamento che la documentazione
+  ufficiale di Serve non descrive. Serve deve quindi entrare da una **seconda porta locale** usata solo da
+  lui, e una richiesta vale "dal PC" solo se arriva sulla porta principale. Serve va usato solo in modalità
+  HTTP, mai nelle modalità TCP.
+- **Niente incorniciamento**: le risposte portano le intestazioni che vietano di mostrare la dashboard dentro
+  un'altra pagina.
+- **Niente richieste verso la rete locale**: gli indirizzi aggiunti a mano (siti e feed) passano dallo stesso
+  controllo dell'indirizzo pubblico usato per i link e i redirect, comprese le forme non canoniche di un
+  indirizzo IP. È il punto che la decisione 39 rimandava a questa proposta.
+- **Host consentiti**: si aggiunge il nome completo della macchina nella rete Tailscale, mai un modello con
+  l'asterisco.
+- **Verifica a mano dopo l'attivazione**: dal telefono, un'azione "solo dal PC" deve essere rifiutata.
+
+## Opzioni considerate
+
+- **Lasciare così** (solo dal PC): scartata, l'utente vuole leggere le notizie dal telefono.
+- **Accesso diretto all'indirizzo della rete privata**: scartata. Gradiens dovrebbe ascoltare su un secondo
+  indirizzo, e su un portatile che cambia rete ascoltare su tutti gli indirizzi lo esporrebbe sui Wi-Fi
+  pubblici; niente HTTPS.
+- **Tunnel pubblici** (Tailscale Funnel, Cloudflare Tunnel, ngrok) **e port forwarding con DNS dinamico**:
+  scartati. Espongono la dashboard a chiunque, quindi richiederebbero un'autenticazione nell'app, un limite
+  alle esecuzioni e altre protezioni; Cloudflare Tunnel con indirizzo stabile richiede un dominio.
+
+## Conseguenze
+
+- Cambiano `AMB-02`, `TG-03` e la regola "Sicurezza della dashboard" di `struttura.md`; la decisione 51
+  dell'intervista sui requisiti (niente link alla dashboard su Telegram) è superata quando l'accesso da fuori
+  casa è attivo.
+- Passi a mano dell'utente, fuori da Gradiens: abilitare i certificati HTTPS nella rete Tailscale, dopo aver
+  controllato il nome della macchina (finisce in un registro pubblico dei certificati); configurare Serve
+  (su Linux serve `sudo` o l'utente operatore); installare l'app Tailscale sul telefono, che oggi non è nella
+  rete privata.
+- Rischio che resta: chi ha in mano un dispositivo della rete privata (un telefono rubato) può leggere tutto
+  e avviare esecuzioni, consumando quota. Non può più cancellare l'Archivio né alzare i tetti.
+- Se un giorno si attivasse Funnel per errore, tutta la dashboard diventerebbe pubblica senza autenticazione:
+  Gradiens non distingue Serve da Funnel. Va valutato un rifiuto esplicito del traffico di Funnel.
+- Non verificato: il comportamento di Serve dal vero e tutto il ramo Windows (lì Tailscale deve restare
+  attivo senza accesso dell'utente). Un tunnel pubblico richiederà un ADR nuovo.
+- Il codice specifico di un sistema operativo resta solo in `app/avvio_sistema.py`
+  ([ADR 0007](0007-avvio-all-accensione-su-linux-con-systemd.md)): Gradiens non lancia né configura Tailscale.

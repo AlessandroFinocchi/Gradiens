@@ -1,0 +1,91 @@
+"""Copertura per riga della suite di Gradiens con la sola libreria standard (sys.monitoring, Python 3.12+).
+
+Uso (dalla cartella del progetto): python copertura.py <file .md di uscita>
+Non installa niente e non modifica il progetto. Copertura per RIGA (non per ramo): è una riga eseguibile ogni
+riga che compare in co_lines() di un oggetto codice del file; è coperta se è stata eseguita almeno una volta
+durante pytest, in qualunque thread. I sottoprocessi (per esempio il finto `claude` dei test) non si contano.
+"""
+import sys
+import types
+from collections import defaultdict
+from pathlib import Path
+
+import pytest
+
+RADICE = str(Path("src/gradiens").resolve())
+eseguite = defaultdict(set)
+mon = sys.monitoring
+ID = mon.COVERAGE_ID
+mon.use_tool_id(ID, "copertura-gradiens")
+
+
+def riga(codice, numero):
+    f = codice.co_filename
+    if f.startswith(RADICE):
+        eseguite[f].add(numero)
+    return mon.DISABLE
+
+
+mon.register_callback(ID, mon.events.LINE, riga)
+mon.set_events(ID, mon.events.LINE)
+esito = pytest.main(["-q", "-p", "no:cacheprovider"])
+mon.set_events(ID, 0)
+
+
+def codici(c):
+    yield c
+    for k in c.co_consts:
+        if isinstance(k, types.CodeType):
+            yield from codici(k)
+
+
+def intervalli(numeri):
+    numeri, blocchi = sorted(numeri), []
+    for n in numeri:
+        if blocchi and n == blocchi[-1][1] + 1:
+            blocchi[-1][1] = n
+        else:
+            blocchi.append([n, n])
+    return ", ".join(str(a) if a == b else f"{a}-{b}" for a, b in blocchi)
+
+
+righe_md, tot_e, tot_c, funzioni_scoperte = [], 0, 0, []
+per_pacchetto = defaultdict(lambda: [0, 0])
+for f in sorted(Path(RADICE).rglob("*.py")):
+    if "migrazioni" in f.parts:
+        continue
+    sorgente = f.read_text(encoding="utf-8")
+    radice = compile(sorgente, str(f), "exec")
+    eseguibili = set()
+    for c in codici(radice):
+        proprie = {l for _, _, l in c.co_lines() if l}
+        # la riga del `def` appartiene al codice che lo contiene; quelle del corpo alla funzione
+        eseguibili |= proprie
+        if c is not radice and c.co_name not in ("<lambda>", "<genexpr>", "<listcomp>", "<dictcomp>", "<setcomp>"):
+            corpo = proprie - {c.co_firstlineno}
+            fatte = corpo & eseguite[str(f)]
+            if corpo and not fatte:
+                funzioni_scoperte.append((str(f.relative_to(RADICE)), c.co_qualname, c.co_firstlineno, len(corpo)))
+    if not eseguibili:
+        continue
+    coperte = eseguibili & eseguite[str(f)]
+    rel = str(f.relative_to(RADICE))
+    tot_e += len(eseguibili)
+    tot_c += len(coperte)
+    p = rel.split("/")[0] if "/" in rel else "(radice)"
+    per_pacchetto[p][0] += len(eseguibili)
+    per_pacchetto[p][1] += len(coperte)
+    righe_md.append((rel, len(eseguibili), len(coperte), intervalli(eseguibili - coperte)))
+
+u = [f"Esito di pytest: {int(esito)} (0 = tutti verdi). Righe eseguibili: {tot_e}; coperte: {tot_c} "
+     f"(**{100 * tot_c / tot_e:.1f}%**).", "", "### Per pacchetto", "", "| Pacchetto | Righe eseguibili | Coperte | % |", "|---|---|---|---|"]
+for p, (e, c) in sorted(per_pacchetto.items()):
+    u.append(f"| `{p}` | {e} | {c} | {100 * c / e:.1f} |")
+u += ["", "### Per modulo (dal meno coperto)", "", "| Modulo | Righe eseguibili | Coperte | % | Righe non coperte |", "|---|---|---|---|---|"]
+for rel, e, c, mancanti in sorted(righe_md, key=lambda r: r[2] / r[1]):
+    u.append(f"| `{rel}` | {e} | {c} | {100 * c / e:.1f} | {mancanti or '–'} |")
+u += ["", "### Funzioni mai eseguite dai test", "", "| Modulo | Funzione | Riga | Righe del corpo |", "|---|---|---|---|"]
+for rel, nome, riga_, n in sorted(funzioni_scoperte):
+    u.append(f"| `{rel}` | `{nome}` | {riga_} | {n} |")
+Path(sys.argv[1]).write_text("\n".join(u) + "\n", encoding="utf-8")
+print(f"copertura {100 * tot_c / tot_e:.1f}% ({tot_c}/{tot_e}); funzioni mai eseguite: {len(funzioni_scoperte)}")

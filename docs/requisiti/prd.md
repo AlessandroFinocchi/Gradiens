@@ -10,7 +10,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 
 ## 2. Ambiente
 
-- `AMB-01` L'applicazione gira sul PC di casa (Windows 11, RTX 3070 8 GB). Gira anche su Linux, con le stesse funzioni. Da fuori casa si raggiunge tramite Tailscale. Vedi [ADR 0001](../adr/0001-esecuzione-sul-pc-di-casa.md).
+- `AMB-01` L'applicazione gira su un computer dell'utente, con Windows 11 o con Linux, con le stesse funzioni. L'installazione usata ogni giorno è oggi un portatile Linux (Debian 13); il PC di casa con Windows 11 e RTX 3070 8 GB resta supportato. Da fuori casa si raggiunge tramite Tailscale. Vedi [ADR 0001](../adr/0001-esecuzione-sul-pc-di-casa.md) e [ADR 0013](../adr/0013-dashboard-da-fuori-casa-con-tailscale-serve.md). *(Aggiornato il 15 novembre 2026.)*
 - `AMB-02` L'applicazione non è esposta su internet: è raggiungibile solo dalla rete locale e da Tailscale.
 - `AMB-03` Il codice funziona su Windows e su Linux e non usa dipendenze specifiche di un sistema operativo, così si può spostare su un server. Fa eccezione solo la registrazione dell'avvio all'accensione (`AMB-04`), che ha un ramo per ciascun sistema. I test automatici girano su entrambi.
 - `AMB-04` Nelle Impostazioni un interruttore decide come si avvia Gradiens:

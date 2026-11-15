@@ -11,3 +11,11 @@ Gradiens (dashboard, CLI, database, scraping) gira sul PC di casa (Windows 11, R
 
 - Il codice resta portabile (niente dipendenze specifiche di Windows), così un futuro spostamento su server costa poco.
 - L'app non va esposta su internet: è raggiungibile solo dalla rete locale e da Tailscale.
+
+## Aggiornamento (15 novembre 2026)
+
+L'installazione usata ogni giorno è oggi un portatile Linux (Debian 13), senza GPU dedicata; il PC Windows
+resta supportato e provato (decisioni 2 e 57 di [decisioni.md](../miglioramenti/decisioni.md)). La scelta di
+fondo non cambia: un solo computer dell'utente, nessun server. Per l'accesso da fuori casa vedi
+[ADR 0013](0013-dashboard-da-fuori-casa-con-tailscale-serve.md).
+

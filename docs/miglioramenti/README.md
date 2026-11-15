@@ -55,13 +55,15 @@ Tutte e sei le fasi hanno un documento e le decisioni dell'utente sono in [decis
   Tailscale Serve.
 
 **Ordine suggerito per l'implementazione** (dai documenti delle fasi 2, 3 e 4)
-1. I primi 10 test di caratterizzazione (decisione 26).
+1. I primi 10 test di caratterizzazione (decisione 26). **Fatti (15 nov 2026)**, tranne T-09, già coperto da
+   `test_un_video_segnalato_come_sponsorizzato_si_valuta_comunque` dopo la correzione dei video. Con loro è entrato
+   `pytest-cov` (decisione 23), anche nella CI.
 2. I cinque passi di refactoring (decisione 28).
 3. La correzione dei video YouTube (decisione 36): piccola e indipendente. **Fatta (15 nov 2026)**: test
    `test_un_video_segnalato_come_sponsorizzato_si_valuta_comunque`, correzione in `esecuzione/esecutore.py`
    (`filtra`), `WEB-23` aggiornato nel PRD.
 4. ADR 0010, poi ADR 0011 con la protezione del profilo (decisione 21).
-5. Le correzioni della fase 4 che hanno una soluzione pronta; ruff come linter e `pytest-cov`.
+5. Le correzioni della fase 4 che hanno una soluzione pronta; ruff come linter.
 6. ADR 0013; ADR 0012 per ultimo.
 
 **Ancora aperto**

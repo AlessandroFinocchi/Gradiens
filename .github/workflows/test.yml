@@ -21,5 +21,5 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - name: Ambiente con le versioni di uv.lock (Python 3.14 compreso)
         run: uv sync --locked
-      - name: Test
-        run: uv run pytest
+      - name: Test, con il rapporto di copertura (decisione 23, senza soglia minima)
+        run: uv run pytest --cov=gradiens --cov-branch --cov-report=term-missing

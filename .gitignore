@@ -13,3 +13,7 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+
+# Rapporto di copertura di pytest-cov (decisione 23)
+.coverage
+htmlcov/

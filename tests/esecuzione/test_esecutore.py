@@ -469,3 +469,245 @@ def test_aspetta_la_rete_prima_di_raccogliere(sessioni, monkeypatch):
         s.commit()
     esecuzione, _, _, _ = esegui(sessioni, raccolta(candidata("sicurezza-altra")))
     assert (esecuzione.stato, esecuzione.motivo) == ("fallita", "Nessuna connessione a internet: controlla la rete e riprova.")
+
+
+# Test di caratterizzazione T-02…T-07 (docs/miglioramenti/02-test-e-copertura.md, decisione 26): fissano il
+# comportamento di oggi prima di ADR 0010 e 0011. Dove sembra sbagliato restano verdi con "vedi S-nn" (decisione 24).
+
+
+def di_sito(nome: str, url: str) -> Candidata:
+    c = candidata(nome)
+    c.tipo, c.url, c.fonte, c.contenuto = "sito", url, "buono.it", ""
+    return c
+
+
+async def completa_finta(client, c):
+    """`completa` di una fonte: "muto" non ha contenuto (YT-05), "diretta" non è ancora disponibile (YT-04)."""
+    from gradiens.fonti import ContenutoAssente, NonAncoraDisponibile
+
+    if "muto" in c.titolo:
+        raise ContenutoAssente("trascrizione assente")
+    if "diretta" in c.titolo:
+        raise NonAncoraDisponibile("diretta non ancora disponibile")
+    return c
+
+
+def guasto_su(parola: str, schema_guasto: dict, errore: Exception) -> Finto:
+    """Finto che solleva `errore` quando il messaggio di quello schema contiene `parola`."""
+    def risponde(sistema, messaggio, schema):
+        if schema is schema_guasto and parola in messaggio:
+            raise errore
+        return risponditore(sistema, messaggio, schema)
+    return Finto(risponde)
+
+
+def esecuzioni_di_fila(sessioni, fonti, provider, volte: int) -> list[tuple[Esecuzione, dict]]:
+    async def prova():
+        esecutore = Esecutore(sessioni, fabbrica_provider=lambda nome: provider, fonti=fonti)
+        for _ in range(volte):
+            esecutore.avvia("cli")
+            await esecutore.attendi()
+
+    asyncio.run(prova())
+    with sessioni() as s:
+        return [(e, json.loads(e.metriche)) for e in s.scalars(select(Esecuzione).order_by(Esecuzione.id))]
+
+
+class Concorrente(Finto):
+    """Finto che cede il controllo a ogni chiamata e conta quante chiamate di pre-filtro sono in corso insieme."""
+
+    def __init__(self, risponditore):
+        super().__init__(risponditore)
+        self.in_corso = self.massimo = 0
+
+    async def chiedi(self, *, sistema, messaggio, schema, modello):
+        prefiltro = schema is prompt.SCHEMA_PREFILTRO
+        self.in_corso += prefiltro
+        self.massimo = max(self.massimo, self.in_corso)
+        try:
+            await asyncio.sleep(0)
+            return await super().chiedi(sistema=sistema, messaggio=messaggio, schema=schema, modello=modello)
+        finally:
+            self.in_corso -= prefiltro
+
+
+def test_il_prefiltro_dei_paper_manda_tutto_a_blocchi_e_poi_si_applica_il_tetto(sessioni):
+    """T-02. Oggi tutti i paper passano dal pre-filtro, a blocchi partiti insieme, e il tetto si applica dopo.
+    L'ADR 0010 cambia numero, ordine e momento delle chiamate; devono restare: il tetto sceglie i più recenti
+    tra i promossi e gli altri entrano nel registro delle viste."""
+    paper = [candidata(f"sicurezza-alta-{i:02d}", ore_fa=i + 1) for i in range(65)]  # date diverse: 00 è il più recente
+    provider = Concorrente(risponditore)
+    _, metriche, salvate, _ = esegui(sessioni, raccolta(*paper), provider=provider, tetto_arxiv=5)
+
+    blocchi = [json.loads(m) for sistema, m in provider.chiamate if sistema.startswith("Sei il pre-filtro")]
+    assert sorted(len(b) for b in blocchi) == [5, 30, 30]  # ceil(65 / BLOCCO_PREFILTRO) chiamate
+    assert provider.massimo == 3  # partite insieme
+    assert sorted(v["titolo"] for b in blocchi for v in b) == sorted(c.titolo for c in paper)  # ogni paper una volta
+    assert sorted(n.titolo for n in salvate) == [f"sicurezza-alta-{i:02d}" for i in range(5)]
+    assert sum(sistema.startswith("Sei il valutatore") for sistema, _ in provider.chiamate) == 5
+    a = metriche["fonti"]["arxiv"]
+    assert (a["esaminate"], a["scartate_prefiltro"], a["oltre_tetto"], a["mostrate"]) == (65, 0, 60, 5)
+    with sessioni() as s:  # i promossi oltre il tetto non si valutano e non tornano
+        assert notizie.gia_viste(s, [c.url for c in paper[5:]]) == {c.url for c in paper[5:]}
+
+
+ESITI = ("scartate_prefiltro", "escluse", "oltre_tetto", "senza_contenuto", "scartate_valutazione", "mostrate", "errori")
+
+
+@pytest.mark.parametrize("scenario", ["tetto", "esclusioni e senza contenuto", "blocco fallito", "valutazione fallita",
+                                      "diretta"])
+def test_i_contatori_di_una_fonte_tornano(sessioni, monkeypatch, scenario):
+    """T-03, ESE-11: `esaminate` è la somma degli esiti. Non vale con le dirette (YT-04: non entrano in nessun
+    contatore) e quando `errori` conta anche errori di fonte o di sito (`_raccogli`, `_raccogli_sito`)."""
+    from gradiens.esecuzione import esecutore as modulo
+
+    candidate = [candidata("sicurezza-alta", 1), candidata("sicurezza-alta-vecchia", 5), candidata("sicurezza-bassa", 3),
+                 candidata("cucina")]
+    imp, provider, esito_atteso = {}, None, "errori"
+    if scenario == "tetto":
+        imp, esito_atteso = {"tetto_arxiv": 1}, "oltre_tetto"
+    elif scenario == "esclusioni e senza contenuto":
+        a_pagamento = candidata("sicurezza-alta-paywall")
+        a_pagamento.stato = "contenuto parziale (paywall)"
+        candidate += [a_pagamento, candidata("offerta-sconto"), candidata("sicurezza-alta-muto")]
+        imp, esito_atteso = {"escludi_pagamento": True, "escludi_sponsorizzati": True}, "senza_contenuto"
+    elif scenario == "blocco fallito":
+        monkeypatch.setattr(modulo, "BLOCCO_PREFILTRO", 1)
+        provider = guasto_su("sicurezza-bassa", prompt.SCHEMA_PREFILTRO, ErroreLLM("timeout"))
+    elif scenario == "valutazione fallita":
+        provider = guasto_su("sicurezza-alta-vecchia", prompt.SCHEMA_VALUTAZIONE, ErroreLLM("timeout"))
+    else:
+        candidate.append(candidata("sicurezza-alta-diretta"))
+        esito_atteso = "mostrate"
+    fonti = raccolta(*candidate)
+    fonti["arxiv"].completa = completa_finta
+
+    esecuzione, metriche, _, _ = esegui(sessioni, fonti, provider=provider, **imp)
+    c = metriche["fonti"]["arxiv"]
+    assert esecuzione.stato == "completata" and c[esito_atteso] > 0  # lo scenario prova davvero il suo esito
+    if scenario == "esclusioni e senza contenuto":
+        assert c["escluse"] == 2
+    if scenario == "diretta":
+        assert (c["esaminate"], sum(c[k] for k in ESITI)) == (5, 4)  # la diretta non è contata da nessuna parte
+    else:
+        assert c["esaminate"] == sum(c[k] for k in ESITI)
+
+
+def test_una_valutazione_fallita_non_segna_vista_la_notizia_e_la_rimanda_al_prefiltro(sessioni):
+    """T-04. Vedi S-36: la notizia ripassa da pre-filtro e valutazione a ogni esecuzione, fino a 7 giorni."""
+    errori = iter([ErroreLLM("timeout"), RuntimeError("risposta inattesa")])
+
+    def rotta(sistema, messaggio, schema):
+        if schema is prompt.SCHEMA_VALUTAZIONE and "rotta" in messaggio:
+            raise next(errori)
+        return risponditore(sistema, messaggio, schema)
+
+    provider = Finto(rotta)
+    (prima, m1), (seconda, m2) = esecuzioni_di_fila(
+        sessioni, raccolta(candidata("sicurezza-alta"), candidata("sicurezza-alta-rotta")), provider, volte=2)
+
+    assert (prima.stato, seconda.stato) == ("completata", "completata")
+    assert (m1["fonti"]["arxiv"]["mostrate"], m1["fonti"]["arxiv"]["errori"]) == (1, 1)
+    assert (m2["fonti"]["arxiv"]["esaminate"], m2["fonti"]["arxiv"]["errori"]) == (1, 1)  # solo la notizia fallita
+    rotta_in = [sistema.split(" di Gradiens")[0] for sistema, messaggio in provider.chiamate if "rotta" in messaggio]
+    assert sorted(rotta_in) == ["Sei il pre-filtro"] * 2 + ["Sei il valutatore"] * 2
+    with sessioni() as s:
+        assert notizie.gia_viste(s, ["https://arxiv.org/abs/sicurezza-alta-rotta"]) == set()
+        assert [n.titolo for n in s.scalars(select(Notizia))] == ["sicurezza-alta"]
+
+
+class QuotaAlPrimoBlocco:
+    """Provider: il primo blocco di pre-filtro trova la quota esaurita, gli altri restano in attesa."""
+    nome = "finto"
+
+    def __init__(self):
+        self.chiamate = self.cancellate = self.finite = 0
+
+    async def pronto(self):
+        pass
+
+    async def chiedi(self, *, sistema, messaggio, schema, modello):
+        self.chiamate += 1
+        if self.chiamate == 1:
+            raise QuotaEsaurita("Quota dell'abbonamento esaurita")
+        try:
+            await asyncio.sleep(60)  # non finisce mai prima della cancellazione
+        except asyncio.CancelledError:
+            self.cancellate += 1
+            raise
+        self.finite += 1
+
+
+def test_quota_esaurita_nel_prefiltro_interrompe_e_non_segna_viste_le_notizie(sessioni, monkeypatch):
+    """T-05. L'ADR 0010 sostituisce i blocchi paralleli con giri in sequenza: questa semantica deve restare."""
+    from gradiens.esecuzione import esecutore as modulo
+
+    monkeypatch.setattr(modulo, "BLOCCO_PREFILTRO", 1)
+    paper = [candidata(f"sicurezza-alta-{i}") for i in range(3)]
+    provider = QuotaAlPrimoBlocco()
+    esecuzione, _, salvate, _ = esegui(sessioni, raccolta(*paper), provider=provider)
+
+    assert esecuzione.stato == "interrotta" and "Quota" in esecuzione.motivo
+    assert salvate == []
+    assert provider.finite == 0 and provider.cancellate == provider.chiamate - 1  # i blocchi fratelli sono cancellati
+    with sessioni() as s:
+        assert notizie.gia_viste(s, [c.url for c in paper]) == set()
+
+
+@pytest.mark.parametrize("giorni", [1, 3])
+def test_l_esecutore_passa_a_ogni_fonte_la_finestra_di_raccolta(sessioni, giorni):
+    """T-06, ESE-03: `dal = adesso - finestra_giorni` arriva a arXiv, YouTube e siti. L'ADR 0011 cambierà i siti."""
+    from gradiens.dati import siti as dati_siti
+    from gradiens.fonti import siti
+
+    with sessioni() as s:
+        impostazioni.aggiungi_canale(s, "UC" + "a" * 22, "Lab di Sicurezza")
+        dati_siti.aggiungi(s, "https://buono.it/", siti.Profilo(url="https://buono.it/").come_dict())
+    ricevuti = {}
+
+    async def da_arxiv(client, categorie, dal):
+        ricevuti["arxiv"] = dal
+        return []
+
+    async def da_youtube(client, canale, dal):
+        ricevuti["youtube"] = dal
+        return []
+
+    async def da_sito(client, profilo, dal):
+        ricevuti["siti"] = dal
+        return siti.EsitoSito([], "nessun articolo nuovo", False, "")
+
+    fonti = {"arxiv": SimpleNamespace(raccogli=da_arxiv), "youtube": SimpleNamespace(raccogli=da_youtube),
+             "siti": SimpleNamespace(raccogli=da_sito)}
+    prima = notizie.adesso()
+    esecuzione, _, _, _ = esegui(sessioni, fonti, finestra_giorni=giorni)
+    dopo = notizie.adesso()
+
+    assert esecuzione.stato == "completata" and set(ricevuti) == {"arxiv", "youtube", "siti"}
+    assert all(prima - timedelta(days=giorni) <= dal <= dopo - timedelta(days=giorni) for dal in ricevuti.values())
+
+
+def test_lo_stato_del_sito_si_registra_alla_raccolta_anche_se_l_esecuzione_e_interrotta(sessioni):
+    """T-07. Stato, dettaglio e guasti del sito si salvano subito dopo la raccolta, non a fine esecuzione.
+    L'ADR 0011 salverà "coperto fino a" a fine esecuzione: questo contrasto deve restare voluto."""
+    from gradiens.dati import siti as dati_siti
+    from gradiens.dati.modelli import Sito
+    from gradiens.fonti import siti
+
+    with sessioni() as s:
+        s.query(CategoriaArxiv).delete()  # solo il sito
+        dati_siti.aggiungi(s, "https://buono.it/", siti.Profilo(url="https://buono.it/").come_dict())
+    articolo = di_sito("sicurezza-alta-articolo", "https://buono.it/articolo")
+
+    async def raccogli(client, profilo, dal):
+        return siti.EsitoSito([articolo], "ok", True, "Problemi: il feed non ha articoli recenti.")
+
+    provider = guasto_su("sicurezza-alta-articolo", prompt.SCHEMA_VALUTAZIONE, QuotaEsaurita("Quota esaurita"))
+    esecuzione, _, salvate, _ = esegui(sessioni, {"siti": SimpleNamespace(raccogli=raccogli)}, provider=provider)
+
+    assert esecuzione.stato == "interrotta" and salvate == []
+    with sessioni() as s:
+        sito = s.scalars(select(Sito)).one()
+        assert (sito.stato, sito.dettaglio, sito.guasti_consecutivi) == (
+            "ok", "Problemi: il feed non ha articoli recenti.", 1)
+        assert notizie.gia_viste(s, [articolo.url]) == set()

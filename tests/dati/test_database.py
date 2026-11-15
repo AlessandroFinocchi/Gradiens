@@ -99,3 +99,84 @@ def test_copie_giornaliere_una_al_giorno_e_al_massimo_sette(tmp_path):
     assert copia_giornaliera(motore) is None  # stesso giorno, anche dopo un riavvio
     rimaste = sorted(p.name for p in cartella.glob("*-giornaliera.db"))
     assert len(rimaste) == 7 and rimaste[0] == "gradiens-20261004-070000-giornaliera.db"  # via le più vecchie
+
+
+MIGRAZIONE_0012_FINTA = '''"""Migrazione finta per T-01: come farà l'ADR 0011, una colonna nuova in `siti`, con la tabella ricreata."""
+
+import sqlalchemy as sa
+from alembic import op
+
+revision = "0012"
+down_revision = "0011"
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
+    with op.batch_alter_table("siti", recreate="always") as t:  # ricreare la tabella è il caso più rischioso
+        t.add_column(sa.Column("coperto_fino_a", sa.DateTime, nullable=True))
+'''
+
+TABELLE = ("interessi", "siti", "esecuzioni", "argomenti", "notizie", "pertinenze", "proposte", "notizie_viste",
+           "canali_youtube", "categorie_arxiv")
+
+
+def test_la_migrazione_dei_siti_non_perde_dati_e_si_ripete_senza_errori(tmp_path, monkeypatch):
+    """T-01 (doc. 02, decisione 26): prima della migrazione vera della tabella `siti` (ADR 0011) si prova una 0012
+    finta su un database alla 0011 con dati in tutte le tabelle. Quando la 0012 vera esiste, si passa alla vera."""
+    import json
+    import shutil
+
+    from gradiens.dati import database
+
+    motore = crea_motore(tmp_path / "gradiens.db")
+    config = Config()
+    config.set_main_option("script_location", str(CARTELLA_MIGRAZIONI))
+    profili = [json.dumps({"url": f"https://sito-{i}.it/", "strategie": ["feed"], "esclusi": ["/offerte/"],
+                           "note": "profilo con àccenti"}, ensure_ascii=False) for i in range(13)]
+    with motore.begin() as c:
+        config.attributes["connection"] = c
+        command.upgrade(config, "0011")
+        sql = c.exec_driver_sql
+        sql("INSERT INTO interessi (id, nome, descrizione) VALUES (1, 'Sicurezza', 'attacchi'), (2, 'Corsa', 'gare')")
+        for i, profilo in enumerate(profili, start=1):
+            sql("INSERT INTO siti (id, url, profilo, profilo_precedente, stato, dettaglio, guasti_consecutivi)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (i, f"https://sito-{i - 1}.it/", profilo, profilo if i == 1 else None, "ok", "1 articolo", i % 3))
+        sql("INSERT INTO esecuzioni (id, avviata_il, avviata_da, stato, metriche)"
+            " VALUES (1, '2026-11-10 07:00:00', 'programmazione', 'completata', '{}')")
+        sql("INSERT INTO argomenti (id, nome, creato_il) VALUES (1, 'Attacco alla ASL', '2026-11-10 07:05:00')")
+        for n in range(1, 6):
+            sql("INSERT INTO notizie (id, tipo, url, fonte, titolo, riassunto, pubblicata_il, data_incerta, scoperta_il,"
+                " cuore, esecuzione_id, argomento_id) VALUES (?, 'sito', ?, 'sito-0.it', 'T', 'R', '2026-11-10', 0,"
+                " '2026-11-10', ?, 1, ?)", (n, f"https://sito-0.it/{n}", n == 1, 1 if n < 3 else None))
+            sql("INSERT INTO pertinenze VALUES (?, 1, 80), (?, 2, 10)", (n, n))
+            sql("INSERT INTO notizie_viste VALUES (?, '2026-11-10')", (f"https://sito-0.it/{n}",))
+        sql("INSERT INTO notizie_viste VALUES ('https://sito-1.it/scartata', '2026-11-10')")
+        sql("INSERT INTO proposte (interesse_id, testo, notizie, creata_il) VALUES (1, 'ransomware', 3, '2026-11-10')")
+        sql("INSERT INTO canali_youtube VALUES ('UCaaaaaaaaaaaaaaaaaaaaaa', 'Lab')")
+        sql("INSERT INTO categorie_arxiv VALUES ('cs.CR', 'Crittografia e Sicurezza')")
+
+    def stato_dei_dati():
+        with motore.connect() as c:
+            return ({t: c.exec_driver_sql(f"SELECT COUNT(*) FROM {t}").scalar() for t in TABELLE},
+                    c.exec_driver_sql("SELECT id, url, profilo, profilo_precedente, stato, dettaglio, guasti_consecutivi"
+                                      " FROM siti ORDER BY id").all())
+
+    prima = stato_dei_dati()
+    cartella = tmp_path / "migrazioni"
+    shutil.copytree(CARTELLA_MIGRAZIONI, cartella, ignore=shutil.ignore_patterns("__pycache__"))
+    (cartella / "versions" / "0012_finta.py").write_text(MIGRAZIONE_0012_FINTA, encoding="utf-8")
+    monkeypatch.setattr(database, "CARTELLA_MIGRAZIONI", cartella)
+
+    migra(motore)
+    assert stato_dei_dati() == prima and prima[0]["siti"] == 13
+    with motore.connect() as c:
+        assert c.exec_driver_sql("SELECT version_num FROM alembic_version").scalar() == "0012"
+        assert "coperto_fino_a" in [r[1] for r in c.exec_driver_sql("PRAGMA table_info(siti)")]
+        assert c.exec_driver_sql("PRAGMA foreign_key_check").all() == []
+    assert len(list((tmp_path / "backup").glob("gradiens-*-migrazione.db"))) == 1
+
+    migra(motore)  # già aggiornato: niente errori e nessuna copia in più
+    assert stato_dei_dati() == prima
+    assert len(list((tmp_path / "backup").glob("gradiens-*-migrazione.db"))) == 1

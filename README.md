@@ -96,6 +96,8 @@ Vale dal prossimo avvio del PC. Spegnendo l'interruttore la registrazione si tog
 Gradiens si sviluppa sia su Windows sia su Linux: ogni modifica deve funzionare su entrambi.
 
 - Test: `uv run pytest`. Girano anche su GitHub, su Ubuntu e su Windows, a ogni push ([workflow](.github/workflows/test.yml)).
+- Copertura dei test, uguale su Windows e su Linux: `uv run pytest --cov=gradiens --cov-branch --cov-report=term-missing`
+  (a video) o `--cov-report=html` (in `htmlcov/index.html`). Nessuna soglia minima.
 - Regole di lavoro e definizione di "fatto": [CLAUDE.md](CLAUDE.md).
 
 ### Strumenti per Claude Code

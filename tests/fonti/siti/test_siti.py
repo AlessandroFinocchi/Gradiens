@@ -271,3 +271,67 @@ def test_sitemap_rigenerata_con_lo_stesso_lastmod_non_da_date():
     xml = f'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{voci}</urlset>'.encode()
     tipo, lette = sitemap.interpreta(Pagina("https://nature.com/sitemap.xml", 200, xml, "application/xml"))
     assert tipo == "elenco" and all(data is None for _, data, _, _ in lette)
+
+
+def _api_wordpress(host: str) -> str:
+    """L'indirizzo che la strategia WordPress chiede per DAL: `after` con un giorno di margine, 100 voci."""
+    from urllib.parse import urlencode
+
+    parametri = {"after": "2026-10-31T00:00:00", "per_page": 100, "_fields": "link,date_gmt,title,excerpt"}
+    return f"https://{host}/wp-json/wp/v2/posts?{urlencode(parametri)}"
+
+
+async def _raccogli_wordpress(client, profilo, dal):
+    from gradiens.fonti.siti.rete import Navigatore
+    from gradiens.fonti.siti.strategie import wordpress
+
+    return await wordpress.raccogli(Navigatore(client), profilo, dal)
+
+
+def test_wordpress_raccogli_usa_la_data_gmt_la_finestra_e_il_limite_di_100_voci(sito):
+    """T-10 (doc. 02, decisione 26): la strategia non era mai eseguita. 6a-5, 6a-7 e ADR 0011 cambiano `dal` e la cascata."""
+    voci = [
+        {"link": "https://wp.it/articolo-nuovo/?utm_source=rss", "date_gmt": "2026-11-05T08:00:00",
+         "title": {"rendered": "Titolo &amp; <b>altro</b>"}, "excerpt": {"rendered": "<p>Il riassunto.</p>"}},
+        # ora locale del sito nella finestra, ma conta date_gmt, che è fuori
+        {"link": "https://wp.it/ieri-sera/", "date": "2026-11-01T01:00:00", "date_gmt": "2026-10-31T23:00:00",
+         "title": {"rendered": "Ieri sera"}},
+        {"link": "https://wp.it/senza-data/", "date_gmt": "", "title": {"rendered": "Senza data"}},
+        {"link": "https://wp.it/senza-titolo/", "date_gmt": "2026-11-02T10:00:00Z"},
+        "non è un oggetto",
+    ]
+    s = sito({_api_wordpress("wp.it"): json.dumps(voci)})
+    profilo = Profilo(url="https://wp.it/", perimetro="wp.it", piattaforma="wordpress", strategie=["wordpress"])
+    r = s.esegui(_raccogli_wordpress, profilo, DAL)
+
+    assert _api_wordpress("wp.it") in s.richieste
+    assert (r.riuscita, r.copre, r.guasti) == (True, True, [])  # meno di 100 voci: la finestra è coperta
+    assert [(c.url, c.titolo, c.sommario, c.pubblicata_il, c.fonte, c.data_incerta) for c in r.candidate] == [
+        ("https://wp.it/articolo-nuovo/", "Titolo & altro", "Il riassunto.", datetime(2026, 11, 5, 8, 0), "wp.it", False),
+        ("https://wp.it/senza-titolo/", "Senza titolo", "", datetime(2026, 11, 2, 10, 0), "wp.it", False),
+    ]
+
+    cento = [{"link": f"https://wp100.it/n-{i}/", "date_gmt": "2026-11-05T08:00:00"} for i in range(100)]
+    s = sito({_api_wordpress("wp100.it"): json.dumps(cento)})
+    r = s.esegui(_raccogli_wordpress, Profilo(url="https://wp100.it/", strategie=["wordpress"]), DAL)
+    assert (len(r.candidate), r.copre) == (100, False)  # 100 voci: forse ce ne sono altre, la cascata prosegue
+
+
+@pytest.mark.parametrize("risposta, prima, dopo", [
+    ("{non è json", "l'API di WordPress", " non risponde in JSON"),
+    ("<html><body>home</body></html>", "l'API di WordPress", " non risponde in JSON"),
+    (httpx.Response(500), "l'API di WordPress", " non si legge (500)"),
+    ("robots", "robots.txt ora vieta l'API di WordPress", ""),
+])
+def test_wordpress_raccogli_risposte_non_valide_e_robots_che_vieta_sono_guasti(sito, risposta, prima, dopo):
+    """T-10: JSON non valido, HTML e un errore del server sono guasti; robots.txt che vieta /wp-json/ anche."""
+    rotte = {_api_wordpress("wp.it"): risposta}
+    if risposta == "robots":
+        rotte = {"https://wp.it/robots.txt": "User-agent: *\nDisallow: /wp-json/\n"}
+    s = sito(rotte)
+    r = s.esegui(_raccogli_wordpress, Profilo(url="https://wp.it/", strategie=["wordpress"]), DAL)
+
+    assert (r.riuscita, r.candidate) == (False, [])
+    assert r.guasti == [f"{prima} {_api_wordpress('wp.it')}{dopo}"]
+    if risposta == "robots":
+        assert not any("/wp-json/" in u for u in s.richieste)

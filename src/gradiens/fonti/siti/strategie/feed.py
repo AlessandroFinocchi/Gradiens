@@ -8,7 +8,7 @@ import feedparser
 
 from gradiens.fonti import Candidata
 from gradiens.fonti.siti.date import adesso, da_struct, nella_finestra
-from gradiens.fonti.siti.indirizzi import normalizza, titolo_da_url
+from gradiens.fonti.siti.indirizzi import host, normalizza, stesso_dominio, titolo_da_url
 from gradiens.fonti.siti.pagine import albero, collegamenti, testo_semplice
 from gradiens.fonti.siti.rete import Navigatore, Pagina
 from gradiens.fonti.siti.strategie.raccolta import Raccolta
@@ -97,6 +97,8 @@ async def raccogli(nav: Navigatore, profilo, dal) -> Raccolta:
         r.riuscita = True
         vecchie = False
         for c in candidate(f, letta.url, profilo.dominio):  # le voci possono non essere in ordine di data (ACN)
+            if not _del_sito(c.url, profilo, {host(url), host(letta.url)}):
+                continue
             if c.data_incerta or nella_finestra(c.pubblicata_il, dal):
                 r.candidate.append(c)
             else:
@@ -104,3 +106,10 @@ async def raccogli(nav: Navigatore, profilo, dal) -> Raccolta:
         coperti.append(vecchie)
     r.copre = bool(coperti) and all(coperti)
     return r
+
+
+def _del_sito(url: str, profilo, host_del_feed: set[str]) -> bool:
+    """Decisione 18 (WEB-08): voci del sito (anche fuori da una sezione, WEB-09), dei siti collegati attivati e
+    dell'host del feed stesso (Substack, feedburner). Le voci di altri domini sono fuori."""
+    h = host(url)
+    return stesso_dominio(h, profilo.dominio) or h in host_del_feed or profilo.nel_perimetro(url)

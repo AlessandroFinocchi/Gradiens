@@ -313,6 +313,45 @@ def test_tetti_del_sito_e_interruttori_di_esclusione(dati, monkeypatch):
     assert (imp.escludi_sponsorizzati, imp.escludi_pagamento) == (True, False)  # casella non spuntata = disattivo
 
 
+def test_rigenera_dal_bottone_e_togli_esclusione(dati, monkeypatch):
+    import json
+
+    from gradiens.dati import siti as dati_siti
+    from gradiens.dati.modelli import Sito
+    from gradiens.fonti import siti
+
+    vecchio = siti.Profilo(url="https://sito.it/", strategie=["feed"], esclusi=["https://sito.it/en/"]).come_dict()
+    with dati.app.state.sessioni() as s:
+        id = dati_siti.aggiungi(s, "https://sito.it/", vecchio, "ok").id
+
+    async def non_trova_niente(client, profilo):
+        return None
+
+    monkeypatch.setattr(siti, "rigenera", non_trova_niente)
+    finestra = dati.post(f"/impostazioni/siti/{id}/rigenera", headers=HTMX).text
+    assert "tengo il profilo di prima" in finestra  # decisione 21, anche dal bottone
+    with dati.app.state.sessioni() as s:
+        sito = s.get(Sito, id)
+        assert (json.loads(sito.profilo), sito.profilo_precedente, sito.stato) == (vecchio, None, "ok")
+
+    async def trova(client, profilo):
+        return siti.Profilo(url=profilo.url, strategie=["sitemap"])
+
+    monkeypatch.setattr(siti, "rigenera", trova)
+    dati.post(f"/impostazioni/siti/{id}/rigenera", headers=HTMX)
+    with dati.app.state.sessioni() as s:
+        sito = s.get(Sito, id)
+        assert (json.loads(sito.profilo)["strategie"], sito.stato) == (["sitemap"], "profilo rigenerato")
+
+    with dati.app.state.sessioni() as s:
+        dati_siti.salva_profilo(s, id, vecchio)
+    finestra = dati.post(f"/impostazioni/siti/{id}/includi", data={"indirizzo": "https://sito.it/en/"}, headers=HTMX).text
+    assert "nessuno" in finestra.split("<dt>Esclusi</dt>")[1].split("</dd>")[0]
+    with dati.app.state.sessioni() as s:
+        profilo = json.loads(s.get(Sito, id).profilo)
+    assert (profilo["esclusi"], profilo["modificati"]) == ([], ["esclusi"])
+
+
 def test_impostazioni_avvio(client, monkeypatch):
     registrato = []
 

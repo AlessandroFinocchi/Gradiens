@@ -52,6 +52,12 @@ def registra_esito(sessione: Session, id: int, stato: str, dettaglio: str, guast
     return sito.guasti_consecutivi
 
 
+def aggiorna_dettaglio(sessione: Session, id: int, dettaglio: str) -> None:
+    """Cambia solo la spiegazione dell'ultimo esito, es. dopo una rigenerazione che ha tenuto il profilo vecchio."""
+    sessione.get_one(Sito, id).dettaglio = dettaglio
+    sessione.commit()
+
+
 def salva_rigenerato(sessione: Session, id: int, nuovo: dict) -> None:
     """WEB-25: il profilo vecchio resta per mostrare le differenze; il sito ha lo stato "profilo rigenerato"."""
     sito = sessione.get_one(Sito, id)

@@ -7,7 +7,7 @@ from urllib.parse import urlsplit
 import lxml.html
 from lxml import etree
 
-from gradiens.fonti.siti.indirizzi import di_servizio, host, normalizza, segmenti, sembra_articolo, stesso_dominio
+from gradiens.fonti.siti.indirizzi import chiave, di_servizio, host, normalizza, segmenti, sembra_articolo, stesso_dominio
 from gradiens.fonti.siti.rete import Pagina
 
 MENU = {"nav", "header", "footer", "aside"}
@@ -121,6 +121,24 @@ def commerciali(doc: lxml.html.HtmlElement, base: str, profilo) -> list[str]:
             trovate.append(f"https://{urlsplit(url).netloc}/")  # es. offerte.sito.it
         elif nel_menu(a) and parti and _voce_commerciale(a):
             trovate.append(url)
+    return list(dict.fromkeys(trovate))
+
+
+def traduzioni(doc: lxml.html.HtmlElement, base: str, profilo) -> list[str]:
+    """Versioni del sito in altre lingue (hreflang) da proporre come escluse (decisione 22): il prefisso della
+    lingua (sito.it/en/) o il sottodominio (en.sito.it). Senza un prefisso sicuro la versione non si esclude."""
+    lingua = (doc.get("lang") or "").lower().split("-")[0]
+    trovate = []
+    for link in doc.xpath("//link[contains(@rel, 'alternate')][@hreflang]"):
+        codice = link.get("hreflang").lower().split("-")[0]
+        url = normalizza(link.get("href", ""), base)
+        if not url or codice in ("x", lingua) or chiave(url) == chiave(base) or not stesso_dominio(host(url), profilo.dominio):
+            continue  # x-default, la lingua della pagina, la pagina stessa, altri domini
+        parti = segmenti(url)
+        if parti and parti[0].lower().split("-")[0] == codice:
+            trovate.append(f"https://{urlsplit(url).netloc}/{parti[0]}/")
+        elif not parti and host(url) != host(base):
+            trovate.append(f"https://{urlsplit(url).netloc}/")
     return list(dict.fromkeys(trovate))
 
 

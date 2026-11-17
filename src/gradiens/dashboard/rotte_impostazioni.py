@@ -191,6 +191,12 @@ def escludi_percorso(request: Request, s: Sessione, id: int, indirizzo: Testo):
     return _modifica_profilo(request, s, id, lambda p: p.escludi(_indirizzo_web(indirizzo)))
 
 
+@router.post("/siti/{id}/includi", response_class=HTMLResponse)
+def includi_percorso(request: Request, s: Sessione, id: int, indirizzo: Testo):
+    """WEB-03: toglie un'esclusione, anche una proposta dall'analisi (offerte, traduzioni)."""
+    return _modifica_profilo(request, s, id, lambda p: p.includi(indirizzo))
+
+
 @router.post("/siti/{id}/collegato", response_class=HTMLResponse)
 def sito_collegato(request: Request, s: Sessione, id: int, dominio: Testo, attivo: Annotated[bool, Form()] = False):
     """WEB-07: i domini esterni trovati nell'analisi sono proposti disattivati; l'utente li attiva."""
@@ -221,6 +227,8 @@ async def rigenera_profilo(request: Request, s: Sessione, id: int):
         raise HTTPException(404, "Sito inesistente")
     async with httpx.AsyncClient(follow_redirects=True) as client:
         nuovo = await siti.rigenera(client, Profilo.da_dict(json.loads(sito.profilo)))
+    if nuovo is None:  # decisione 21: il profilo resta com'è
+        return finestra(request, s, "siti", errore=f"{sito.url}: {siti.PROFILO_TENUTO}")
     return _esegui(request, s, "siti", lambda: dati_siti.salva_rigenerato(s, id, nuovo.come_dict()))
 
 

@@ -303,6 +303,48 @@ def test_siti_stato_guasti_e_rigenerazione_dopo_tre(sessioni):
     assert (stati["redhotcyber.com"]["stato"], stati["redhotcyber.com"]["nuove"]) == ("ok", 0)  # già visto
 
 
+def test_sito_che_non_risponde_tiene_il_profilo_vecchio_e_riprova_ogni_tre_guasti(sessioni):
+    """Decisione 21: se la nuova analisi non trova strategie, il profilo resta quello di prima e il problema si vede."""
+    from gradiens.dati import siti as dati_siti
+    from gradiens.dati.modelli import Sito
+    from gradiens.fonti import siti
+
+    vecchio = siti.Profilo(url="https://giu.example/", strategie=["feed"], feed=["https://giu.example/feed/"]).come_dict()
+    with sessioni() as s:
+        dati_siti.aggiungi(s, "https://giu.example/", vecchio)
+
+    rigenerati = []
+
+    async def raccogli(client, profilo, dal):
+        return siti.EsitoSito([], "nessuna strategia funzionante", True, "Il feed non si legge (errore di rete).")
+
+    async def rigenera(client, profilo):
+        rigenerati.append(profilo.url)
+        return None  # l'analisi non ha trovato niente
+
+    fonti = {**raccolta(), "siti": SimpleNamespace(raccogli=raccogli, rigenera=rigenera, completa=None)}
+
+    async def esecuzioni(quante):
+        esecutore = Esecutore(sessioni, fabbrica_provider=lambda n: Finto(risponditore), fonti=fonti)
+        for _ in range(quante):
+            esecutore.avvia("programmazione")
+            await esecutore.attendi()
+
+    asyncio.run(esecuzioni(3))
+    with sessioni() as s:
+        sito = s.scalars(select(Sito)).one()
+        ultima = json.loads(s.scalars(select(Esecuzione).order_by(Esecuzione.id.desc())).first().metriche)
+        assert json.loads(sito.profilo) == vecchio and sito.profilo_precedente is None
+        assert (sito.stato, sito.guasti_consecutivi) == ("nessuna strategia funzionante", 3)  # resta tra gli avvisi
+        assert "tengo il profilo di prima" in sito.dettaglio
+    stato = ultima["fonti"]["siti"]["stati"][0]
+    assert stato["stato"] == "nessuna strategia funzionante" and "tengo il profilo di prima" in stato["dettaglio"]
+    assert rigenerati == ["https://giu.example/"]
+
+    asyncio.run(esecuzioni(3))
+    assert len(rigenerati) == 2  # di nuovo al sesto guasto di fila, non a ogni esecuzione
+
+
 @pytest.mark.parametrize("escludi", [True, False])
 def test_articoli_a_pagamento_e_sponsorizzati_secondo_gli_interruttori(sessioni, escludi):
     def a_pagamento(nome):

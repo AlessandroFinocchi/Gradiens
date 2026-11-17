@@ -228,12 +228,16 @@ class Esecutore:
             conta.errori += 1
         stato = {"fonte": profilo.dominio, "stato": esito.stato, "dettaglio": esito.dettaglio}
         conta.stati.append(stato)
-        if guasti >= dati_siti.GUASTI_PER_RIGENERARE:
+        if guasti % dati_siti.GUASTI_PER_RIGENERARE == 0 and guasti:  # al 3°, 6°, 9°… guasto di fila (WEB-24)
             try:
                 nuovo = await fonte.rigenera(client, profilo)
             except Exception as errore:
                 log.warning("Rigenerazione del profilo di %s fallita: %s", profilo.url, errore)
             else:
+                if nuovo is None:  # decisione 21: profilo e guasti restano, così il sito resta tra gli avvisi della Home
+                    stato["dettaglio"] = f"{esito.dettaglio or esito.stato} {siti.PROFILO_TENUTO} Riprovo dopo altri 3 guasti di fila."
+                    dati_siti.aggiorna_dettaglio(s, id, stato["dettaglio"])
+                    return esito.candidate
                 dati_siti.salva_rigenerato(s, id, nuovo.come_dict())
                 stato.update(stato="profilo rigenerato",
                              dettaglio=f"{esito.dettaglio or esito.stato}. Dopo 3 guasti di fila il profilo è stato ricreato; le tue modifiche restano.")

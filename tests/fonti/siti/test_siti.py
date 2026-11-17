@@ -335,3 +335,64 @@ def test_wordpress_raccogli_risposte_non_valide_e_robots_che_vieta_sono_guasti(s
     assert r.guasti == [f"{prima} {_api_wordpress('wp.it')}{dopo}"]
     if risposta == "robots":
         assert not any("/wp-json/" in u for u in s.richieste)
+
+
+def test_rigenerazione_senza_strategie_tiene_il_profilo_vecchio(sito):
+    """Decisione 21: il nuovo profilo sostituisce il vecchio solo se l'analisi trova almeno una strategia che funziona.
+    Un feed aggiunto a mano non conta: viene copiato dal vecchio profilo, non trovato dall'analisi."""
+    class Spento(sito):
+        def risponde(self, request):
+            self.richieste.append(str(request.url))
+            raise httpx.ConnectError("il sito non risponde")
+
+    vecchio = Profilo(url="https://e3rehab.com/", perimetro="e3rehab.com", feed=["https://e3rehab.com/feed/"],
+                      strategie=["feed", "html"])
+    vecchio.aggiungi_feed("https://e3rehab.com/feed-a-mano/")
+    for s in (Spento({}), sito({})):  # rete assente; sito che risponde solo 404
+        assert s.esegui(rigenera, vecchio) is None
+        assert s.richieste  # l'analisi è stata davvero tentata
+
+
+def test_feed_scarta_le_voci_di_altri_domini(sito):
+    """Decisione 18 (WEB-08): si tengono le voci del sito, quelle sull'host del feed (Substack, feedburner) e quelle
+    dei siti collegati attivati; le altre sono fuori."""
+    voci = "".join(f"<item><title>{u}</title><link>{u}</link><pubDate>Thu, 05 Nov 2026 08:00:00 GMT</pubDate></item>"
+                   for u in ("https://3blue1brown.substack.com/p/sul-substack", "https://www.3blue1brown.com/lessons/sul-sito",
+                             "https://blog.3blue1brown.com/sul-sottodominio", "https://attivo.example/collegato-attivo",
+                             "https://spento.example/collegato-spento", "https://altro.example/terzo-dominio"))
+    s = sito({"https://3blue1brown.substack.com/feed": f"<rss version='2.0'><channel>{voci}</channel></rss>"})
+    profilo = Profilo(url="https://www.3blue1brown.com/", perimetro="3blue1brown.com", strategie=["feed"],
+                      feed=["https://3blue1brown.substack.com/feed"],
+                      siti_collegati={"attivo.example": True, "spento.example": False})
+    esito = s.esegui(raccogli, profilo, DAL)
+    assert sorted(c.titolo.rsplit("/", 1)[1] for c in esito.candidate) == [
+        "collegato-attivo", "sul-sito", "sul-sottodominio", "sul-substack"]
+
+
+def test_traduzioni_proposte_come_escluse_all_analisi(sito):
+    """Decisione 22: le versioni in altre lingue (hreflang) sono proposte come escluse; la raccolta le salta."""
+    home = """<html lang="it"><head>
+      <link rel="alternate" hreflang="it" href="https://www.sito.it/">
+      <link rel="alternate" hreflang="x-default" href="https://www.sito.it/">
+      <link rel="alternate" hreflang="en-US" href="https://www.sito.it/en/">
+      <link rel="alternate" hreflang="fr" href="https://fr.sito.it/">
+      <link rel="alternate" hreflang="de" href="https://sito.de/">
+      <link rel="alternate" type="application/rss+xml" href="https://www.sito.it/feed/">
+    </head><body><p>Notizie</p></body></html>"""
+    voci = "".join(f"<item><title>{u}</title><link>{u}</link><pubDate>Thu, 05 Nov 2026 08:00:00 GMT</pubDate></item>"
+                   for u in ("https://www.sito.it/post/in-italiano-oggi", "https://www.sito.it/en/post/in-inglese-oggi"))
+    s = sito({"https://www.sito.it/": home, "https://www.sito.it/feed/": f"<rss version='2.0'><channel>{voci}</channel></rss>"})
+    profilo = s.esegui(analizza, "https://www.sito.it/")
+    assert profilo.esclusi == ["https://www.sito.it/en/", "https://fr.sito.it/"]  # sito.de è fuori dal perimetro
+    assert "esclusi" not in profilo.modificati  # proposta dell'analisi: la rigenerazione la può rifare
+
+    esito = s.esegui(raccogli, profilo, DAL)
+    assert [c.url for c in esito.candidate] == ["https://www.sito.it/post/in-italiano-oggi"]
+
+
+def test_togliere_un_esclusione_e_una_modifica_manuale(sito):
+    """WEB-03: un'esclusione si può togliere; la rigenerazione rispetta la scelta e non la propone di nuovo."""
+    profilo = Profilo(url="https://www.sito.it/", esclusi=["https://www.sito.it/en/", "https://www.sito.it/offerte/"])
+    profilo.includi("https://www.sito.it/en/")
+    assert profilo.esclusi == ["https://www.sito.it/offerte/"]
+    assert profilo.modificati == ["esclusi"]

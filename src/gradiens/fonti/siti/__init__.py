@@ -15,12 +15,12 @@ from gradiens.fonti import Candidata
 from gradiens.fonti.siti.date import da_url, nella_finestra
 from gradiens.fonti.siti.estrazione import completa, estrai
 from gradiens.fonti.siti.indirizzi import normalizza
-from gradiens.fonti.siti.pagine import albero, collegati, commerciali, piattaforma, richiede_js, sezioni
+from gradiens.fonti.siti.pagine import albero, collegati, commerciali, piattaforma, richiede_js, sezioni, traduzioni
 from gradiens.fonti.siti.profilo import STRATEGIA_DEL_CAMPO, Profilo, perimetro_di
 from gradiens.fonti.siti.rete import Navigatore
 from gradiens.fonti.siti.strategie import STRATEGIE
 
-__all__ = ["EsitoSito", "Profilo", "analizza", "completa", "raccogli", "rigenera"]
+__all__ = ["PROFILO_TENUTO", "EsitoSito", "Profilo", "analizza", "completa", "raccogli", "rigenera"]
 
 PAGINE_ANALISI = 40
 OK, NESSUN_NUOVO = "ok", "nessun articolo nuovo"
@@ -33,6 +33,8 @@ SUGGERIMENTI = {
     NESSUNA: "Non ho trovato feed, sitemap o elenchi di articoli leggibili. Inserisci a mano l'indirizzo di un feed "
              "o di una sezione nel profilo.",
 }
+PROFILO_TENUTO = ("Ho rianalizzato il sito, ma non ho trovato nessuna strategia che funziona: "
+                  "tengo il profilo di prima.")  # decisione 21
 
 
 @dataclass
@@ -53,7 +55,7 @@ async def analizza(client: httpx.AsyncClient, url: str) -> Profilo:
     pagina = await nav.leggi(url)
     if (doc := albero(pagina)) is not None:
         profilo.piattaforma = piattaforma(pagina)
-        profilo.esclusi = commerciali(doc, pagina.url, profilo)
+        profilo.esclusi = list(dict.fromkeys(commerciali(doc, pagina.url, profilo) + traduzioni(doc, pagina.url, profilo)))
         profilo.sezioni = [s for s in sezioni(doc, pagina.url, profilo) if await nav.consentito(s)]
         profilo.siti_collegati = dict.fromkeys(collegati(doc, pagina.url, profilo), False)
     for nome, strategia in STRATEGIE.items():
@@ -66,9 +68,16 @@ async def analizza(client: httpx.AsyncClient, url: str) -> Profilo:
     return profilo
 
 
-async def rigenera(client: httpx.AsyncClient, vecchio: Profilo) -> Profilo:
-    """Nuovo profilo dallo stesso indirizzo che conserva i campi modificati dall'utente (WEB-25)."""
+async def rigenera(client: httpx.AsyncClient, vecchio: Profilo) -> Profilo | None:
+    """Nuovo profilo dallo stesso indirizzo che conserva i campi modificati dall'utente (WEB-25).
+
+    None se la nuova analisi non trova nessuna strategia che funziona (sito che non risponde, bloccato, rifatto):
+    chi chiama tiene il profilo vecchio e segnala il problema (decisione 21). I feed aggiunti a mano non contano:
+    si copiano dal vecchio profilo, non li trova l'analisi.
+    """
     nuovo = await analizza(client, vecchio.url)
+    if not nuovo.strategie:
+        return None
     for campo in vecchio.modificati:
         setattr(nuovo, campo, copy.deepcopy(getattr(vecchio, campo)))
         if campo in STRATEGIA_DEL_CAMPO and getattr(nuovo, campo):

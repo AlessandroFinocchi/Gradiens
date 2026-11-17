@@ -22,7 +22,7 @@ class Profilo:
     url: str  # indirizzo inserito dall'utente: home o sezione
     perimetro: str = ""  # "dominio.it" (home: sottodomini compresi) o "dominio.it/sezione" (solo la sezione), WEB-06/09
     piattaforma: str = ""  # es. "wordpress", "substack", "hexo"; vuota se non riconosciuta
-    feed: list[str] = field(default_factory=list)  # feed usati: tutti i loro articoli valgono, anche su altri domini (WEB-08)
+    feed: list[str] = field(default_factory=list)  # feed usati, anche su altri domini; delle voci valgono solo quelle del sito (WEB-08)
     sitemap: list[str] = field(default_factory=list)
     sezioni: list[str] = field(default_factory=list)  # pagine elenco da esplorare oltre a `url`
     esclusi: list[str] = field(default_factory=list)  # prefissi di indirizzo esclusi: sezioni, percorsi o feed (WEB-03/21)
@@ -76,6 +76,12 @@ class Profilo:
         if prefisso not in self.esclusi:
             self.esclusi.append(prefisso)
         self._modificato("esclusi")
+
+    def includi(self, prefisso: str) -> None:
+        """Toglie un'esclusione; come modifica manuale, la rigenerazione non la ripropone (WEB-25)."""
+        if prefisso in self.esclusi:
+            self.esclusi.remove(prefisso)
+            self._modificato("esclusi")
 
     def _aggiungi(self, campo: str, url: str) -> None:
         valori = getattr(self, campo)

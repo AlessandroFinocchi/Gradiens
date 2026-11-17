@@ -36,7 +36,10 @@
     <dl>
       <dt>Feed</dt><dd>{% for f in p.feed %}<code>{{ f }}</code> {% else %}nessuno{% endfor %}</dd>
       <dt>Sitemap</dt><dd>{% for f in p.sitemap %}<code>{{ f }}</code> {% else %}nessuna{% endfor %}</dd>
-      <dt>Esclusi</dt><dd>{% for e in p.esclusi %}<code>{{ e }}</code> {% else %}nessuno{% endfor %}</dd>
+      <dt>Esclusi</dt><dd>{% for e in p.esclusi %}<code>{{ e }}</code>
+        <button type="button" class="bottone secondario piccolo" hx-post="/impostazioni/siti/{{ sito.id }}/includi"
+                hx-vals='{{ {"indirizzo": e}|tojson }}' hx-target="#impostazioni" aria-label="Non escludere più {{ e }}">Togli</button>
+        {% else %}nessuno{% endfor %}</dd>
       {% if p.modificati %}<dt>Modificati a mano</dt><dd>{{ p.modificati | join(", ") }}</dd>{% endif %}
     </dl>
     {% if p.siti_collegati %}

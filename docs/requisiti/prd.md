@@ -82,7 +82,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 
 - `WEB-06` Se l'indirizzo è una home page, il perimetro è l'intero dominio, sottodomini compresi.
 - `WEB-07` I domini esterni trovati durante l'analisi compaiono nel profilo come "siti collegati", disattivati. L'utente li può attivare.
-- `WEB-08` Un feed ospitato su un altro dominio (feedburner, Substack) si usa per trovare gli articoli, se il sito lo collega, ma non allarga il perimetro.
+- `WEB-08` Un feed ospitato su un altro dominio (feedburner, Substack) si usa per trovare gli articoli, se il sito lo collega, ma non allarga il perimetro. Di un feed valgono le voci del sito, quelle sull'host del feed stesso (es. `nome.substack.com`) e quelle dei siti collegati attivati (`WEB-07`); le voci di altri domini si scartano (decisione 18 di `docs/miglioramenti/decisioni.md`, 13 nov 2026).
 - `WEB-09` Se l'indirizzo è una sezione, l'esplorazione resta dentro la sezione: le sue pagine successive e le sue sottosezioni, senza sottodomini. Gli articoli che la sezione elenca valgono anche se il loro indirizzo è fuori dal percorso della sezione (casi e3rehab, ACN).
 
 **Scoperta degli articoli**
@@ -127,7 +127,9 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
   - un feed fermo mentre la sitemap mostra articoli più recenti.
 
   "Zero articoli nuovi", da solo, non fa mai scattare la rigenerazione.
-- `WEB-25` Dopo la rigenerazione il sito ha lo stato "profilo rigenerato" e si vedono le differenze rispetto al profilo precedente. La rigenerazione conserva le modifiche manuali dell'utente. Un feed aggiunto a mano che smette di funzionare viene segnalato ma non rimosso. Nelle Impostazioni un bottone permette di rigenerare il profilo a mano.
+
+  Il nuovo profilo sostituisce il vecchio solo se la nuova analisi trova almeno una strategia che funziona; i feed aggiunti a mano non contano, perché si copiano dal vecchio profilo. Altrimenti (sito che non risponde, bloccato o cambiato) si tiene il profilo di prima, il sito resta in errore con la spiegazione e tra gli avvisi della Home, e la rigenerazione si riprova ogni 3 guasti di fila (decisione 21 di `docs/miglioramenti/decisioni.md`, 13 nov 2026).
+- `WEB-25` Dopo la rigenerazione il sito ha lo stato "profilo rigenerato" e si vedono le differenze rispetto al profilo precedente. La rigenerazione conserva le modifiche manuali dell'utente. Un feed aggiunto a mano che smette di funzionare viene segnalato ma non rimosso. Nelle Impostazioni un bottone permette di rigenerare il profilo a mano, con la stessa regola di `WEB-24`: se la nuova analisi non trova nessuna strategia che funziona, il profilo non cambia e la finestra lo dice.
 - `WEB-26` Ogni sito ha uno stato visibile, per esempio:
   - "ok";
   - "nessun articolo nuovo", che è un esito normale e non un errore;

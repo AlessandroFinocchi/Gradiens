@@ -47,7 +47,9 @@ def interpreta(uscita: str) -> Risposta:
     try:
         d = json.loads(uscita)
     except json.JSONDecodeError:
-        raise ErroreLLM(f"Risposta di Claude Code non leggibile: {uscita[:200]!r}") from None
+        d = None
+    if not isinstance(d, dict):  # anche `null` o `[]` (S-04)
+        raise ErroreLLM(f"Risposta di Claude Code non leggibile: {uscita[:200]!r}")
     if d.get("is_error"):
         testo = str(d.get("result") or d.get("api_error_status") or "errore sconosciuto")
         if d.get("api_error_status") == 429 or any(p in testo.lower() for p in PAROLE_QUOTA):

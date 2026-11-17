@@ -8,6 +8,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import math
 import socket
 import time
 from collections import Counter
@@ -26,7 +27,7 @@ from gradiens.dati.modelli import FONTE_DI_TIPO, Notizia, Pertinenza, Sito
 from gradiens.esecuzione import prompt
 from gradiens.fonti import Candidata, ContenutoAssente, NonAncoraDisponibile, arxiv, siti, youtube
 from gradiens.llm import crea_provider
-from gradiens.llm.base import ErroreLLM, Provider, QuotaEsaurita
+from gradiens.llm.base import ErroreLLM, Provider, QuotaEsaurita, Risposta
 
 log = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ BLOCCO_PREFILTRO = 30  # notizie per chiamata di pre-filtro (ADR 0006)
 GIRO_PREFILTRO = 3  # blocchi di paper lanciati insieme in un giro del pre-filtro (ADR 0010)
 BLOCCO_ARGOMENTI = 40  # notizie per chiamata del passo degli argomenti (ADR 0008)
 MAX_CONTENUTO = 60_000  # caratteri (~15.000 token): oltre, la notizia è "contenuto parziale"
+TENTATIVI_CHIUSURA, PAUSA_CHIUSURA = 3, 0.5  # registrazione della fine con il database bloccato (S-06)
 
 
 class GiaInCorso(Exception):
@@ -151,7 +153,7 @@ class Esecutore:
             raise
         except Exception as errore:  # l'esecuzione fallisce, ma va sempre chiusa con il suo motivo (ESE-13)
             log.exception("Esecuzione %s fallita", id)
-            stato, motivo = "fallita", str(errore) or type(errore).__name__
+            stato, motivo = "fallita", "; ".join(dict.fromkeys(str(e) or type(e).__name__ for e in _foglie(errore)))  # S-07
         finally:
             if coperture:  # a fine esecuzione, anche interrotta o fallita: le notizie senza esito trattengono il sito
                 try:
@@ -164,12 +166,27 @@ class Esecutore:
                 "fonti": {nome: asdict(c) for nome, c in metriche.fonti.items()},
                 "token": metriche.token,
             }
-            with self._sessioni() as s:
-                esecuzioni.termina(s, id, stato, dati, motivo)
-            self.avanzamento = None
+            registrata = await self._termina(id, stato, dati, motivo)
             log.info("Esecuzione %s %s %s", id, stato, motivo or "")
-            if self.al_termine is not None and motivo != SPENTO:  # allo spegnimento non si manda niente
+            if registrata and self.al_termine is not None and motivo != SPENTO:  # allo spegnimento non si manda niente
                 await self.al_termine(id)
+
+    async def _termina(self, id: int, stato: str, dati: dict, motivo: str | None) -> bool:
+        """Registra la fine; con il database bloccato (S-06) si riprova. Comunque vada, l'esecuzione non
+        resta "in corso" in memoria (S-08): altrimenti ogni nuovo avvio darebbe GiaInCorso fino al riavvio."""
+        try:
+            for tentativo in range(1, TENTATIVI_CHIUSURA + 1):
+                try:
+                    with self._sessioni() as s:
+                        esecuzioni.termina(s, id, stato, dati, motivo)
+                    return True
+                except Exception:
+                    if tentativo == TENTATIVI_CHIUSURA:  # la riga resta "in corso" fino a `segna_interrotte`
+                        log.exception("Esecuzione %s non registrata come %s", id, stato)
+                        return False
+                    await asyncio.sleep(PAUSA_CHIUSURA)
+        finally:
+            self.avanzamento = None
 
     async def _attendi_rete(self) -> None:
         """L'esecuzione recuperata all'accensione partiva prima della rete e falliva su tutte le fonti,
@@ -312,9 +329,8 @@ class Esecutore:
                         s.commit()
                         m.escludi(c, "a pagamento")
                         return
-                    risposta = await elaborazione.chiedi(sistema=sistema, messaggio=prompt.messaggio_valutazione(c),
-                                                         schema=prompt.SCHEMA_VALUTAZIONE,
-                                                         modello=imp.modello_elaborazione)
+                    risposta = await chiedi(elaborazione, sistema=sistema, messaggio=prompt.messaggio_valutazione(c),
+                                            schema=prompt.SCHEMA_VALUTAZIONE, modello=imp.modello_elaborazione)
                 except QuotaEsaurita:
                     raise
                 except ContenutoAssente as stato:  # YT-05: non diventa notizia, compare nel resoconto
@@ -347,8 +363,8 @@ class Esecutore:
         for blocco in blocchi:
             esistenti = argomenti.per_prompt(s)
             try:
-                risposta = await elaborazione.chiedi(
-                    sistema=prompt.sistema_argomenti(esistenti), messaggio=prompt.messaggio_argomenti(blocco),
+                risposta = await chiedi(
+                    elaborazione, sistema=prompt.sistema_argomenti(esistenti), messaggio=prompt.messaggio_argomenti(blocco),
                     schema=prompt.SCHEMA_ARGOMENTI, modello=modello)
             except QuotaEsaurita:
                 raise
@@ -383,7 +399,7 @@ class Esecutore:
         self._fase("proposte", len(compiti))
         for sistema, messaggio, schema, registra in compiti:
             try:
-                risposta = await elaborazione.chiedi(sistema=sistema, schema=schema, modello=modello, messaggio=messaggio)
+                risposta = await chiedi(elaborazione, sistema=sistema, schema=schema, modello=modello, messaggio=messaggio)
                 registra(risposta.dati)
             except QuotaEsaurita:
                 raise
@@ -423,8 +439,8 @@ class Esecutore:
 
         async def filtra(blocco: list[Candidata]) -> list[Candidata] | None:
             try:
-                risposta = await prefiltro.chiedi(sistema=sistema, messaggio=prompt.messaggio_prefiltro(blocco),
-                                                  schema=prompt.SCHEMA_PREFILTRO, modello=modello)
+                risposta = await chiedi(prefiltro, sistema=sistema, messaggio=prompt.messaggio_prefiltro(blocco),
+                                        schema=prompt.SCHEMA_PREFILTRO, modello=modello)
             except QuotaEsaurita:
                 raise
             except ErroreLLM as errore:  # il blocco non si segna come visto: ci si riprova la volta dopo
@@ -473,8 +489,8 @@ class Esecutore:
         punteggi: dict[int, int] = {}
         for p in dati.get("punteggi", []):
             interesse, valore = p.get("interesse"), p.get("pertinenza")
-            if interesse in ids_validi and isinstance(valore, int):
-                punteggi[interesse] = max(0, min(100, valore))
+            if interesse in ids_validi and isinstance(valore, (int, float)) and math.isfinite(valore):
+                punteggi[interesse] = max(0, min(100, round(valore)))  # 85.5 si arrotonda (scheda 4 b)
         notizie.segna_viste(s, [c.url])
         if not punteggi or max(punteggi.values()) < soglia:  # ESE-06
             m.di(c.tipo).scartate_valutazione += 1
@@ -497,10 +513,57 @@ class Esecutore:
 
 async def _tutti(coroutine) -> list:
     """Esegue in parallelo; al primo errore ferma le altre (la sessione del database è condivisa).
-    La quota esaurita esce come tale, non dentro un gruppo di eccezioni."""
+    La quota esaurita esce come tale anche insieme ad altri errori (S-02); un errore solo esce da solo."""
     try:
         async with asyncio.TaskGroup() as gruppo:
             compiti = [gruppo.create_task(c) for c in coroutine]
-    except* QuotaEsaurita as gruppo:
-        raise gruppo.exceptions[0] from None
+    except ExceptionGroup as gruppo:
+        errori = _foglie(gruppo)
+        quota = [e for e in errori if isinstance(e, QuotaEsaurita)]
+        if quota or len(errori) == 1:
+            raise (quota or errori)[0] from None
+        raise
     return [c.result() for c in compiti]
+
+
+async def chiedi(provider: Provider, *, sistema: str, messaggio: str, schema: dict, modello: str) -> Risposta:
+    """Chiama il provider e controlla la forma della risposta, uguale per ogni provider (ADR 0006, S-05):
+    una forma inattesa è un ErroreLLM, quindi il blocco o la notizia si riprova invece di perdersi."""
+    risposta = await provider.chiedi(sistema=sistema, messaggio=messaggio, schema=schema, modello=modello)
+    _controlla_forma(risposta.dati, schema, "risposta")
+    return risposta
+
+
+SEMPLICI = {"string": str, "integer": (int, float)}  # un 85.5 si arrotonda dopo
+
+
+def _controlla_forma(dati, schema: dict, dove: str) -> None:
+    """Severo su chiavi obbligatorie, contenitori (oggetti e liste) e tipo dei campi semplici, tollerante sui
+    valori: si ripuliscono dopo, e un controllo severo farebbe ripetere la valutazione a ogni esecuzione (S-36).
+    Le liste di numeri (es. `pertinenti`) si ripuliscono voce per voce, quindi le loro voci non si controllano."""
+    tipo = schema.get("type")
+    if tipo == "object":
+        if not isinstance(dati, dict):
+            raise ErroreLLM(f"Risposta dell'LLM di forma inattesa: «{dove}» non è un oggetto.")
+        for chiave in schema.get("required", []):
+            if dati.get(chiave) is None:
+                raise ErroreLLM(f"Risposta dell'LLM di forma inattesa: manca «{chiave}».")
+        for chiave, sotto in schema.get("properties", {}).items():
+            if chiave not in dati:
+                continue
+            semplice = SEMPLICI.get(sotto.get("type"))
+            if semplice and dati[chiave] is not None and not isinstance(dati[chiave], semplice):
+                raise ErroreLLM(f"Risposta dell'LLM di forma inattesa: «{chiave}» non è del tipo atteso.")
+            _controlla_forma(dati[chiave], sotto, chiave)
+    elif tipo == "array":
+        if not isinstance(dati, list):
+            raise ErroreLLM(f"Risposta dell'LLM di forma inattesa: «{dove}» non è una lista.")
+        for voce in dati:
+            _controlla_forma(voce, schema.get("items", {}), dove)
+
+
+def _foglie(errore: BaseException) -> list[BaseException]:
+    """Gli errori veri dentro un gruppo di eccezioni, anche annidato."""
+    if isinstance(errore, BaseExceptionGroup):
+        return [f for e in errore.exceptions for f in _foglie(e)]
+    return [errore]

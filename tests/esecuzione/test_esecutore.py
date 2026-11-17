@@ -943,3 +943,132 @@ def test_dopo_un_guasto_o_un_cambio_si_riparte_dalla_finestra_intera(sessioni, c
 
     giorni = timedelta(days=7 if cambio == "finestra" else 3)
     assert prima - giorni <= ricevuti[1] <= dopo - giorni
+
+
+def prefiltro_che_solleva(errori: dict[str, BaseException]) -> Finto:
+    """Finto: il blocco di pre-filtro che contiene una delle parole solleva l'errore associato."""
+    def risponde(sistema, messaggio, schema):
+        for parola, errore in errori.items():
+            if schema is prompt.SCHEMA_PREFILTRO and parola in messaggio:
+                raise errore
+        return risponditore(sistema, messaggio, schema)
+    return Finto(risponde)
+
+
+@pytest.mark.parametrize("errori, stato, motivo", [
+    # T-27, S-02: la quota ha la precedenza anche se nello stesso gruppo c'è un altro errore.
+    ({"quota": QuotaEsaurita("Quota dell'abbonamento esaurita"), "rotto": RuntimeError("guasto")},
+     "interrotta", "Quota dell'abbonamento esaurita"),
+    # S-07: il motivo è il testo dell'errore, non "unhandled errors in a TaskGroup".
+    ({"rotto": RuntimeError("guasto")}, "fallita", "guasto"),
+    ({"rotto": RuntimeError("guasto"), "quota": KeyError("chiave")}, "fallita", "guasto; 'chiave'"),
+])
+def test_quota_insieme_ad_un_altro_errore_nello_stesso_gruppo(sessioni, monkeypatch, errori, stato, motivo):
+    from gradiens.esecuzione import esecutore as modulo
+
+    monkeypatch.setattr(modulo, "BLOCCO_PREFILTRO", 1)  # un blocco per paper, tutti nello stesso giro
+    paper = [candidata("sicurezza-alta-rotto", ore_fa=1), candidata("sicurezza-alta-quota", ore_fa=2)]
+    esecuzione, _, _, _ = esegui(sessioni, raccolta(*paper), provider=prefiltro_che_solleva(errori))
+    assert (esecuzione.stato, esecuzione.motivo) == (stato, motivo)
+
+
+FORME_INATTESE = {  # T-28, S-05: (schema alterato, alterazione) -> il blocco o la notizia si riprova, non si perde
+    "pre-filtro {}": (prompt.SCHEMA_PREFILTRO, lambda d: {}),
+    "pertinenti null": (prompt.SCHEMA_PREFILTRO, lambda d: {**d, "pertinenti": None}),
+    "pertinenti stringa": (prompt.SCHEMA_PREFILTRO, lambda d: {**d, "pertinenti": "tutti"}),
+    "punteggi non oggetti": (prompt.SCHEMA_VALUTAZIONE, lambda d: {**d, "punteggi": ["x"]}),
+    "riassunto null": (prompt.SCHEMA_VALUTAZIONE, lambda d: {**d, "riassunto": None}),
+    # Valori semplici del tipo sbagliato: prima facevano fallire l'esecuzione intera in `_salva`.
+    "titolo_it numero": (prompt.SCHEMA_VALUTAZIONE, lambda d: {**d, "titolo_it": 5}),
+    "interesse lista": (prompt.SCHEMA_VALUTAZIONE, lambda d: {**d, "punteggi": [{"interesse": [1], "pertinenza": 90}]}),
+}
+
+
+@pytest.mark.parametrize("forma", FORME_INATTESE)
+def test_risposte_llm_di_forma_inattesa(sessioni, monkeypatch, forma):
+    """6 paper in 2 blocchi di pre-filtro da 3: si altera il primo blocco, oppure ogni valutazione."""
+    from gradiens.esecuzione import esecutore as modulo
+
+    monkeypatch.setattr(modulo, "BLOCCO_PREFILTRO", 3)
+    schema_alterato, altera = FORME_INATTESE[forma]
+    chiamate = []
+
+    def risponde(sistema, messaggio, schema):
+        dati = risponditore(sistema, messaggio, schema)
+        chiamate.append(schema)
+        if schema is schema_alterato and (schema is prompt.SCHEMA_VALUTAZIONE or chiamate.count(schema) == 1):
+            return altera(dati)
+        return dati
+
+    paper = [candidata(f"sicurezza-alta-{i}", ore_fa=i + 1) for i in range(6)]
+    esecuzione, metriche, salvate, _ = esegui(sessioni, raccolta(*paper), provider=Finto(risponde))
+
+    prefiltro = schema_alterato is prompt.SCHEMA_PREFILTRO
+    assert esecuzione.stato == "completata"
+    assert (len(salvate), metriche["fonti"]["arxiv"]["errori"]) == ((3, 3) if prefiltro else (0, 6))
+    with sessioni() as s:  # le notizie della risposta storta non sono viste: si riprovano la volta dopo
+        assert len(notizie.gia_viste(s, [c.url for c in paper])) == (3 if prefiltro else 0)
+
+
+def test_una_pertinenza_con_la_virgola_si_arrotonda(sessioni):
+    """Scheda 4 (b): tolleranti sui valori. Prima 85.5 era ignorato e la notizia scartata e vista."""
+    def con_virgola(sistema, messaggio, schema):
+        dati = risponditore(sistema, messaggio, schema)
+        if schema is prompt.SCHEMA_VALUTAZIONE:
+            dati["punteggi"] = [{"interesse": 1, "pertinenza": 85.5}]
+        return dati
+
+    _, _, salvate, _ = esegui(sessioni, raccolta(candidata("sicurezza-alta")), provider=Finto(con_virgola))
+    assert [p.punteggio for p in salvate[0].pertinenze] == [86]
+
+
+@pytest.mark.parametrize("fallimenti, stato", [(2, "completata"), (3, "in_corso")])
+def test_un_errore_di_database_alla_chiusura_non_lascia_l_esecuzione_in_corso(sessioni, monkeypatch, fallimenti, stato):
+    """T-26, S-06 e S-08: `termina` si riprova 3 volte; comunque vada, se ne può avviare un'altra. Se fallisce
+    sempre, la riga resta "in corso" fino al prossimo avvio del servizio (`segna_interrotte`), senza errori fuori."""
+    from sqlalchemy.exc import OperationalError
+
+    from gradiens.esecuzione import esecutore as modulo
+
+    vera, chiamate = modulo.esecuzioni.termina, []
+
+    def termina(*argomenti, **opzioni):
+        chiamate.append(1)
+        if len(chiamate) <= fallimenti:
+            raise OperationalError("UPDATE esecuzioni", {}, Exception("database is locked"))
+        return vera(*argomenti, **opzioni)
+
+    monkeypatch.setattr(modulo.esecuzioni, "termina", termina)
+    monkeypatch.setattr(modulo, "PAUSA_CHIUSURA", 0)
+    avvisi = []
+
+    async def al_termine(id):
+        avvisi.append(id)
+
+    async def prova():
+        esecutore = Esecutore(sessioni, fabbrica_provider=lambda n: Finto(risponditore), fonti=raccolta())
+        esecutore.al_termine = al_termine
+        esecutore.avvia("cli")
+        await esecutore.attendi()
+        assert esecutore.avanzamento is None
+        monkeypatch.setattr(modulo.esecuzioni, "termina", vera)
+        esecutore.avvia("cli")  # non dà GiaInCorso
+        await esecutore.attendi()
+
+    asyncio.run(prova())
+    with sessioni() as s:
+        assert [e.stato for e in s.scalars(select(Esecuzione).order_by(Esecuzione.id))] == [stato, "completata"]
+    assert len(chiamate) == min(fallimenti + 1, 3)
+    assert avvisi == ([1, 2] if stato == "completata" else [2])  # nessun avviso per un'esecuzione non registrata
+
+
+def test_un_argomento_del_tipo_sbagliato_non_fa_fallire_l_esecuzione(sessioni):
+    """Prima `argomento: [1]` faceva fallire l'esecuzione in `_argomenti`; ora il passo degli argomenti non riesce."""
+    def sbagliato(sistema, messaggio, schema):
+        if schema is prompt.SCHEMA_ARGOMENTI:
+            return {"assegnazioni": [{"notizia": 0, "argomento": [1]}]}
+        return risponditore(sistema, messaggio, schema)
+
+    esecuzione, _, salvate, _ = esegui(sessioni, raccolta(candidata("sicurezza-alta")), provider=Finto(sbagliato))
+    assert esecuzione.stato == "completata"
+    assert [(n.titolo, n.argomento_id) for n in salvate] == [("sicurezza-alta", None)]

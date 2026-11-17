@@ -84,6 +84,12 @@ def test_risposta_senza_dati_strutturati():
         interpreta(json.dumps({"is_error": False, "result": "testo libero"}))
 
 
+@pytest.mark.parametrize("uscita", ["null", "[]", '"x"', "42"])
+def test_risposta_che_non_e_un_oggetto_json(uscita):  # S-04
+    with pytest.raises(ErroreLLM, match="non leggibile"):
+        interpreta(uscita)
+
+
 def test_chiamata_cancellata_chiude_claude(finto):
     async def prova():
         compito = asyncio.create_task(finto("lento-poi-scrive").chiedi(

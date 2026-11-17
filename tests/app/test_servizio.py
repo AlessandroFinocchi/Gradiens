@@ -107,7 +107,7 @@ def test_la_dashboard_non_si_mostra_dentro_altre_pagine(client):
 
 
 def test_api_esecuzione_rifiuta_la_seconda_e_mostra_l_avanzamento(client):
-    from gradiens.esecuzione.esecutore import Avanzamento
+    from gradiens.esecuzione.metriche import Avanzamento
 
     client.app.state.esecutore.avanzamento = Avanzamento(esecuzione_id=7, fase="valutazione", fatti=2, totale=5)
     cli = {"X-Gradiens-Cli": "1"}

@@ -1152,3 +1152,43 @@ def test_prova_di_fumo_fallita_ferma_l_esecuzione_e_si_ripete(sessioni):
     assert prima.motivo.startswith("Claude Code 2.1.316: la prova di funzionamento non è riuscita")
     assert len(provider.chiamate) == 2  # solo le due prove: nessuna notizia esaminata con Claude Code guasto
     assert metriche["versione_llm"]["provata"] is False
+
+
+def test_ordine_delle_fasi_e_avanzamento_con_valutazioni_intrecciate(sessioni):
+    """T-24: fase, fatti e totale letti dall'avanzamento a ogni chiamata del provider. Con un po' di latenza le
+    60 valutazioni si intrecciano sulla sessione condivisa e si salvano tutte (P44)."""
+    letti: list[tuple[str, int, int]] = []
+
+    class ConLatenza(Finto):
+        async def chiedi(self, **kwargs):
+            a = esecutore.avanzamento
+            letti.append((a.fase, a.fatti, a.totale))
+            await asyncio.sleep(0.001)
+            return await super().chiedi(**kwargs)
+
+    async def raccogli(client, categorie, dal):
+        a = esecutore.avanzamento
+        letti.append((a.fase, a.fatti, a.totale))
+        return [candidata(f"sicurezza-alta-{i}", i) for i in range(60)]
+
+    with sessioni() as s:
+        impostazioni.leggi(s).tetto_arxiv = 60
+        s.commit()
+
+    async def prova():
+        esecutore.avvia("cli")
+        await esecutore.attendi()
+
+    esecutore = Esecutore(sessioni, fabbrica_provider=lambda nome: ConLatenza(risponditore),
+                          fonti={"arxiv": SimpleNamespace(raccogli=raccogli)})
+    asyncio.run(prova())
+
+    # 60 paper: un giro di due blocchi da 30 insieme; le valutazioni partono tutte prima che una finisca;
+    # 60 notizie mostrate: due blocchi di argomenti, uno dopo l'altro.
+    assert letti == ([("raccolta", 0, 0)] + [("pre-filtro", 0, 2)] * 2 + [("valutazione", 0, 60)] * 60
+                     + [("argomenti", 0, 2), ("argomenti", 1, 2)])
+    assert esecutore.avanzamento is None
+    with sessioni() as s:
+        esecuzione = s.scalars(select(Esecuzione)).one()
+        assert esecuzione.stato == "completata"
+        assert len(s.scalars(select(Notizia)).all()) == 60

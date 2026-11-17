@@ -12,7 +12,7 @@ from gradiens.app import cli
 from gradiens.dashboard import segnali
 from gradiens.dati import esecuzioni
 from gradiens.dati import siti as dati_siti
-from gradiens.esecuzione.esecutore import Contatori
+from gradiens.esecuzione.metriche import Contatori
 from gradiens.fonti.siti import Profilo
 from gradiens.telegram import messaggi
 

@@ -7,7 +7,7 @@ from gradiens.dati import argomenti, esecuzioni, impostazioni, interessi, propos
 from gradiens.dati import siti as dati_siti
 from gradiens.dati.modelli import Notizia, Pertinenza
 from gradiens.dati.notizie import adesso
-from gradiens.esecuzione.esecutore import Avanzamento
+from gradiens.esecuzione.metriche import Avanzamento
 
 HTMX = {"HX-Request": "true"}
 

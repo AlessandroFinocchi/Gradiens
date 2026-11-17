@@ -155,7 +155,7 @@ def test_senza_interessi_o_categorie_l_esecuzione_fallisce_con_il_motivo(session
 
 
 def test_un_blocco_del_prefiltro_fallito_non_ferma_l_esecuzione(sessioni, monkeypatch):
-    from gradiens.esecuzione import esecutore as modulo
+    from gradiens.esecuzione import prefiltro as modulo
     from gradiens.llm.base import ErroreLLM
 
     monkeypatch.setattr(modulo, "BLOCCO_PREFILTRO", 1)  # un blocco per notizia
@@ -620,7 +620,7 @@ def test_i_paper_non_prefiltrati_sono_visti_e_contano_come_oltre_il_tetto(sessio
 
 def test_con_pochi_promossi_i_giri_continuano_fino_all_ultimo_paper(sessioni, monkeypatch):
     """Ogni giro lancia solo i blocchi che potrebbero riempire il tetto, al massimo GIRO_PREFILTRO insieme."""
-    from gradiens.esecuzione import esecutore as modulo
+    from gradiens.esecuzione import prefiltro as modulo
 
     monkeypatch.setattr(modulo, "BLOCCO_PREFILTRO", 1)
     nomi = ["sicurezza-alta-0", "sicurezza-alta-1", "cucina-2", "cucina-3", "sicurezza-alta-4", "cucina-5",
@@ -641,7 +641,7 @@ def test_con_pochi_promossi_i_giri_continuano_fino_all_ultimo_paper(sessioni, mo
 
 def test_i_paper_valutati_sono_i_piu_recenti_tra_i_promossi(sessioni, monkeypatch):
     """Elenco atteso scritto a mano. La raccolta non è in ordine di data: il pre-filtro parte dal più recente."""
-    from gradiens.esecuzione import esecutore as modulo
+    from gradiens.esecuzione import prefiltro as modulo
 
     monkeypatch.setattr(modulo, "BLOCCO_PREFILTRO", 2)
     ore = {"sicurezza-alta-a": 2, "cucina-b": 1, "sicurezza-alta-c": 5, "sicurezza-alta-d": 3, "cucina-e": 4,
@@ -662,7 +662,7 @@ def test_i_paper_valutati_sono_i_piu_recenti_tra_i_promossi(sessioni, monkeypatc
 
 def test_dopo_un_blocco_fallito_non_partono_giri_nuovi(sessioni, monkeypatch):
     """I paper mai pre-filtrati restano non visti e contano come errori: si riprendono la volta dopo (ADR 0010)."""
-    from gradiens.esecuzione import esecutore as modulo
+    from gradiens.esecuzione import prefiltro as modulo
 
     monkeypatch.setattr(modulo, "BLOCCO_PREFILTRO", 1)
     paper = [candidata("sicurezza-alta-rotto" if i == 1 else f"sicurezza-alta-{i}", ore_fa=i + 1) for i in range(6)]
@@ -719,7 +719,7 @@ ESITI = ("scartate_prefiltro", "escluse", "oltre_tetto", "senza_contenuto", "sca
 def test_i_contatori_di_una_fonte_tornano(sessioni, monkeypatch, scenario):
     """T-03, ESE-11: `esaminate` è la somma degli esiti. Non vale con le dirette (YT-04: non entrano in nessun
     contatore) e quando `errori` conta anche errori di fonte o di sito (`_raccogli`, `_raccogli_sito`)."""
-    from gradiens.esecuzione import esecutore as modulo
+    from gradiens.esecuzione import prefiltro as modulo
 
     candidate = [candidata("sicurezza-alta", 1), candidata("sicurezza-alta-vecchia", 5), candidata("sicurezza-bassa", 3),
                  candidata("cucina")]
@@ -803,7 +803,7 @@ class QuotaAlPrimoBlocco:
 
 def test_quota_esaurita_nel_prefiltro_interrompe_e_non_segna_viste_le_notizie(sessioni, monkeypatch):
     """T-05. L'ADR 0010 sostituisce i blocchi paralleli con giri in sequenza: questa semantica deve restare."""
-    from gradiens.esecuzione import esecutore as modulo
+    from gradiens.esecuzione import prefiltro as modulo
 
     monkeypatch.setattr(modulo, "BLOCCO_PREFILTRO", 1)
     paper = [candidata(f"sicurezza-alta-{i}") for i in range(3)]
@@ -981,7 +981,7 @@ def prefiltro_che_solleva(errori: dict[str, BaseException]) -> Finto:
     ({"rotto": RuntimeError("guasto"), "quota": KeyError("chiave")}, "fallita", "guasto; 'chiave'"),
 ])
 def test_quota_insieme_ad_un_altro_errore_nello_stesso_gruppo(sessioni, monkeypatch, errori, stato, motivo):
-    from gradiens.esecuzione import esecutore as modulo
+    from gradiens.esecuzione import prefiltro as modulo
 
     monkeypatch.setattr(modulo, "BLOCCO_PREFILTRO", 1)  # un blocco per paper, tutti nello stesso giro
     paper = [candidata("sicurezza-alta-rotto", ore_fa=1), candidata("sicurezza-alta-quota", ore_fa=2)]
@@ -1004,7 +1004,7 @@ FORME_INATTESE = {  # T-28, S-05: (schema alterato, alterazione) -> il blocco o 
 @pytest.mark.parametrize("forma", FORME_INATTESE)
 def test_risposte_llm_di_forma_inattesa(sessioni, monkeypatch, forma):
     """6 paper in 2 blocchi di pre-filtro da 3: si altera il primo blocco, oppure ogni valutazione."""
-    from gradiens.esecuzione import esecutore as modulo
+    from gradiens.esecuzione import prefiltro as modulo
 
     monkeypatch.setattr(modulo, "BLOCCO_PREFILTRO", 3)
     schema_alterato, altera = FORME_INATTESE[forma]

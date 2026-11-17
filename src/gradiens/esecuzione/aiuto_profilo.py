@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from gradiens.dati import impostazioni
 from gradiens.esecuzione import prompt
-from gradiens.esecuzione.esecutore import chiedi
+from gradiens.esecuzione.chiamata import chiedi
 from gradiens.fonti.siti import Profilo
 from gradiens.fonti.siti.aiuto import Proposta, convalida, leggi_albero
 from gradiens.llm import crea_provider

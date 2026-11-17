@@ -25,15 +25,16 @@ from gradiens.dati import siti as dati_siti
 from gradiens.dati.esecuzioni import NESSUNA_RETE, SPENTO
 from gradiens.dati.modelli import FONTE_DI_TIPO, Notizia, Pertinenza, Sito
 from gradiens.esecuzione import prompt
-from gradiens.esecuzione.metriche import Avanzamento, Contatori, Metriche  # noqa: F401  Contatori per i test della dashboard
+from gradiens.esecuzione.chiamata import chiedi
+from gradiens.esecuzione.metriche import Avanzamento, Metriche
+from gradiens.esecuzione.parallelo import foglie, in_parallelo
+from gradiens.esecuzione.prefiltro import applica_tetto, prefiltra
 from gradiens.fonti import Candidata, ContenutoAssente, NonAncoraDisponibile, arxiv, siti, youtube
 from gradiens.llm import crea_provider, nome_provider
-from gradiens.llm.base import ErroreBloccante, ErroreLLM, Provider, QuotaEsaurita, Risposta
+from gradiens.llm.base import ErroreBloccante, ErroreLLM, Provider, QuotaEsaurita
 
 log = logging.getLogger(__name__)
 
-BLOCCO_PREFILTRO = 30  # notizie per chiamata di pre-filtro (ADR 0006)
-GIRO_PREFILTRO = 3  # blocchi di paper lanciati insieme in un giro del pre-filtro (ADR 0010)
 BLOCCO_ARGOMENTI = 40  # notizie per chiamata del passo degli argomenti (ADR 0008)
 MAX_CONTENUTO = 60_000  # caratteri (~15.000 token): oltre, la notizia è "contenuto parziale"
 TENTATIVI_CHIUSURA, PAUSA_CHIUSURA = 3, 0.5  # registrazione della fine con il database bloccato (S-06)
@@ -110,7 +111,7 @@ class Esecutore:
             raise
         except Exception as errore:  # l'esecuzione fallisce, ma va sempre chiusa con il suo motivo (ESE-13)
             log.exception("Esecuzione %s fallita", id)
-            stato, motivo = "fallita", "; ".join(dict.fromkeys(str(e) or type(e).__name__ for e in _foglie(errore)))  # S-07
+            stato, motivo = "fallita", "; ".join(dict.fromkeys(str(e) or type(e).__name__ for e in foglie(errore)))  # S-07
         finally:
             if coperture:  # a fine esecuzione, anche interrotta o fallita: le notizie senza esito trattengono il sito
                 try:
@@ -264,19 +265,10 @@ class Esecutore:
                 for stato in conta.stati:
                     stato["nuove"] = per_fonte[(nome, stato["fonte"])]
 
-            passate, non_prefiltrati = await self._prefiltra(
+            passate, non_prefiltrati = await prefiltra(
                 s, nuove, prefiltro, prompt.sistema_prefiltro(elenco_interessi, imp.escludi_sponsorizzati),
-                imp.modello_prefiltro, imp.tetto_arxiv, m)
-
-            # Tetto arXiv (ARX-03): si elaborano i paper più recenti; gli altri, compresi quelli mai
-            # pre-filtrati (ARX-02), si considerano visti.
-            paper = sorted((c for c in passate if c.tipo == "arxiv"), key=lambda c: c.pubblicata_il, reverse=True)
-            oltre = paper[imp.tetto_arxiv:] + non_prefiltrati
-            passate = [c for c in passate if c.tipo != "arxiv"] + paper[:imp.tetto_arxiv]
-            if oltre:
-                m.di("arxiv").oltre_tetto = len(oltre)
-            notizie.segna_viste(s, [c.url for c in oltre])
-            s.commit()
+                imp.modello_prefiltro, imp.tetto_arxiv, m, self.avanzamento)
+            passate = applica_tetto(s, passate, non_prefiltrati, imp.tetto_arxiv, m)
 
             # Contenuto e valutazione completa (ESE-05): ogni notizia si salva appena valutata.
             self._fase("valutazione", len(passate))
@@ -312,7 +304,7 @@ class Esecutore:
                 m.conta_token("elaborazione", risposta)
                 self._salva(s, c, risposta.dati, ids_validi, imp.soglia, m, self.avanzamento.esecuzione_id)
 
-            await _tutti(elabora(c) for c in passate)
+            await in_parallelo(elabora(c) for c in passate)
             await self._argomenti(s, elaborazione, imp.modello_elaborazione, m)
             await self._proposte(s, elaborazione, imp.modello_elaborazione, imp.soglia, m)
 
@@ -397,67 +389,6 @@ class Esecutore:
             m.conta_token("elaborazione", risposta)
             self.avanzamento.fatti += 1
 
-    async def _prefiltra(self, s: Session, nuove: list[Candidata], prefiltro: Provider, sistema: str,
-                         modello: str, tetto: int, m: Metriche) -> tuple[list[Candidata], list[Candidata]]:
-        """Pre-filtro a blocchi (ESE-04); le notizie scartate entrano nel registro delle viste.
-        Siti e video passano tutti. I paper (ARX-02, ADR 0010) passano dal più recente, a giri, finché i
-        promossi riempiono il tetto. Restituisce le promosse e i paper rimasti senza pre-filtro."""
-        paper = sorted((c for c in nuove if c.tipo == "arxiv"), key=lambda c: c.pubblicata_il, reverse=True)
-        altre = [c for c in nuove if c.tipo != "arxiv"]
-        self._fase("pre-filtro", 0)  # il totale cresce a ogni giro: all'inizio non si sa quanti giri servono
-
-        async def filtra_blocchi(notizie_: list[Candidata]) -> list[list[Candidata] | None]:
-            blocchi = [notizie_[i:i + BLOCCO_PREFILTRO] for i in range(0, len(notizie_), BLOCCO_PREFILTRO)]
-            self.avanzamento.totale += len(blocchi)
-            return await _tutti(filtra(b) for b in blocchi)
-
-        async def filtra_paper() -> tuple[list[Candidata], list[Candidata]]:
-            promossi, resto = [], paper
-            while resto and len(promossi) < tetto:
-                giro = min(GIRO_PREFILTRO, -(-(tetto - len(promossi)) // BLOCCO_PREFILTRO)) * BLOCCO_PREFILTRO
-                esiti = await filtra_blocchi(resto[:giro])
-                resto = resto[giro:]
-                promossi += [c for esito in esiti if esito for c in esito]
-                if None in esiti:  # un blocco fallito: niente giri nuovi, il resto si riprende la volta dopo
-                    for c in resto:
-                        m.di(c.tipo).errori += 1
-                    return promossi, []
-            return promossi, resto
-
-        async def filtra(blocco: list[Candidata]) -> list[Candidata] | None:
-            try:
-                risposta = await chiedi(prefiltro, sistema=sistema, messaggio=prompt.messaggio_prefiltro(blocco),
-                                        schema=prompt.SCHEMA_PREFILTRO, modello=modello)
-            except ErroreBloccante:
-                raise
-            except ErroreLLM as errore:  # il blocco non si segna come visto: ci si riprova la volta dopo
-                log.warning("Pre-filtro fallito per un blocco di %s notizie: %s", len(blocco), errore)
-                for c in blocco:
-                    m.di(c.tipo).errori += 1
-                return None
-            finally:
-                self.avanzamento.fatti += 1
-            m.conta_token("prefiltro", risposta)
-            def validi(chiave: str) -> set[int]:
-                return {i for i in risposta.dati.get(chiave, []) if isinstance(i, int) and 0 <= i < len(blocco)}
-
-            indici = validi("pertinenti")
-            sponsorizzate = validi("sponsorizzate") - indici  # WEB-23, solo con l'esclusione attiva
-            video = {n for n in sponsorizzate if blocco[n].tipo in ("video", "short")}
-            indici, sponsorizzate = indici | video, sponsorizzate - video  # decisione 36: i video si valutano comunque
-            scartate = [c for n, c in enumerate(blocco) if n not in indici]
-            notizie.segna_viste(s, [c.url for c in scartate])
-            s.commit()
-            for n, c in enumerate(blocco):
-                if n in sponsorizzate:
-                    m.escludi(c, "sponsorizzato o offerta")
-                elif n not in indici:
-                    m.di(c.tipo).scartate_prefiltro += 1
-            return [blocco[i] for i in sorted(indici)]
-
-        esiti_altre, (promossi, non_prefiltrati) = await _tutti([filtra_blocchi(altre), filtra_paper()])
-        return [c for esito in esiti_altre if esito for c in esito] + promossi, non_prefiltrati
-
     async def _completa(self, client: httpx.AsyncClient, c: Candidata) -> Candidata:
         fonte = self._fonti.get(FONTE_DI_TIPO[c.tipo])
         if hasattr(fonte, "completa"):
@@ -496,62 +427,3 @@ class Esecutore:
         ))
         s.commit()
         m.di(c.tipo).mostrate += 1
-
-
-async def _tutti(coroutine) -> list:
-    """Esegue in parallelo; al primo errore ferma le altre (la sessione del database è condivisa).
-    Un errore bloccante (quota esaurita, login rifiutato) esce come tale anche insieme ad altri errori (S-02);
-    un errore solo esce da solo."""
-    try:
-        async with asyncio.TaskGroup() as gruppo:
-            compiti = [gruppo.create_task(c) for c in coroutine]
-    except ExceptionGroup as gruppo:
-        errori = _foglie(gruppo)
-        bloccanti = [e for e in errori if isinstance(e, ErroreBloccante)]
-        if bloccanti or len(errori) == 1:
-            raise (bloccanti or errori)[0] from None
-        raise
-    return [c.result() for c in compiti]
-
-
-async def chiedi(provider: Provider, *, sistema: str, messaggio: str, schema: dict, modello: str) -> Risposta:
-    """Chiama il provider e controlla la forma della risposta, uguale per ogni provider (ADR 0006, S-05):
-    una forma inattesa è un ErroreLLM, quindi il blocco o la notizia si riprova invece di perdersi."""
-    risposta = await provider.chiedi(sistema=sistema, messaggio=messaggio, schema=schema, modello=modello)
-    _controlla_forma(risposta.dati, schema, "risposta")
-    return risposta
-
-
-SEMPLICI = {"string": str, "integer": (int, float)}  # un 85.5 si arrotonda dopo
-
-
-def _controlla_forma(dati, schema: dict, dove: str) -> None:
-    """Severo su chiavi obbligatorie, contenitori (oggetti e liste) e tipo dei campi semplici, tollerante sui
-    valori: si ripuliscono dopo, e un controllo severo farebbe ripetere la valutazione a ogni esecuzione (S-36).
-    Le liste di numeri (es. `pertinenti`) si ripuliscono voce per voce, quindi le loro voci non si controllano."""
-    tipo = schema.get("type")
-    if tipo == "object":
-        if not isinstance(dati, dict):
-            raise ErroreLLM(f"Risposta dell'LLM di forma inattesa: «{dove}» non è un oggetto.")
-        for chiave in schema.get("required", []):
-            if dati.get(chiave) is None:
-                raise ErroreLLM(f"Risposta dell'LLM di forma inattesa: manca «{chiave}».")
-        for chiave, sotto in schema.get("properties", {}).items():
-            if chiave not in dati:
-                continue
-            semplice = SEMPLICI.get(sotto.get("type"))
-            if semplice and dati[chiave] is not None and not isinstance(dati[chiave], semplice):
-                raise ErroreLLM(f"Risposta dell'LLM di forma inattesa: «{chiave}» non è del tipo atteso.")
-            _controlla_forma(dati[chiave], sotto, chiave)
-    elif tipo == "array":
-        if not isinstance(dati, list):
-            raise ErroreLLM(f"Risposta dell'LLM di forma inattesa: «{dove}» non è una lista.")
-        for voce in dati:
-            _controlla_forma(voce, schema.get("items", {}), dove)
-
-
-def _foglie(errore: BaseException) -> list[BaseException]:
-    """Gli errori veri dentro un gruppo di eccezioni, anche annidato."""
-    if isinstance(errore, BaseExceptionGroup):
-        return [f for e in errore.exceptions for f in _foglie(e)]
-    return [errore]

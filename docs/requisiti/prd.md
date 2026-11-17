@@ -75,7 +75,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
   - includere o escludere sezioni e feed;
   - aggiungere a mano un feed o una sezione;
   - impostare limiti di pagine e di articoli.
-- `WEB-04` L'LLM può intervenire solo durante la creazione del profilo, per esempio per riconoscere l'elenco degli articoli quando le euristiche falliscono. Le esecuzioni usano le regole salvate e non consumano token per la scoperta.
+- `WEB-04` L'LLM può intervenire solo sul profilo del sito, mai durante le esecuzioni: le esecuzioni usano le regole salvate e non consumano token per la scoperta. Oggi lo fa su richiesta dell'utente: il bottone "Chiedi aiuto all'LLM" propone quali sezioni usare e cosa escludere, con un tetto stimato di 10.000 token per richiesta, e le proposte entrano nel profilo solo se l'utente le applica ([ADR 0012](../adr/0012-llm-del-profilo-del-sito-nel-backend.md)). *(Aggiornato il 17 novembre 2026, decisioni 19 e 58 di `docs/miglioramenti/decisioni.md`.)*
 - `WEB-05` Lo scraping è sempre fatto dal codice dell'applicazione e non viene mai affidato agli strumenti di navigazione di un provider LLM.
 
 **Perimetro**
@@ -210,6 +210,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 - `LLM-04` La configurazione di ChatGPT e di Gemini è fuori dalla prima versione.
 - `LLM-05` Con Claude Code ogni chiamata è isolata: niente strumenti, niente server MCP, niente conversazioni salvate. Il modello riceve solo il testo da valutare e risponde nel formato richiesto.
 - `LLM-06` Se la quota dell'abbonamento si esaurisce durante un'esecuzione, l'esecuzione si ferma con lo stato "interrotta" e il motivo "quota dell'abbonamento esaurita", con l'orario in cui torna disponibile se Claude Code lo indica. Ciò che è già elaborato si conserva, e le notizie rimaste si riprendono all'esecuzione successiva, come in `ESE-12`.
+- `LLM-07` Con Claude Code ogni esecuzione registra la versione del programma, nel log e nelle metriche. Quando la versione cambia (Claude Code si aggiorna da solo), prima della raccolta parte una chiamata breve di prova: se riesce, la Home e il messaggio Telegram lo dicono; se fallisce, l'esecuzione si ferma come "fallita" con il motivo e la prova si ripete alla successiva. Un login rifiutato ferma subito l'esecuzione, "fallita", senza nuovi tentativi. *(Aggiunto il 17 novembre 2026, decisioni 45 e 61 di `docs/miglioramenti/decisioni.md`.)*
 
 ## 7. Telegram
 

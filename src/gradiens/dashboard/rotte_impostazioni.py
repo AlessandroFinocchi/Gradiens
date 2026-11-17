@@ -19,6 +19,7 @@ from gradiens.dati import impostazioni, interessi, proposte
 from gradiens.dati import siti as dati_siti
 from gradiens.dati.impostazioni import ImpostazioneNonValida
 from gradiens.dati.modelli import Sito
+from gradiens.esecuzione import aiuto_profilo
 from gradiens.fonti import siti, youtube
 from gradiens.fonti.siti import Profilo
 from gradiens.fonti.siti.indirizzi import indirizzo_pubblico
@@ -244,6 +245,39 @@ async def rigenera_profilo(request: Request, s: Sessione, id: int):
     if nuovo is None:  # decisione 21: il profilo resta com'è
         return finestra(request, s, "siti", errore=f"{sito.url}: {siti.PROFILO_TENUTO}")
     return _esegui(request, s, "siti", lambda: dati_siti.salva_rigenerato(s, id, nuovo.come_dict()))
+
+
+@router.post("/siti/{id}/aiuto", response_class=HTMLResponse)
+async def aiuto_al_profilo(request: Request, s: Sessione, id: int):
+    """ADR 0012: l'LLM propone sezioni ed esclusioni; qui si mostrano soltanto, le applica l'utente."""
+    sito = s.get(Sito, id)
+    if sito is None:
+        raise HTTPException(404, "Sito inesistente")
+    try:
+        async with httpx.AsyncClient(follow_redirects=True) as client:
+            aiuto = await aiuto_profilo.aiuta(s, client, Profilo.da_dict(json.loads(sito.profilo)))
+    except aiuto_profilo.AiutoNonDisponibile as errore:
+        return finestra(request, s, "siti", errore=f"{sito.url}: {errore}")
+    return finestra(request, s, "siti", aiuto=(id, aiuto), TETTO_AIUTO=aiuto_profilo.TETTO)
+
+
+Indirizzi = Annotated[list[str] | None, Form()]
+
+
+@router.post("/siti/{id}/aiuto/applica", response_class=HTMLResponse)
+def applica_aiuto(request: Request, s: Sessione, id: int, aggiungi: Indirizzi = None, togli: Indirizzi = None,
+                  escludi: Indirizzi = None):
+    """Le proposte spuntate diventano modifiche manuali, quindi restano dopo una rigenerazione (WEB-25)."""
+    def cambia(p: Profilo) -> None:
+        for url in aggiungi or []:
+            if not p.nel_perimetro(url := _indirizzo_web(url)):
+                raise ImpostazioneNonValida(f"{url} è fuori dal sito: non può essere una sua sezione.")
+            p.aggiungi_sezione(url)
+        for url in togli or []:
+            p.togli_sezione(url)
+        for prefisso in escludi or []:
+            p.escludi(_indirizzo_web(prefisso))
+    return _modifica_profilo(request, s, id, cambia)
 
 
 @router.post("/arxiv/categorie", response_class=HTMLResponse)

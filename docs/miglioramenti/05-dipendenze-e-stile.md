@@ -1,6 +1,6 @@
 # Fase 5: dipendenze, avvisi e stile (piano)
 
-Data: 15 novembre 2026. Stato: **bozza da discutere con l'utente**.
+Data: 15 novembre 2026. Stato: chiusa, decisioni 44-49; cosa è fatto e cosa resta in [README.md](README.md).
 
 Commit di riferimento `3868260`, Linux (Debian 13), Python 3.14.10, uv 0.13.7. I riferimenti
 `pacchetto/file.py:riga` sono relativi a `src/gradiens/`; quelli che iniziano con `tests/` o con il nome di una

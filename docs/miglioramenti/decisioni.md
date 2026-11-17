@@ -1,8 +1,12 @@
 # Decisioni dell'intervista sui miglioramenti
 
 Registro delle risposte dell'utente durante il lavoro di analisi e proposta descritto in
-[README.md](README.md). Ogni voce ha un numero e una data. Le decisioni importanti hanno anche un
-ADR in `docs/adr/` con stato "accettato, da implementare".
+[README.md](README.md), e durante la sua implementazione (15-17 novembre 2026). Ogni voce ha un numero e una
+data. Le decisioni importanti hanno anche un ADR in `docs/adr/` (0010-0013, tutti implementati al 17 novembre 2026).
+
+**Numeri**: si sovrappongono a quelli di [decisioni-intervista.md](../requisiti/decisioni-intervista.md) (1-60).
+Nel codice e nei test "decisione N" senza altro rimanda a questo registro; quelle dell'intervista sui requisiti si
+scrivono "decisione N dei requisiti".
 
 ## Intervista iniziale (12 novembre 2026)
 
@@ -52,8 +56,7 @@ Nessuna di queste tre risposte è una decisione di architettura: non hanno un AD
 8. **`ARX-02` cambia** (13 nov 2026, domanda D1 della 6b): **sì**. I paper arXiv passano dal
    pre-filtro dal più recente, a blocchi, finché i promossi riempiono il tetto; gli altri entrano
    nel registro delle notizie già viste. Proposta 6b-2 accettata.
-   ADR: [0010](../adr/0010-prefiltro-arxiv-fino-al-tetto.md), stato "accettato, da implementare".
-   Il testo del PRD si aggiorna insieme al codice.
+   ADR: [0010](../adr/0010-prefiltro-arxiv-fino-al-tetto.md), implementato il 15 nov 2026 con `ARX-02` aggiornato.
 9. **Tetto arXiv** (13 nov 2026, D2): **30** dopo la modifica di `ARX-02` (oggi 10); si valuta se
    salire a 50 dopo una settimana di metriche vere. Il risparmio stimato ne sosterrebbe circa 50.
 10. **Misure con chiamate vere** (13 nov 2026, D3): autorizzate **M1-M6, a tempi separati**.
@@ -95,7 +98,7 @@ Nessuna di queste tre risposte è una decisione di architettura: non hanno un AD
     proposta 6a-2 resta solo il rifiuto delle date future (non era oggetto della domanda).
 17. **Raccolta incrementale** (13 nov 2026, domanda 4): **sì**. Proposta 6a-6 accettata, con la
     migrazione della tabella `siti` e lo stato "copertura parziale".
-    ADR: [0011](../adr/0011-raccolta-incrementale-dei-siti.md), "accettato, da implementare".
+    ADR: [0011](../adr/0011-raccolta-incrementale-dei-siti.md), implementato il 17 nov 2026.
 18. **Voci di altri domini nei feed** (13 nov 2026, domanda 5): **fuori**, salvo che il dominio sia
     attivato tra i siti collegati del profilo; restano valide le voci sull'host del feed stesso
     (Substack, feedburner). Chiarisce `WEB-08`; il codice oggi accetta tutte le voci.
@@ -141,6 +144,8 @@ decisione): tre prove sul PC Windows (sì); cartelle `tests/accettazione/` e `do
     cinque passi** R-02a, R-01, R-03, R-04, R-02b (vocabolario comune; metriche, pre-filtro e
     tetto, raccolta e politica dei siti in moduli propri; stati dei siti nel modello della
     dashboard). Gli altri sei passi si fanno solo quando si tocca quel codice.
+    *Stato al 17 nov 2026*: fatto solo R-02a. R-01, R-03, R-04 e R-02b non sono stati fatti, e le modifiche che
+    dovevano precedere (ADR 0010, ADR 0011, decisione 21) sono già nel codice: cosa farne è da decidere di nuovo.
 29. **Proposta 6b-1, metriche di token dettagliate** (14 nov 2026, domanda 1): **no, per ora**.
     Le metriche restano quelle di oggi. *Conseguenza*: l'effetto del nuovo pre-filtro arXiv (ADR
     0010) e delle altre leve si giudica solo dai totali; il passo R-01 si fa comunque, come base
@@ -157,7 +162,7 @@ decisione): tre prove sul PC Windows (sì); cartelle `tests/accettazione/` e `do
 33. **Dove vive l'LLM del profilo del sito** (14 nov 2026, domanda 6, proposta P-1): in un
     **modulo del backend**; `fonti/siti` fornisce solo funzioni senza LLM; il tetto di token si
     applica prima della chiamata e si controlla dopo, senza allargare l'interfaccia dei provider.
-    ADR: [0012](../adr/0012-llm-del-profilo-del-sito-nel-backend.md), "accettato, da implementare".
+    ADR: [0012](../adr/0012-llm-del-profilo-del-sito-nel-backend.md), implementato il 17 nov 2026.
 34. **Regola di "coperto fino a"** (14 nov 2026, domanda 7, proposta P-2): a fine esecuzione
     avanza fino alla notizia più vecchia del sito rimasta senza esito. Aggiunta all'ADR
     [0011](../adr/0011-raccolta-incrementale-dei-siti.md). Se le esecuzioni vere mostrano siti
@@ -241,8 +246,34 @@ Non chiesta: la proposta P-3 (le metriche salvate cambiano solo per aggiunta) re
 57. **`AMB-01` e ADR 0001** (domanda D5): **aggiornati** il 15 nov 2026: il requisito dice che
     l'installazione di tutti i giorni è il portatile Linux, l'ADR 0001 ha una nota in fondo.
 
-ADR: [0013](../adr/0013-dashboard-da-fuori-casa-con-tailscale-serve.md), "accettato, da implementare".
-Comprende le correzioni della rilettura di sicurezza: una seconda porta locale per Serve, le
-intestazioni contro l'incorniciamento e il controllo degli indirizzi aggiunti a mano (che chiude il
-punto rimandato dalla decisione 39). `AMB-02`, `TG-03` e `struttura.md` si aggiornano con il codice.
+ADR: [0013](../adr/0013-dashboard-da-fuori-casa-con-tailscale-serve.md), implementato il 17 nov 2026 con
+`AMB-02`, `TG-03` e `struttura.md` aggiornati. Comprende le correzioni della rilettura di sicurezza: una
+seconda porta locale per Serve, le intestazioni contro l'incorniciamento e il controllo degli indirizzi
+aggiunti a mano (che chiude il punto rimandato dalla decisione 39).
 
+## Implementazione dell'ADR 0012 (17 novembre 2026)
+
+58. **Aiuto dell'LLM al profilo di un sito** (17 nov 2026, piano proposto prima del codice): si implementa
+    **subito**, prima delle proposte 6a-4, 6a-7 e 6a-9 che l'ADR 0012 e la scheda 6a-12 mettevano prima. Il tetto
+    di 10.000 token vale **per ogni richiesta** (ogni clic sul bottone), non come totale per sito. L'LLM propone
+    **solo sezioni ed esclusioni**, come dice l'ADR: la "forma degli indirizzi degli articoli" della scheda 6a-12 resta
+    fuori, perché il profilo non ha un campo per salvarla e servirebbe toccare la strategia HTML.
+
+## Altre decisioni dell'implementazione (17 novembre 2026)
+
+Prese nelle conversazioni dei singoli pezzi e scritte allora solo negli ADR o nel [README.md](README.md); riportate
+qui nella rilettura finale del 17 novembre 2026, senza cambiarle.
+
+59. **Colonne della raccolta incrementale**: la migrazione `0013` aggiunge solo `coperto_fino_a` e `coperto_con`;
+    niente colonne per le statistiche di raccolta, che nessun codice leggerebbe ancora
+    ([ADR 0011](../adr/0011-raccolta-incrementale-dei-siti.md)).
+60. **Feed e sitemap a ogni esecuzione**: un sito che pubblica poco, nelle esecuzioni senza articoli nuovi, legge
+    anche la strategia dopo il feed (una richiesta in più, nessuna quota LLM). Fermarsi al feed farebbe perdere in
+    silenzio gli articoli di un feed in ritardo. Compromesso accettato (ADR 0011).
+61. **Prova di funzionamento di Claude Code fallita**: l'esecuzione si ferma come "fallita" con il motivo, e la prova
+    si ripete all'esecuzione successiva (decisione 45, sezione 4.5 di
+    [05-dipendenze-e-stile.md](05-dipendenze-e-stile.md)). Autorizzata e fatta una prova vera, fuori
+    dall'esecutore: 1.764 token.
+62. **Identità di Tailscale obbligatoria**: la porta per Tailscale Serve rifiuta le richieste senza
+    `Tailscale-User-Login`, che manca nel traffico di Funnel. *Rischio*: se una versione di Serve non la mandasse
+    più, l'accesso da fuori casa si fermerebbe ([ADR 0013](../adr/0013-dashboard-da-fuori-casa-con-tailscale-serve.md)).

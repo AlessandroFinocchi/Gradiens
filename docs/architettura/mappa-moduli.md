@@ -5,6 +5,17 @@ moduli, flusso di un'esecuzione, avvio del servizio, una scheda per ogni modulo,
 scritte, e le parti che non si capiscono leggendo un file solo ("Come funziona davvero"). È il
 risultato della fase 1 del lavoro descritto in [docs/miglioramenti/README.md](../miglioramenti/README.md).
 
+**Cosa è cambiato dopo questa fotografia** (aggiornato il 17 novembre 2026). La mappa non è stata riscritta: grafo
+degli import, numeri di riga e schede descrivono il commit indicato. Dopo sono arrivati, elencati con il commit in
+[docs/miglioramenti/README.md](../miglioramenti/README.md), sezione "Fatto": il pre-filtro arXiv fino al tetto (ADR
+0010), la protezione del profilo dei siti, la raccolta incrementale (ADR 0011, colonne `coperto_fino_a` e
+`coperto_con`), le correzioni delle schede 3, 4, 7, 8, 9, 11, 12, 13 e 14 di
+[04-debugging.md](../miglioramenti/04-debugging.md) (tra l'altro: attesa della rete di 15 minuti invece di 300
+secondi, recupero che non conta le esecuzioni fallite per la rete), ruff, la versione di Claude Code con la prova di
+funzionamento, la seconda porta per Tailscale Serve (ADR 0013) e l'aiuto dell'LLM al profilo (ADR 0012). Solo per
+quest'ultimo la mappa ha le schede dei due moduli nuovi e qualche frase corretta, segnata "Aggiornamento del 17 nov
+2026".
+
 Completa [struttura.md](struttura.md), che resta il documento delle regole e dei contratti: dove i
 due non coincidono, questa mappa descrive ciò che il codice fa oggi e lo segnala tra le
 osservazioni.
@@ -66,6 +77,12 @@ osservazioni.
 
 Sintesi delle scoperte più pesanti, con il rimando alla sezione che le dimostra.
 
+*Al 17 novembre 2026*: il punto 1 è risolto (ADR 0010); il punto 2 vale ancora per le esecuzioni, ma alla creazione
+del profilo l'LLM può aiutare su richiesta (ADR 0012); per il punto 10 "dal PC" non dipende più dalle intestazioni
+ma dalla porta (ADR 0013), e l'autenticazione la fa Tailscale. I punti 3-9 valgono ancora: in parte per scelta
+dell'utente (la data presa da `lastmod`, decisione 16; il "rate limit" trattato come quota esaurita, decisione 27);
+l'8 e il 9 sono le schede 6 e 5 di [04-debugging.md](../miglioramenti/04-debugging.md), senza una soluzione sicura.
+
 1. **Il tetto arXiv si applica dopo il pre-filtro** (`esecuzione/esecutore.py:274-283`, come
    chiede `ARX-02`): tutti i paper nuovi consumano chiamate di pre-filtro, e quelli oltre il tetto
    vengono poi scartati senza essere valutati. Nelle esecuzioni 9 e 10 i paper oltre il tetto
@@ -73,7 +90,9 @@ Sintesi delle scoperte più pesanti, con il rimando alla sezione che le dimostra
    nell'esecuzione 10). Vedi A2 e C3.
 2. **Nella ricerca sui siti l'LLM non interviene mai**, nemmeno alla creazione del profilo
    (`WEB-04` lo permetterebbe). Mancano anche l'anteprima degli articoli (`WEB-02`) e la vista
-   delle differenze dopo una rigenerazione (`WEB-25`). Vedi C2.
+   delle differenze dopo una rigenerazione (`WEB-25`). Vedi C2. *Aggiornamento del 17 nov 2026*: alla
+   creazione del profilo l'LLM ora può aiutare, solo su richiesta dell'utente (ADR 0012); nelle
+   esecuzioni continua a non intervenire.
 3. **Se la cascata arriva alla sitemap, di solito si ferma lì**: basta una voce datata fuori
    dalla finestra (`fonti/siti/strategie/sitemap.py:101`, `:110-111`) perché API WordPress e HTML
    non si provino, e le sezioni del profilo restano inutilizzate. Una data presa solo da
@@ -222,7 +241,10 @@ Quando partono le chiamate 4 e 5: la 4 per ogni interesse senza proposta in sosp
 
 **Numero di chiamate di un'esecuzione**: `ceil(nuove/30)` + (notizie che passano pre-filtro e tetto, meno quelle escluse prima della chiamata: paywall, contenuto assente, diretta, `completa` fallito per un errore di rete) + `ceil(mostrate/40)` + (interessi con 3 cuori nuovi) + (0 o 1), con ogni chiamata raddoppiabile dal nuovo tentativo. Esecuzione 10 (11/11): 499 notizie nuove, quindi 17 chiamate di pre-filtro (239.085 token in ingresso, 29.317 in uscita: circa 14.000 e 1.700 per chiamata); circa 45 valutazioni e 2 chiamate per gli argomenti (169.199 in ingresso e 79.149 in uscita in tutto, circa 3.600 e 1.700 per chiamata, calcolato dalle metriche salvate); 0 proposte.
 
-**Chiamate fuori dall'esecuzione**: nessuna chiamata `chiedi`. L'unico altro punto che usa Claude Code è `stato_account` (`claude auth status`, `llm/claude_code.py:117-129`), chiamato da `ClaudeCode.pronto` (due volte per esecuzione, una per ruolo, anche se il provider è lo stesso: `esecutore.py:253-254`) e dalla configurazione iniziale (`dashboard/rotte_configurazione.py:47`, passo "claude" e "completa"). Ipotesi: `auth status` non interroga il modello, quindi non consuma quota. `avviso_login` legge solo un file (`claude_code.py:132-151`). L'analisi e la rigenerazione del profilo di un sito non usano LLM (`fonti/siti/__init__.py:3`). Il bot Telegram non chiama LLM.
+**Chiamate fuori dall'esecuzione**: nessuna chiamata `chiedi`. L'unico altro punto che usa Claude Code è `stato_account` (`claude auth status`, `llm/claude_code.py:117-129`), chiamato da `ClaudeCode.pronto` (due volte per esecuzione, una per ruolo, anche se il provider è lo stesso: `esecutore.py:253-254`) e dalla configurazione iniziale (`dashboard/rotte_configurazione.py:47`, passo "claude" e "completa"). Ipotesi: `auth status` non interroga il modello, quindi non consuma quota. `avviso_login` legge solo un file (`claude_code.py:132-151`). L'analisi e la rigenerazione del profilo di un sito non usano LLM (`fonti/siti/__init__.py:3`). *Aggiornamento del 17 nov
+2026*: c'è ora una chiamata `chiedi` fuori dall'esecuzione, l'aiuto al profilo di un sito, solo su richiesta dell'utente
+(bottone "Chiedi aiuto all'LLM", `esecuzione/aiuto_profilo.aiuta`, ruolo elaborazione, una chiamata, tetto stimato di
+10.000 token; ADR 0012). Il bot Telegram non chiama LLM.
 
 **Riga di comando di `claude`** (`llm/claude_code.py:85-92`), lanciata con `asyncio.create_subprocess_exec` (lista di argomenti, niente shell):
 
@@ -419,10 +441,17 @@ sequenceDiagram
 
 ### `esecuzione/prompt.py` (177 righe)
 - **Responsabilità**: testi dei prompt di sistema, messaggi JSON e schemi per pre-filtro, valutazione, argomenti, raffinamento e interesse nuovo.
-- **Interfaccia pubblica**: `sistema_prefiltro(interessi, escludi_sponsorizzati=True)`, `messaggio_prefiltro(blocco)`, `SCHEMA_PREFILTRO`; `sistema_valutazione(interessi)`, `messaggio_valutazione(c)`, `SCHEMA_VALUTAZIONE`; `sistema_argomenti(argomenti)`, `messaggio_argomenti(blocco)`, `SCHEMA_ARGOMENTI`; `sistema_raffinamento(interesse)`, `messaggio_proposta(notizie)`, `SCHEMA_RAFFINAMENTO`; `sistema_nuovo_interesse(interessi)`, `messaggio_nuovo_interesse(notizie)`, `SCHEMA_NUOVO_INTERESSE`; `MAX_SOMMARIO = 1500`.
+- **Interfaccia pubblica**: `sistema_prefiltro(interessi, escludi_sponsorizzati=True)`, `messaggio_prefiltro(blocco)`, `SCHEMA_PREFILTRO`; `sistema_valutazione(interessi)`, `messaggio_valutazione(c)`, `SCHEMA_VALUTAZIONE`; `sistema_argomenti(argomenti)`, `messaggio_argomenti(blocco)`, `SCHEMA_ARGOMENTI`; `sistema_raffinamento(interesse)`, `messaggio_proposta(notizie)`, `SCHEMA_RAFFINAMENTO`; `sistema_nuovo_interesse(interessi)`, `messaggio_nuovo_interesse(notizie)`, `SCHEMA_NUOVO_INTERESSE`; `MAX_SOMMARIO = 1500`. Dal 17 nov 2026 anche `sistema_aiuto_profilo()`, `messaggio_aiuto_profilo(profilo, gruppi)`, `SCHEMA_AIUTO_PROFILO` (ADR 0012), usati da `esecuzione.aiuto_profilo`.
 - **Stato condiviso**: nessuno.
 - **Dipende da / usato da**: `dati.modelli`, `fonti` (`Candidata`) / `esecuzione.esecutore`.
 - **Note**: nei messaggi gli `id` delle notizie sono indici nel blocco (0..n-1), non id del database (`:48`, `:121`); l'esecutore li riporta alle notizie e scarta quelli fuori intervallo. Gli interessi invece usano gli id veri (`:18`). `messaggio_nuovo_interesse` legge `p.interesse.nome` per ogni pertinenza (`:175`): carica gli interessi in modo pigro dalla sessione.
+
+### `esecuzione/aiuto_profilo.py` (aggiunto il 17 nov 2026)
+- **Responsabilità**: l'aiuto dell'LLM al profilo di un sito, su richiesta (ADR 0012): l'unica chiamata LLM fuori da un'esecuzione.
+- **Interfaccia pubblica**: `async aiuta(s, client, profilo, fabbrica_provider=None) -> Aiuto`; `@dataclass Aiuto(proposta, token, gruppi_tolti)` con `oltre_il_tetto`; `AiutoNonDisponibile` (messaggio per l'utente, anche per ogni `ErroreLLM`); costanti `TETTO = 10_000`, `CARATTERI_PER_TOKEN = 2.35`, `CARICO_FISSO = 1_300`, `USCITA = 2_700`.
+- **Stato condiviso**: nessuno. Tabelle: `impostazioni` (lettura di provider e modello dell'elaborazione). Un processo `claude` tramite il provider; due o più richieste al sito tramite `fonti.siti.aiuto.leggi_albero`.
+- **Dipende da / usato da**: `dati.impostazioni`, `esecuzione.prompt`, `esecuzione.esecutore` (`chiedi`, per il controllo della forma), `fonti.siti` (`Profilo`), `fonti.siti.aiuto`, `llm` / `dashboard.rotte_impostazioni` (rotta `/impostazioni/siti/{id}/aiuto`).
+- **Note**: il tetto è una stima: prima della chiamata si tolgono gli ultimi gruppi di link finché caratteri / 2,35 + carico fisso + uscita stanno nei 10.000 token; dopo, i token veri finiscono nel log e nella risposta all'utente. Non salva niente: le proposte si applicano con la rotta `/impostazioni/siti/{id}/aiuto/applica`, come modifiche manuali del profilo.
 
 ### `llm/__init__.py` (12 righe)
 - **Responsabilità**: registro dei provider e fabbrica.
@@ -668,7 +697,7 @@ Convenzioni. Le rotte rispondono con HTML (pagine intere con `comune.pagina`, fr
 - **Interfaccia pubblica** (`__all__`, riga 23): `async analizza(client, url) -> Profilo`; `async rigenera(client, vecchio: Profilo) -> Profilo`; `async raccogli(client, profilo, dal) -> EsitoSito`; `completa` (riesportata da `estrazione`); `Profilo`; `@dataclass EsitoSito(candidate, stato, guasto, dettaglio)`. Costanti: `PAGINE_ANALISI = 40`, stati `OK`, `NESSUN_NUOVO`, `BLOCCATO`, `JAVASCRIPT`, `NESSUNA`, `SUGGERIMENTI`.
 - **Stato condiviso**: indiretto, attraverso `Navigatore` (globali di `rete.py`); `asyncio.to_thread(estrai, …)` in `_date_incerte` (riga 148), cioè trafilatura in un thread. Non tocca il database: il profilo arriva e torna come oggetto, lo salva `dati/siti.py` (chiamato da esecutore e dashboard).
 - **Dipende da / usato da**: `fonti`, `siti.date`, `siti.estrazione`, `siti.indirizzi`, `siti.pagine`, `siti.profilo`, `siti.rete`, `siti.strategie`; usato da `esecuzione.esecutore` e `dashboard.rotte_impostazioni`.
-- **Note**: nessuna chiamata LLM; al posto dell'LLM di `WEB-04` c'è solo un commento `shortcut` (riga 60). `raccogli` non conosce il registro delle notizie viste: tetti e date incerte lavorano anche sugli articoli già visti (C2 d, i).
+- **Note**: nessuna chiamata LLM; al posto dell'LLM di `WEB-04` c'è solo un commento `shortcut` (riga 60). *Aggiornamento del 17 nov 2026*: l'aiuto dell'LLM su richiesta sta fuori da questo modulo (`fonti/siti/aiuto.py` più `esecuzione/aiuto_profilo.py`, ADR 0012), e il commento ora lo dice. `raccogli` non conosce il registro delle notizie viste: tetti e date incerte lavorano anche sugli articoli già visti (C2 d, i).
 
 ### `fonti/siti/rete.py` (191 righe)
 - **Responsabilità**: tutte le richieste HTTP ai siti: robots.txt, pause per host, un nuovo tentativo, cache condizionale, tetto di pagine, redirect controllati, decodifica e riconoscimento di HTML e blocchi.
@@ -705,12 +734,19 @@ Convenzioni. Le rotte rispondono con HTML (pagine intere con `comune.pagina`, fr
 - **Dipende da / usato da**: `fonti`, `siti.date`, `siti.indirizzi`, `siti.rete`; usato da `siti` (`estrai` in `_date_incerte`, `completa` riesportata).
 - **Note**: vedi C2 (g).
 
+### `fonti/siti/aiuto.py` (aggiunto il 17 nov 2026)
+- **Responsabilità**: le funzioni senza LLM dell'aiuto al profilo (ADR 0012): ridurre la pagina iniziale a un albero di link e convalidare la risposta dell'LLM.
+- **Interfaccia pubblica**: `async leggi_albero(client, profilo) -> list[Gruppo] | None`; `convalida(dati, gruppi, profilo) -> Proposta`; `@dataclass Gruppo(forma, link, nel_menu)` con `come_dict()`; `@dataclass Proposta(sezioni_aggiunte, sezioni_tolte, esclusi_nuovi, nota)` con `cambia_qualcosa`; costanti `ESEMPI = 2`, `ESEMPI_DEL_MENU = 20`, `NOTA_MASSIMA = 600`.
+- **Stato condiviso**: un `Navigatore` nuovo per lettura (una pagina più i suoi redirect), quindi le globali di `rete.py`.
+- **Dipende da / usato da**: `siti.indirizzi`, `siti.pagine`, `siti.profilo`, `siti.rete`; usato da `esecuzione.aiuto_profilo` ed `esecuzione.prompt` (`Gruppo`).
+- **Note**: la forma tiene il primo segmento se è una parola e sostituisce il resto con `*` (es. `/categoria/*`); l'host compare solo se non è il dominio del profilo. Restano fuori link esterni, esclusi, di servizio, file e la pagina stessa. La convalida tiene solo indirizzi dell'albero e del perimetro, al massimo `SEZIONI_MASSIME` sezioni, ed esclusioni nuove che coprono almeno un link senza escludere la pagina iniziale.
+
 ### `fonti/siti/profilo.py` (99 righe)
 - **Responsabilità**: la dataclass del profilo del sito, la sua serializzazione e le regole di perimetro ed esclusione.
 - **Interfaccia pubblica**: `@dataclass Profilo` (campi in C2 a) con `collegati_proposti`, `come_dict()`, `da_dict(d)`, `dominio`, `sezione`, `nel_perimetro(url)`, `escluso(url)`, `aggiungi_feed(url)`, `aggiungi_sezione(url)`, `escludi(prefisso)`, `attiva(strategia)`; `perimetro_di(url)`; `STRATEGIA_DEL_CAMPO = {"feed": "feed", "sitemap": "sitemap", "sezioni": "html"}`.
 - **Stato condiviso**: nessuno; il JSON di `come_dict()` finisce in `siti.profilo` tramite `dati/siti.py`.
 - **Dipende da / usato da**: `siti.indirizzi`; usato da `siti` (e, tramite `siti.Profilo`, da `esecuzione.esecutore` e `dashboard.rotte_impostazioni`). Le strategie ricevono il profilo senza importarlo (tipizzazione implicita).
-- **Note**: `da_dict` ignora i campi sconosciuti (riga 48), quindi il JSON salvato regge le versioni future. `aggiungi_sezione` (riga 72) non è chiamata da nessuna rotta.
+- **Note**: `da_dict` ignora i campi sconosciuti (riga 48), quindi il JSON salvato regge le versioni future. `aggiungi_sezione` (riga 72) non è chiamata da nessuna rotta. *Aggiornamento del 17 nov 2026*: la chiama la rotta che applica l'aiuto dell'LLM, insieme al nuovo `togli_sezione(url)`.
 
 ### `fonti/siti/strategie/__init__.py` (15 righe)
 - **Responsabilità**: il registro delle strategie di scoperta e il loro ordine nella cascata.
@@ -1087,6 +1123,8 @@ Se una migrazione fallisce a metà (provato su una copia del database vero con u
 | POST `/configurazione/completa` (`rotte_configurazione.py:80`) | `claude auth status`, eventuali icone, chiude la procedura | PROC, SIS, DB |
 | POST `/impostazioni/siti` (`:168`) | analizza un indirizzo (decine di richieste con pause) e salva il sito | RETE, DB |
 | POST `/impostazioni/siti/{id}/rigenera` (`:217`) | ripete l'analisi di un sito | RETE, DB |
+| POST `/impostazioni/siti/{id}/aiuto` (aggiunta il 17 nov 2026) | rilegge la home del sito e chiede all'LLM sezioni ed esclusioni; non salva niente (ADR 0012) | LLM, RETE, PROC |
+| POST `/impostazioni/siti/{id}/aiuto/applica` (aggiunta il 17 nov 2026) | applica le proposte spuntate come modifiche manuali del profilo | DB |
 | POST `/impostazioni/youtube` (`:133`) | risolve un canale con `yt-dlp` | RETE, DB |
 | POST `/impostazioni/esecuzione` (`:242`) | soglia, finestra, esclusioni, orario, pausa della programmazione | DB |
 | POST `/impostazioni/tema`, `/interessi`, `/interessi/{id}`, `/interessi/{id}/elimina`, `/proposte/{id}/approva`, `/proposte/{id}/scarta`, `/youtube/rimuovi`, `/siti/{id}/rimuovi`, `/siti/{id}/feed`, `/siti/{id}/escludi`, `/siti/{id}/collegato`, `/siti/{id}/tetti`, `/arxiv/categorie`, `/arxiv/categorie/rimuovi`, `/arxiv/tetto` | impostazioni, interessi (l'eliminazione cancella pertinenze e proposte), fonti e profili | DB |
@@ -1177,7 +1215,7 @@ redhotcyber.com ha `strategie: ["feed","sitemap","wordpress","html"]`, feed `/fe
 
 Costo: al massimo 40 pagine più i robots.txt. La rotta avvisa "fino a un minuto" (`dashboard/templates/impostazioni/siti.html:8`); nel log del 10/11 le undici aggiunte di sito sono distanziate di 12-28 secondi (ipotesi: tempo dell'analisi più quello per incollare l'indirizzo).
 
-**LLM**: nessuna chiamata. Il modulo lo dichiara (`fonti/siti/__init__.py:3-4`) e l'unico aggancio è il commento `shortcut` alla riga 60. `grep` di `llm`/`chiedi` in `fonti/` trova solo commenti.
+**LLM**: nessuna chiamata. Il modulo lo dichiara (`fonti/siti/__init__.py:3-4`) e l'unico aggancio è il commento `shortcut` alla riga 60. *Aggiornamento del 17 nov 2026*: l'aiuto su richiesta dell'ADR 0012 resta fuori da `analizza` e `raccogli` (vedi la scheda di `fonti/siti/aiuto.py`). `grep` di `llm`/`chiedi` in `fonti/` trova solo commenti.
 
 **Anteprima degli articoli** (`WEB-02`): non esiste. `aggiungi_sito` (`dashboard/rotte_impostazioni.py:168-176`) analizza e salva; nessun codice chiama `raccogli` per un'anteprima (`grep anteprima` in `src/` trova solo `SENZA_ANTEPRIMA` in `telegram/bot.py:33`, che riguarda l'anteprima dei link di Telegram). Lo stato iniziale del sito è `diagnosi` o `None` ("mai raccolto").
 
@@ -1351,7 +1389,9 @@ La pagina HTML dell'articolo non entra in cache (`rete.py:164`): se `_date_incer
 
 ### (h) Dove interviene l'LLM nella ricerca sui siti
 
-Nella scoperta e nell'estrazione: **mai** (né in `analizza`, né in `raccogli`, né in `completa`). L'LLM vede gli articoli dei siti solo dopo, nell'esecutore:
+Nella scoperta e nell'estrazione: **mai** (né in `analizza`, né in `raccogli`, né in `completa`). *Aggiornamento del 17 nov
+2026*: fuori dalle esecuzioni l'utente può chiedere all'LLM di proporre sezioni ed esclusioni del profilo (ADR 0012); le
+proposte entrano nel profilo solo se l'utente le applica. L'LLM vede gli articoli dei siti solo dopo, nell'esecutore:
 1. **pre-filtro** (`esecutore.py:381-416`): tutte le candidate non ancora viste di tutte le fonti, a blocchi di 30 (`BLOCCO_PREFILTRO`), con `titolo` e `sommario[:1500]` (`esecuzione/prompt.py:12`, `47-49`). Per i siti il sommario c'è solo da feed (summary) e WordPress (excerpt); da sitemap e HTML è vuoto, salvo la descrizione della pagina se `_date_incerte` l'ha letta; dalla sitemap senza `news:title` anche il titolo è ricavato dallo slug (`indirizzi.titolo_da_url`). Le sponsorizzate e le offerte le riconosce qui l'LLM (`WEB-22`);
 2. **valutazione e riassunto** per ogni notizia passata, dopo `completa`;
 3. **argomenti** e **proposte** a fine esecuzione (non specifici dei siti).

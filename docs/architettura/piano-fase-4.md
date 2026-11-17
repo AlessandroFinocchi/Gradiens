@@ -43,6 +43,14 @@ Le preview approvate in `mockup/` sono la base dei template Jinja2.
 
 Scelti dall'utente tra le proposte: copie di sicurezza del database, ricerca in Notizie e Archivio, fonti con problemi nel messaggio Telegram, `gradiens aggiorna` con il bottone del pannello. Scartato "Non mi interessa". Da provare su Windows: l'aggiornamento con il pannello aperto (file delle dipendenze in uso).
 
+## Analisi e miglioramenti (12-17 nov)
+
+Dal 12 novembre un'analisi in sei fasi (mappa dei moduli, test, architettura, debugging, dipendenze, siti, quota LLM,
+accesso da fuori casa) e poi la sua implementazione, a pezzi, fino al 17 novembre: ADR 0010-0013, correzioni di bug,
+ruff, controllo della versione di Claude Code. Stato, cose ancora aperte e documenti: [docs/miglioramenti/README.md](../miglioramenti/README.md).
+Le decisioni di quel lavoro sono in [docs/miglioramenti/decisioni.md](../miglioramenti/decisioni.md); nel codice si
+citano come "decisione N", quelle dell'intervista sui requisiti come "decisione N dei requisiti".
+
 ## Sviluppi futuri
 
 - **7a, Modelli LLM** (rimandata il 7 nov): sezione Modelli LLM delle Impostazioni con provider e modello per pre-filtro ed elaborazione (`LLM-03`), provider API di Claude con la chiave in `.env` e provider compatibile OpenAI per Ollama e LM Studio (`LLM-02`), stato di Claude Code con il bottone "Verifica" e segnale della sezione (`UI-14`, `ACC-15`). La preview è in `mockup/app.js` (sezione `modelli`). Il modello locale va provato su un PC con GPU (il PC Windows con la RTX 3070). Finché manca, provider e modello restano quelli predefiniti (Claude Code, Haiku) e la configurazione iniziale (7c) controlla solo Claude Code.

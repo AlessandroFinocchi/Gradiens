@@ -60,7 +60,9 @@ async def analizza(client: httpx.AsyncClient, url: str) -> Profilo:
         profilo.sezioni = [s for s in sezioni(doc, pagina.url, profilo) if await nav.consentito(s)]
         profilo.siti_collegati = dict.fromkeys(collegati(doc, pagina.url, profilo), False)
     for nome, strategia in STRATEGIE.items():
-        # shortcut: quando nessuna euristica funziona, qui un LLM potrebbe riconoscere l'elenco degli articoli (WEB-04).
+        # shortcut: l'analisi resta senza LLM. L'aiuto dell'LLM (WEB-04) è solo su richiesta, fuori da qui
+        # (fonti/siti/aiuto.py, esecuzione/aiuto_profilo.py, ADR 0012) e propone sezioni ed esclusioni, non
+        # l'elenco degli articoli quando nessuna strategia funziona (decisione 58).
         if dove := await strategia.analizza(nav, profilo, pagina if pagina.ok else None):
             profilo.strategie.append(nome)
             profilo.data_da = profilo.data_da or dove

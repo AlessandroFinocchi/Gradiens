@@ -72,6 +72,11 @@ class Profilo:
     def aggiungi_sezione(self, url: str) -> None:
         self._aggiungi("sezioni", url)
 
+    def togli_sezione(self, url: str) -> None:
+        if url in self.sezioni:
+            self.sezioni.remove(url)
+            self._modificato("sezioni")
+
     def escludi(self, prefisso: str) -> None:
         if prefisso not in self.esclusi:
             self.esclusi.append(prefisso)

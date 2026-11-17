@@ -1,6 +1,6 @@
 # Fase 3: revisione architetturale
 
-**Data**: 13 novembre 2026. **Stato**: bozza da discutere con l'utente.
+**Data**: 13 novembre 2026. **Stato**: chiusa, decisioni 28-35; cosa è fatto e cosa resta in [README.md](README.md).
 
 > **Decisioni dell'utente (14 novembre 2026)**, numeri 28-35 di [decisioni.md](decisioni.md): si fanno i cinque passi di refactoring R-02a, R-01, R-03, R-04, R-02b prima delle modifiche già decise; la 6b-1 **non** si fa per ora (R-01 resta come base degli altri passi); i test T-11…T-14 **non** si anticipano (rischio accettato: R-03 e R-04 spostano rami senza test); `fonti/__init__.py` all'architetto e `tests/conftest.py` al tester; le modifiche che attraversano più proprietari si preparano come passi separati, e i commit li fa solo l'utente; P-1 accettata ([ADR 0012](../adr/0012-llm-del-profilo-del-sito-nel-backend.md)); P-2 accettata (aggiunta all'[ADR 0011](../adr/0011-raccolta-incrementale-dei-siti.md)); `avvio_sistema.py`, bot e servizio restano come sono. P-3 non è stata chiesta e resta una proposta. Il testo sotto è la bozza su cui sono state prese le decisioni e non è stato riscritto: gli sforzi dei test vanno letti senza T-11…T-14.
 

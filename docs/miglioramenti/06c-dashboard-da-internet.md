@@ -1,6 +1,6 @@
 # 6c — Dashboard raggiungibile da fuori casa, in modo semplice e gratuito
 
-Data: 15 novembre 2026. Stato: **bozza da discutere con l'utente**.
+Data: 15 novembre 2026. Stato: chiusa, decisioni 50-57 e 62; implementata il 17 novembre 2026 ([ADR 0013](../adr/0013-dashboard-da-fuori-casa-con-tailscale-serve.md)).
 
 > **Decisioni dell'utente (15 novembre 2026)**, numeri 50-57 di [decisioni.md](decisioni.md): accesso da fuori casa con Tailscale Serve; certificati HTTPS accettati dopo aver controllato il nome della macchina; **versione completa** (sezione nelle Impostazioni e link al resoconto su Telegram); solo dal PC anche togliere i cuori, eliminare interessi e fonti e alzare i tetti; `AMB-01` e ADR 0001 aggiornati. La decisione è l'[ADR 0013](../adr/0013-dashboard-da-fuori-casa-con-tailscale-serve.md), che comprende le correzioni della rilettura di sicurezza. Il testo sotto è la bozza e non è stato riscritto.
 

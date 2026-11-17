@@ -1,5 +1,5 @@
 """Configurazione iniziale guidata (UI-11): blocca la dashboard finché non è stata completata una volta
-(decisione 55). I passi riusano i moduli delle sezioni delle Impostazioni: le loro risposte, quando la
+(decisione 55 dei requisiti). I passi riusano i moduli delle sezioni delle Impostazioni: le loro risposte, quando la
 richiesta arriva da questa pagina, tornano come passo della procedura (`rotte_impostazioni.finestra`)."""
 
 from typing import Annotated
@@ -49,7 +49,7 @@ def _fatti(request: Request, s: Session, con_claude: bool) -> tuple[dict[str, bo
             claude, account = False, str(errore)
     fatti = {
         "interessi": bool(interessi.elenca(s)),
-        # Decisione 56: basta una fonte di qualsiasi tipo.
+        # Decisione 56 dei requisiti: basta una fonte di qualsiasi tipo.
         "fonti": bool(impostazioni.canali_youtube(s) or dati_siti.elenca(s) or impostazioni.categorie_arxiv(s)),
         "claude": claude,
         "telegram": request.app.state.conf.telegram_token is not None and impostazioni.leggi(s).telegram_chat_id is not None,

@@ -41,7 +41,7 @@ def da_raffinare(sessione: Session, soglia: int) -> list[tuple[Interesse, list[N
 
 
 def per_interesse_nuovo(sessione: Session) -> list[Notizia]:
-    """INT-06, decisione 57: cuori nuovi su notizie qualsiasi. Se rivelano un tema che gli interessi non
+    """INT-06, decisione 57 dei requisiti: cuori nuovi su notizie qualsiasi. Se rivelano un tema che gli interessi non
     coprono lo decide l'LLM: le notizie sotto la soglia non si salvano, quindi non hanno mai il cuore."""
     if any(p.interesse_id is None for p in pendenti(sessione)):
         return []

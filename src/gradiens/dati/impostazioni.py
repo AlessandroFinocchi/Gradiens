@@ -116,7 +116,7 @@ def aggiungi_categoria(sessione: Session, codice: str, nome: str = "") -> None:
 
 
 def rimuovi_categoria(sessione: Session, codice: str) -> None:
-    """Anche l'ultima: arXiv è facoltativo se ci sono altre fonti (decisione 56); senza fonti c'è il segnale."""
+    """Anche l'ultima: arXiv è facoltativo se ci sono altre fonti (decisione 56 dei requisiti); senza fonti c'è il segnale."""
     categoria = sessione.get(CategoriaArxiv, codice)
     if categoria is not None:
         sessione.delete(categoria)

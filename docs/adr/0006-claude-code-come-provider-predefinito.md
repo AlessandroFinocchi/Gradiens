@@ -43,3 +43,21 @@ Ogni chiamata usa quindi: `claude -p --model <modello> --output-format json --js
 - Claude Code tiene login e file propri in `~/.claude`, fuori dalla repository. Sono file dello strumento, non di Gradiens (`PER-03`).
 - Con l'avvio all'accensione (ADR 0005) l'app gira con lo stesso utente in modalità S4U: va verificato nella fetta 7 che il login di Claude Code sia leggibile anche in quel contesto.
 - L'uso dell'abbonamento tramite `claude -p` per un'app personale va tenuto allineato alle condizioni d'uso di Anthropic, che possono cambiare.
+
+## Aggiornamento (17 novembre 2026)
+
+Rispetto al testo sopra, dalla mappa dei moduli ([mappa-moduli.md](../architettura/mappa-moduli.md), osservazioni
+A6) e dal lavoro sui miglioramenti:
+- la valutazione completa non assegna l'argomento: è un passo a parte, a fine esecuzione ([ADR 0008](0008-argomenti-assegnati-a-fine-esecuzione.md));
+- la scadenza del login non si legge dal JSON di risposta ma da `refreshTokenExpiresAt` nelle credenziali di Claude
+  Code (`llm/claude_code.scadenza_login`);
+- le chiamate in parallelo sono 3, fisse;
+- la cache si rilegge solo sul prefisso identico (prompt di sistema e schema, 700-1.300 token a chiamata), misurato
+  il 12 novembre ([06b-consumo-di-token.md](../miglioramenti/06b-consumo-di-token.md), sezione 1.5).
+
+**Rischio**: la documentazione di `claude -p` annuncia che `--bare` diventerà il predefinito in una versione futura, e
+in quella modalità Claude Code non usa il login dell'abbonamento. Contromisure in vigore dal 17 novembre (decisioni
+44, 45 e 61 di [decisioni.md](../miglioramenti/decisioni.md), `LLM-07`): canale di aggiornamento `stable`
+(impostazione dell'utente, fuori da Gradiens), versione registrata a ogni esecuzione, prova di funzionamento quando
+la versione cambia, esecuzione fermata subito su un login rifiutato. Cosa fare se succede: sezione 4.5 di
+[05-dipendenze-e-stile.md](../miglioramenti/05-dipendenze-e-stile.md).

@@ -1,6 +1,6 @@
 # Fase 4: debugging difficile (analisi)
 
-**Data**: 14 novembre 2026. **Stato**: bozza da discutere con l'utente. **Versione corta per scelta dell'utente**: schede
+**Data**: 14 novembre 2026. **Stato**: chiusa il 15 novembre 2026; le schede con una soluzione pronta sono state corrette il 17 novembre (vedi [README.md](README.md), "Fatto"). **Versione corta per scelta dell'utente**: schede
 
 > **Decisioni dell'utente (15 novembre 2026)**, numeri 36-43 di [decisioni.md](decisioni.md): l'esclusione "sponsorizzati" non si applica più ai video; **nessun margine di rilettura** nell'ADR 0011 (rischio accettato: i siti con feed in ritardo perdono articoli); nessun'altra prova con l'LLM sui video; solo i redirect controllati contro la rete di casa; attesa della rete a 15 minuti e fallimento per rete che non conta per il recupero; `/pausa` e `/riprendi` restano come oggi, documentati; nessun ripristino automatico dopo una migrazione fallita; `gradiens aggiorna` resta spento e lo dice se il servizio non riparte.
 complete solo per i sospetti gravi e per i problemi di interazione tra componenti; il resto è in due tabelle di rimandi.

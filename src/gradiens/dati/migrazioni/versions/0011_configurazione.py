@@ -1,4 +1,4 @@
-"""Configurazione iniziale completata (UI-11, decisione 55).
+"""Configurazione iniziale completata (UI-11, decisione 55 dei requisiti).
 
 Revisione: 0011
 Precedente: 0010

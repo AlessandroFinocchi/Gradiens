@@ -1,6 +1,6 @@
 # 6b — Consumo di token per alzare il tetto delle notizie
 
-**Data**: 12-13 novembre 2026. **Stato**: bozza da discutere con l'utente. **Fase**: 6b di [README.md](README.md).
+**Data**: 12-13 novembre 2026. **Stato**: chiusa, decisioni 8-14; cosa è fatto e cosa resta in [README.md](README.md). **Fase**: 6b di [README.md](README.md).
 
 > **Decisioni dell'utente (13 novembre 2026)**, numeri 8-14 di [decisioni.md](decisioni.md): `ARX-02` cambia e la 6b-2 è accettata ([ADR 0010](../adr/0010-prefiltro-arxiv-fino-al-tetto.md)); tetto arXiv a 30, poi si valuta 50; misure M1-M6 autorizzate a tempi separati, M7 no; perdita accettabile 2% nel pre-filtro e 5% nella valutazione; la quota liberata va ai siti senza tetto per sito; i video YouTube esclusi come sponsorizzati erano voluti (difetto da analizzare nella fase 4: corretto quello, i video costeranno quota); script di misura in `scripts/misura/`. Il testo sotto è la bozza su cui sono state prese le decisioni e non è stato riscritto.
 

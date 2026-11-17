@@ -1,4 +1,4 @@
-"""Configurazione iniziale guidata (UI-11, decisioni 55 e 56)."""
+"""Configurazione iniziale guidata (UI-11, decisioni 55 e 56 dei requisiti)."""
 
 from gradiens.dashboard import rotte_configurazione
 from gradiens.dati import impostazioni
@@ -23,7 +23,7 @@ def test_i_passi_usano_i_moduli_delle_impostazioni(client_nuovo):
     assert 'href="/configurazione?passo=fonti">Avanti' in passo
 
     passo = client_nuovo.post("/impostazioni/arxiv/categorie", data={"codice": "cs.CR"}, headers=DALLA_PROCEDURA).text
-    assert 'href="/configurazione?passo=claude">Avanti' in passo  # basta una fonte qualsiasi (decisione 56)
+    assert 'href="/configurazione?passo=claude">Avanti' in passo  # basta una fonte qualsiasi (decisione 56 dei requisiti)
 
 
 def test_passo_di_claude_code(client_nuovo, monkeypatch):
@@ -51,7 +51,7 @@ def test_completare_sblocca_la_dashboard_e_non_torna_piu(client_nuovo):
     assert risposta.status_code == 204 and risposta.headers["HX-Redirect"] == "/"
     assert 'aria-label="Pagine"' in client_nuovo.get("/").text
     assert client_nuovo.get("/configurazione").url.path == "/"
-    # Decisione 55: un dato tolto dopo si vede solo come segnale, la dashboard resta usabile.
+    # Decisione 55 dei requisiti: un dato tolto dopo si vede solo come segnale, la dashboard resta usabile.
     client_nuovo.post("/impostazioni/arxiv/categorie/rimuovi", data={"codice": "cs.CR"}, headers=h)
     pagina = client_nuovo.get("/notizie")
     assert pagina.url.path == "/notizie" and "3 sezioni delle Impostazioni da guardare" in pagina.text

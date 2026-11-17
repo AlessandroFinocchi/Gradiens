@@ -6,6 +6,7 @@
   <button class="bottone">Aggiungi</button>
 </form>
 <p id="analisi-sito" class="nota indicatore"><span class="rotella"></span> Analisi del sito in corso: può richiedere fino a un minuto.</p>
+<p id="aiuto-sito" class="nota indicatore"><span class="rotella"></span> Chiedo aiuto all'LLM: può richiedere fino a un minuto.</p>
 
 <h3>Siti seguiti</h3>
 {% for sito, p in siti %}
@@ -20,10 +21,30 @@
     <div class="controllo">
       <button type="button" class="bottone secondario piccolo" hx-post="/impostazioni/siti/{{ sito.id }}/rigenera" hx-target="#impostazioni"
               hx-disabled-elt="this" hx-indicator="#analisi-sito">Rigenera profilo</button>
+      {# ADR 0012: consuma quota dell'abbonamento, quindi solo su richiesta; le proposte si applicano a mano. #}
+      <button type="button" class="bottone secondario piccolo" hx-post="/impostazioni/siti/{{ sito.id }}/aiuto" hx-target="#impostazioni"
+              hx-disabled-elt="this" hx-indicator="#aiuto-sito" title="Chiede all'LLM quali sezioni usare e cosa escludere: consuma quota">Chiedi aiuto all'LLM</button>
       <button type="button" class="bottone-icona" hx-post="/impostazioni/siti/{{ sito.id }}/rimuovi" hx-target="#impostazioni"
               hx-confirm="Smettere di seguire {{ sito.url }}?" aria-label="Rimuovi {{ sito.url }}"{% if dal_pc(request) %} title="Rimuovi"{% else %}{{ disattiva_fuori(request) }}{% endif %}>{{ icona("cestino") }}</button>
     </div>
   </div>
+  {% if aiuto and aiuto[0] == sito.id %}{% set a = aiuto[1] %}{% set pr = a.proposta %}
+  <div class="aiuto-llm">
+    <p class="etichetta-campo">Proposta dell'LLM</p>
+    {% if pr.nota %}<p class="descrizione">{{ pr.nota }}</p>{% endif %}
+    {% if pr.cambia_qualcosa %}
+    <form hx-post="/impostazioni/siti/{{ sito.id }}/aiuto/applica" hx-target="#impostazioni">
+      <p class="nota">Togli la spunta a ciò che non vuoi; le sezioni da togliere vanno spuntate a mano. Le scelte applicate restano anche quando il profilo viene rigenerato.</p>
+      {% for url in pr.sezioni_aggiunte %}<label class="collegato"><input type="checkbox" name="aggiungi" value="{{ url }}" checked> + sezione <code>{{ url }}</code></label><br>{% endfor %}
+      {# Senza spunta: una sezione tolta si riaggiunge solo con un'altra richiesta all'LLM. #}
+      {% for url in pr.sezioni_tolte %}<label class="collegato"><input type="checkbox" name="togli" value="{{ url }}"> − sezione <code>{{ url }}</code></label><br>{% endfor %}
+      {% for url in pr.esclusi_nuovi %}<label class="collegato"><input type="checkbox" name="escludi" value="{{ url }}" checked> + escluso <code>{{ url }}</code></label><br>{% endfor %}
+      <button class="bottone secondario piccolo">Applica</button>
+    </form>
+    {% else %}<p class="descrizione">L'LLM non propone modifiche al profilo.</p>{% endif %}
+    <p class="nota">Consumati {{ "{:,}".format(a.token).replace(",", ".") }} token{% if a.oltre_il_tetto %}, oltre il tetto stimato di {{ "{:,}".format(TETTO_AIUTO).replace(",", ".") }}{% endif %}.{% if a.gruppi_tolti %} Per stare nel tetto, {{ a.gruppi_tolti }} gruppi di link della pagina non sono stati mostrati all'LLM.{% endif %}</p>
+  </div>
+  {% endif %}
   {# Riga compatta: stato, dettagli e profilo stanno qui; lo sfondo della riga segnala un problema o una novità. #}
   <details class="profilo-sito">
     <summary>Stato e profilo</summary>
@@ -36,6 +57,7 @@
     <dl>
       <dt>Feed</dt><dd>{% for f in p.feed %}<code>{{ f }}</code> {% else %}nessuno{% endfor %}</dd>
       <dt>Sitemap</dt><dd>{% for f in p.sitemap %}<code>{{ f }}</code> {% else %}nessuna{% endfor %}</dd>
+      <dt>Sezioni</dt><dd>{% for f in p.sezioni %}<code>{{ f }}</code> {% else %}nessuna{% endfor %}</dd>
       <dt>Esclusi</dt><dd>{% for e in p.esclusi %}<code>{{ e }}</code>
         <button type="button" class="bottone secondario piccolo" hx-post="/impostazioni/siti/{{ sito.id }}/includi"
                 hx-vals='{{ {"indirizzo": e}|tojson }}' hx-target="#impostazioni" aria-label="Non escludere più {{ e }}">Togli</button>

@@ -50,3 +50,19 @@ _Evitare_: preferiti, salvate, storico
 **Finestra di raccolta**:
 Numero di giorni, da 1 a 7, prima di un'Esecuzione: per essere raccolta, una notizia deve essere stata pubblicata in quell'intervallo. È distinta dalla cancellazione, che avviene sempre dopo 7 giorni.
 _Evitare_: periodo, intervallo di ricerca
+
+**Coperto fino a**:
+Per ogni sito, il momento fino a cui le notizie sono già state cercate. L'Esecuzione successiva cerca solo da lì in poi, sempre dentro la Finestra di raccolta; si riparte dalla finestra intera alla prima raccolta, dopo un guasto e dopo un cambio della finestra o del Profilo del sito (ADR 0011).
+_Evitare_: ultima lettura, checkpoint
+
+**Copertura parziale**:
+Stato di un sito che ha raggiunto il tetto di pagine o di articoli prima di coprire il periodo da cercare: qualche notizia può mancare. Non è un guasto.
+_Evitare_: errore, sito incompleto
+
+**Accesso da fuori casa**:
+La dashboard aperta da un dispositivo dell'utente che non è il PC su cui gira Gradiens, attraverso la sua rete Tailscale. Alcune azioni si fanno solo dal PC (ADR 0013).
+_Evitare_: accesso remoto pubblico, accesso da internet
+
+**Prova di funzionamento**:
+Chiamata breve all'LLM fatta prima della raccolta quando la versione di Claude Code è cambiata; se fallisce, l'Esecuzione si ferma.
+_Evitare_: prova di fumo, smoke test

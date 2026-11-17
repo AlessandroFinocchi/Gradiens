@@ -102,7 +102,7 @@ def test_impostazioni_interessi(dati):
 
 
 def test_segnali_nella_finestra_e_sull_ingranaggio(dati):
-    # Nel fixture c'è solo una categoria arXiv: canali e siti vuoti vanno bene (decisione 56), manca il bot.
+    # Nel fixture c'è solo una categoria arXiv: canali e siti vuoti vanno bene (decisione 56 dei requisiti), manca il bot.
     pagina = dati.get("/notizie").text
     assert 'id="apri-impostazioni"' in pagina and "Bot Telegram non collegato" in pagina
     with dati.app.state.sessioni() as s:
@@ -349,6 +349,64 @@ def test_rigenera_dal_bottone_e_togli_esclusione(dati, monkeypatch):
     with dati.app.state.sessioni() as s:
         profilo = json.loads(s.get(Sito, id).profilo)
     assert (profilo["esclusi"], profilo["modificati"]) == ([], ["esclusi"])
+
+
+def test_aiuto_dell_llm_al_profilo_mostra_le_differenze_e_applica_le_scelte(dati, monkeypatch):
+    """ADR 0012: la dashboard chiama il modulo del backend, mai il provider; l'utente approva le proposte."""
+    import json
+
+    from gradiens.dati.modelli import Sito
+    from gradiens.esecuzione import aiuto_profilo
+    from gradiens.fonti import siti
+    from gradiens.fonti.siti.aiuto import Proposta
+
+    vecchio = siti.Profilo(url="https://sito.it/", perimetro="sito.it", strategie=["feed"],
+                           sezioni=["https://sito.it/eventi/"]).come_dict()
+    with dati.app.state.sessioni() as s:
+        id = dati_siti.aggiungi(s, "https://sito.it/", vecchio, "ok").id
+    assert "https://sito.it/eventi/" in dati.get("/impostazioni/siti").text.split("<dt>Sezioni</dt>")[1].split("</dd>")[0]
+
+    risposte = []
+
+    async def aiuta(s, client, profilo):
+        risposta = risposte.pop(0)
+        if isinstance(risposta, Exception):
+            raise risposta
+        return risposta
+
+    monkeypatch.setattr(aiuto_profilo, "aiuta", aiuta)
+    proposta = Proposta(["https://sito.it/notizie/"], ["https://sito.it/eventi/"], ["https://sito.it/offerte/"],
+                        "Gli <b>eventi</b> non sono notizie.")
+    risposte.append(aiuto_profilo.Aiuto(proposta, 4321, 2))
+    finestra = dati.post(f"/impostazioni/siti/{id}/aiuto", headers=HTMX).text
+    assert "Gli &lt;b&gt;eventi&lt;/b&gt; non sono notizie." in finestra  # testo dell'LLM: escapato
+    assert 'name="aggiungi" value="https://sito.it/notizie/" checked' in finestra
+    # Togliere una sezione si rifà solo con un'altra richiesta all'LLM: la casella parte senza spunta.
+    assert 'name="togli" value="https://sito.it/eventi/">' in finestra
+    assert 'name="escludi" value="https://sito.it/offerte/" checked' in finestra
+    assert "4.321 token" in finestra and "oltre il tetto" not in finestra
+    assert "2 gruppi di link" in finestra  # lasciati fuori per stare nel tetto
+    with dati.app.state.sessioni() as s:
+        assert json.loads(s.get(Sito, id).profilo) == vecchio  # niente cambia prima di "Applica"
+
+    dati.post(f"/impostazioni/siti/{id}/aiuto/applica", headers=HTMX, data={
+        "aggiungi": ["https://sito.it/notizie/"], "togli": ["https://sito.it/eventi/"], "escludi": ["https://sito.it/offerte/"]})
+    with dati.app.state.sessioni() as s:
+        profilo = json.loads(s.get(Sito, id).profilo)
+    assert (profilo["sezioni"], profilo["esclusi"]) == (["https://sito.it/notizie/"], ["https://sito.it/offerte/"])
+    assert set(profilo["modificati"]) == {"sezioni", "esclusi"}  # restano dopo una rigenerazione (WEB-25)
+    assert "html" in profilo["strategie"]  # una sezione rende attiva la strategia che la usa
+
+    errore = dati.post(f"/impostazioni/siti/{id}/aiuto/applica", headers=HTMX, data={"aggiungi": ["https://altro.example/x/"]}).text
+    assert "fuori dal sito" in errore
+
+    risposte.append(aiuto_profilo.Aiuto(Proposta([], [], []), 10_500, 0))
+    finestra = dati.post(f"/impostazioni/siti/{id}/aiuto", headers=HTMX).text
+    assert "non propone modifiche" in finestra and "oltre il tetto" in finestra and "Applica" not in finestra
+
+    risposte.append(aiuto_profilo.AiutoNonDisponibile("Quota esaurita."))
+    assert "https://sito.it/: Quota esaurita." in dati.post(f"/impostazioni/siti/{id}/aiuto", headers=HTMX).text
+    assert dati.post("/impostazioni/siti/999/aiuto", headers=HTMX).status_code == 404
 
 
 def test_impostazioni_avvio(client, monkeypatch):

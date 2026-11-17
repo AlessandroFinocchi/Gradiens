@@ -1,6 +1,6 @@
 # 6a — Algoritmo di ricerca delle notizie sui siti
 
-Data: 12-13 novembre 2026. Stato: **bozza da discutere con l'utente**.
+Data: 12-13 novembre 2026. Stato: chiusa, decisioni 12 e 15-22; cosa è fatto e cosa resta in [README.md](README.md).
 
 > **Decisioni dell'utente (13 novembre 2026)**, numeri 12 e 15-22 di [decisioni.md](decisioni.md): **niente misura della generalizzazione** (6a-1 e sezione 3 non pianificate: gli effetti restano stime, la verifica si fa con i test su file salvati e sulle esecuzioni vere); `lastmod` resta data certa (di 6a-2 resta solo il rifiuto delle date future); raccolta incrementale accettata ([ADR 0011](../adr/0011-raccolta-incrementale-dei-siti.md)); voci di altri domini fuori salvo siti collegati; LLM nel profilo su richiesta e per ultimo; niente regola sui titoli per le offerte; si tiene il profilo vecchio se il sito non risponde; traduzioni escluse per default; la quota liberata dalla 6b va ai siti senza tetto di notizie per sito. Il testo sotto è la bozza su cui sono state prese le decisioni e non è stato riscritto: l'ordine della sezione 5 va letto senza il banco di misura.
 

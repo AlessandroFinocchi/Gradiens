@@ -1,0 +1,335 @@
+{
+  "durata_s": 14.4,
+  "caratteri_sistema": 1023,
+  "caratteri_messaggio": 4967,
+  "stima_token": 2549,
+  "gruppi_inviati": 15,
+  "gruppi_tolti": 0,
+  "token_ingresso": 4325,
+  "token_uscita": 2658,
+  "token": 6983,
+  "oltre_il_tetto": false,
+  "risposta_grezza": {
+    "sezioni": [
+      "https://www.redhotcyber.com/post/category/cybersecurity-news/",
+      "https://www.redhotcyber.com/post/category/cybersecurity-italia/",
+      "https://www.redhotcyber.com/post/category/cybercrime-it/",
+      "https://www.redhotcyber.com/post/category/hacking-it/",
+      "https://www.redhotcyber.com/post/category/bug-di-sicurezza/",
+      "https://www.redhotcyber.com/en/latest-critical-vulnerabilities/",
+      "https://www.redhotcyber.com/post/category/cyberpolitica/",
+      "https://www.redhotcyber.com/rubriche/"
+    ],
+    "esclusi": [
+      "https://www.redhotcyber.com/servizi/shopping/",
+      "https://www.redhotcyber.com/rhc/ads/",
+      "https://www.redhotcyber.com/servizi/",
+      "https://academy.redhotcyber.com/"
+    ],
+    "nota": "Ho scelto le pagine di categoria del blog di notizie (cybersecurity, cybercrime, hacking, vulnerabilità, cyberpolitica), la pagina delle CVE critiche e le rubriche, fino al limite di 8; restano fuori Cultura, Innovazione e Diritti digitali, che si possono aggiungere se servono. Community Hub, partner, conferenze, Il Manifesto e Report non elencano articoli di notizie, quindi non li ho inclusi, mentre servizi e Academy (corsi a pagamento) sono stati esclusi come offerte commerciali."
+  },
+  "proposta": {
+    "sezioni_aggiunte": [
+      "https://www.redhotcyber.com/post/category/cybersecurity-news/",
+      "https://www.redhotcyber.com/post/category/cybersecurity-italia/",
+      "https://www.redhotcyber.com/post/category/cybercrime-it/",
+      "https://www.redhotcyber.com/post/category/hacking-it/",
+      "https://www.redhotcyber.com/post/category/bug-di-sicurezza/",
+      "https://www.redhotcyber.com/en/latest-critical-vulnerabilities",
+      "https://www.redhotcyber.com/post/category/cyberpolitica/",
+      "https://www.redhotcyber.com/rubriche/"
+    ],
+    "sezioni_tolte": [
+      "https://www.redhotcyber.com/rhc/partners/",
+      "https://www.redhotcyber.com/community-network/",
+      "https://www.redhotcyber.com/red-hot-cyber-conference/rhc-conference-2027/",
+      "https://www.redhotcyber.com/red-hot-cyber-conference/rhc-conference-2026/",
+      "https://www.redhotcyber.com/red-hot-cyber-conference/rhc-conference-2025/",
+      "https://www.redhotcyber.com/red-hot-cyber-conference/rhc-conference-2024/",
+      "https://www.redhotcyber.com/red-hot-cyber-conference/rhc-conference-2023/",
+      "https://www.redhotcyber.com/red-hot-cyber-conference/rhc-conference-2022/"
+    ],
+    "esclusi_nuovi": [
+      "https://www.redhotcyber.com/servizi/",
+      "https://academy.redhotcyber.com/"
+    ],
+    "nota": "Ho scelto le pagine di categoria del blog di notizie (cybersecurity, cybercrime, hacking, vulnerabilità, cyberpolitica), la pagina delle CVE critiche e le rubriche, fino al limite di 8; restano fuori Cultura, Innovazione e Diritti digitali, che si possono aggiungere se servono. Community Hub, partne"
+  },
+  "messaggio": {
+    "indirizzo": "https://www.redhotcyber.com/",
+    "perimetro": "redhotcyber.com",
+    "sezioni_attuali": [
+      "https://www.redhotcyber.com/rhc/partners/",
+      "https://www.redhotcyber.com/community-network/",
+      "https://www.redhotcyber.com/red-hot-cyber-conference/rhc-conference-2027/",
+      "https://www.redhotcyber.com/red-hot-cyber-conference/rhc-conference-2026/",
+      "https://www.redhotcyber.com/red-hot-cyber-conference/rhc-conference-2025/",
+      "https://www.redhotcyber.com/red-hot-cyber-conference/rhc-conference-2024/",
+      "https://www.redhotcyber.com/red-hot-cyber-conference/rhc-conference-2023/",
+      "https://www.redhotcyber.com/red-hot-cyber-conference/rhc-conference-2022/"
+    ],
+    "esclusi_attuali": [
+      "https://www.redhotcyber.com/servizi/shopping/",
+      "https://www.redhotcyber.com/rhc/ads/"
+    ],
+    "gruppi": [
+      {
+        "forma": "/rhc/*",
+        "link": 6,
+        "nel_menu": 4,
+        "esempi": [
+          [
+            "https://www.redhotcyber.com/rhc/partners/",
+            "Partners"
+          ],
+          [
+            "https://www.redhotcyber.com/rhc/newsletter-sicurezza-informatica/",
+            "Newsletter"
+          ],
+          [
+            "https://www.redhotcyber.com/rhc/articoli-piu-letti/?period=month",
+            "Articoli più letti"
+          ],
+          [
+            "https://www.redhotcyber.com/rhc/albero-del-sito/",
+            "Mappa del sito"
+          ]
+        ]
+      },
+      {
+        "forma": "/*",
+        "link": 2,
+        "nel_menu": 2,
+        "esempi": [
+          [
+            "https://www.redhotcyber.com/community-network/",
+            "Community Hub"
+          ],
+          [
+            "https://www.redhotcyber.com/red-hot-cyber-conference/",
+            "Eventi"
+          ]
+        ]
+      },
+      {
+        "forma": "/*/*",
+        "link": 6,
+        "nel_menu": 6,
+        "esempi": [
+          [
+            "https://www.redhotcyber.com/red-hot-cyber-conference/rhc-conference-2027/",
+            "RHC Conference 2027"
+          ],
+          [
+            "https://www.redhotcyber.com/red-hot-cyber-conference/rhc-conference-2026/",
+            "RHC Conference 2026"
+          ],
+          [
+            "https://www.redhotcyber.com/red-hot-cyber-conference/rhc-conference-2025/",
+            "RHC Conference 2025"
+          ],
+          [
+            "https://www.redhotcyber.com/red-hot-cyber-conference/rhc-conference-2024/",
+            "RHC Conference 2024"
+          ],
+          [
+            "https://www.redhotcyber.com/red-hot-cyber-conference/rhc-conference-2023/",
+            "RHC Conference 2023"
+          ],
+          [
+            "https://www.redhotcyber.com/red-hot-cyber-conference/rhc-conference-2022/",
+            "RHC Conference 2022"
+          ]
+        ]
+      },
+      {
+        "forma": "/servizi",
+        "link": 1,
+        "nel_menu": 1,
+        "esempi": [
+          [
+            "https://www.redhotcyber.com/servizi/",
+            "Servizi"
+          ]
+        ]
+      },
+      {
+        "forma": "/servizi/*",
+        "link": 2,
+        "nel_menu": 2,
+        "esempi": [
+          [
+            "https://www.redhotcyber.com/servizi/academy/",
+            "Academy"
+          ],
+          [
+            "https://www.redhotcyber.com/servizi/workshop-per-aziende/",
+            "Workshop"
+          ]
+        ]
+      },
+      {
+        "forma": "academy.redhotcyber.com/collections",
+        "link": 1,
+        "nel_menu": 1,
+        "esempi": [
+          [
+            "https://academy.redhotcyber.com/collections",
+            "Corsi a catalogo"
+          ]
+        ]
+      },
+      {
+        "forma": "/servizi/*/*",
+        "link": 4,
+        "nel_menu": 4,
+        "esempi": [
+          [
+            "https://www.redhotcyber.com/servizi/academy/agentic-ai-cyber-operation-live-class/",
+            "Live Class - Agentic AI Cyber Operation"
+          ],
+          [
+            "https://www.redhotcyber.com/servizi/academy/live-class-cyber-offensive-fundamentals/",
+            "Live Class - Cyber Offensive Fundamentals"
+          ],
+          [
+            "https://www.redhotcyber.com/servizi/academy/corso-dark-web-e-cyber-threat-intelligence/",
+            "Live Class - Dark Web & CTI"
+          ],
+          [
+            "https://www.redhotcyber.com/servizi/academy/certificazioni/",
+            "Certificazioni"
+          ]
+        ]
+      },
+      {
+        "forma": "/post/*",
+        "link": 24,
+        "nel_menu": 1,
+        "esempi": [
+          [
+            "https://www.redhotcyber.com/post/rendi-la-formazione-unavventura-scegli-betti-rhc-per-il-tuo-cybersecurity-awareness/",
+            "Fumetto Cyber Awareness"
+          ],
+          [
+            "https://www.redhotcyber.com/post/supera-antivirus-e-mfa-cosi-gli-hacker-entrano-negli-account-microsoft-senza-rubare-password/",
+            "Superare gli antivirus e la MFA: così gli hacker entrano neg"
+          ]
+        ]
+      },
+      {
+        "forma": "/en/*",
+        "link": 3,
+        "nel_menu": 2,
+        "esempi": [
+          [
+            "https://www.redhotcyber.com/en/latest-critical-vulnerabilities/",
+            "Ultime CVE critiche"
+          ],
+          [
+            "https://www.redhotcyber.com/en/homepage/",
+            ""
+          ]
+        ]
+      },
+      {
+        "forma": "/post/*/*",
+        "link": 9,
+        "nel_menu": 9,
+        "esempi": [
+          [
+            "https://www.redhotcyber.com/post/category/cultura/",
+            "Cultura"
+          ],
+          [
+            "https://www.redhotcyber.com/post/category/cybersecurity-italia/",
+            "Cyber Italia"
+          ],
+          [
+            "https://www.redhotcyber.com/post/category/cybersecurity-news/",
+            "Cyber News"
+          ],
+          [
+            "https://www.redhotcyber.com/post/category/cybercrime-it/",
+            "Cybercrime"
+          ],
+          [
+            "https://www.redhotcyber.com/post/category/cyberpolitica/",
+            "Cyberpolitica"
+          ],
+          [
+            "https://www.redhotcyber.com/post/category/diritti-digitali/",
+            "Diritti"
+          ],
+          [
+            "https://www.redhotcyber.com/post/category/hacking-it/",
+            "Hacking"
+          ],
+          [
+            "https://www.redhotcyber.com/post/category/innovazione/",
+            "Innovazione"
+          ],
+          [
+            "https://www.redhotcyber.com/post/category/bug-di-sicurezza/",
+            "Vulnerabilità"
+          ]
+        ]
+      },
+      {
+        "forma": "/rubriche",
+        "link": 1,
+        "nel_menu": 1,
+        "esempi": [
+          [
+            "https://www.redhotcyber.com/rubriche/",
+            "Rubriche"
+          ]
+        ]
+      },
+      {
+        "forma": "academy.redhotcyber.com/",
+        "link": 1,
+        "nel_menu": 1,
+        "esempi": [
+          [
+            "https://academy.redhotcyber.com/",
+            "Academy"
+          ]
+        ]
+      },
+      {
+        "forma": "betti.redhotcyber.com/",
+        "link": 1,
+        "nel_menu": 1,
+        "esempi": [
+          [
+            "https://betti.redhotcyber.com/",
+            "Fumetto Cyber"
+          ]
+        ]
+      },
+      {
+        "forma": "/rhc",
+        "link": 1,
+        "nel_menu": 1,
+        "esempi": [
+          [
+            "https://www.redhotcyber.com/rhc/",
+            "Il Manifesto"
+          ]
+        ]
+      },
+      {
+        "forma": "/report",
+        "link": 1,
+        "nel_menu": 1,
+        "esempi": [
+          [
+            "https://www.redhotcyber.com/report/",
+            "Report"
+          ]
+        ]
+      }
+    ]
+  }
+}

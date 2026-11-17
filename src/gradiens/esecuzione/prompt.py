@@ -8,6 +8,8 @@ import json
 
 from gradiens.dati.modelli import Argomento, Interesse, Notizia
 from gradiens.fonti import Candidata
+from gradiens.fonti.siti import Profilo
+from gradiens.fonti.siti.aiuto import Gruppo
 
 MAX_SOMMARIO = 1500  # caratteri per notizia nel pre-filtro: bastano titolo e inizio del sommario
 
@@ -145,7 +147,7 @@ SCHEMA_RAFFINAMENTO = {"type": "object", "properties": {"raffinamento": {"type":
 
 
 def sistema_nuovo_interesse(interessi: list[Interesse]) -> str:
-    """INT-06, decisione 57: è l'LLM a decidere se i cuori rivelano un tema che gli interessi non coprono."""
+    """INT-06, decisione 57 dei requisiti: è l'LLM a decidere se i cuori rivelano un tema che gli interessi non coprono."""
     return f"""Sei l'assistente di Gradiens che propone nuovi interessi all'utente.
 
 Interessi che l'utente ha già:
@@ -175,3 +177,37 @@ def messaggio_nuovo_interesse(notizie: list[Notizia]) -> str:
              "punteggi": {p.interesse.nome: p.punteggio for p in n.pertinenze}} for n in notizie]
     return json.dumps(voci, ensure_ascii=False)
 
+
+
+def sistema_aiuto_profilo() -> str:
+    """ADR 0012, scheda 6a-12: l'LLM sceglie le sezioni e propone esclusioni; l'utente approva."""
+    return """Sei l'assistente di Gradiens che aiuta a configurare la raccolta di notizie da un sito web.
+Gradiens trova gli articoli con feed, sitemap e pagine elenco ("sezioni"): da ogni sezione legge i link
+agli articoli.
+
+Ricevi in JSON l'indirizzo del sito, le sezioni e le esclusioni attuali, e i link interni della pagina
+iniziale raggruppati per forma dell'indirizzo ("*" è una parte variabile): per ogni gruppo quanti link ha,
+quanti stanno nel menu e alcuni esempi con il testo del link. Restituisci:
+- sezioni: l'elenco completo delle pagine elenco da esplorare, comprese quelle attuali che vanno bene, al
+  massimo 8. Solo pagine che elencano articoli o notizie, non eventi, conferenze, partner, corsi, glossari,
+  negozi o pagine istituzionali. Usa solo indirizzi presenti negli esempi.
+- esclusi: prefissi di indirizzo da escludere perché portano a offerte commerciali, pubblicità, negozi o
+  contenuti sponsorizzati. Un elenco vuoto se non ce ne sono.
+- nota: una o due frasi in italiano che spiegano le scelte all'utente."""
+
+
+SCHEMA_AIUTO_PROFILO = {
+    "type": "object",
+    "properties": {
+        "sezioni": {"type": "array", "items": {"type": "string"}},
+        "esclusi": {"type": "array", "items": {"type": "string"}},
+        "nota": {"type": "string"},
+    },
+    "required": ["sezioni", "esclusi"],
+}
+
+
+def messaggio_aiuto_profilo(profilo: Profilo, gruppi: list[Gruppo]) -> str:
+    return json.dumps({"indirizzo": profilo.url, "perimetro": profilo.perimetro, "sezioni_attuali": profilo.sezioni,
+                       "esclusi_attuali": profilo.esclusi, "gruppi": [g.come_dict() for g in gruppi]},
+                      ensure_ascii=False)

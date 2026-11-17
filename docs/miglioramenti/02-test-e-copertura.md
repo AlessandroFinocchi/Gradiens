@@ -1,6 +1,6 @@
 # Fase 2: test e copertura (piano)
 
-**Data**: 13 novembre 2026. **Stato**: bozza da discutere con l'utente.
+**Data**: 13 novembre 2026. **Stato**: chiusa, decisioni 23-27; cosa è fatto e cosa resta in [README.md](README.md).
 
 Piano dei test di caratterizzazione e dei sospetti bug, costruito leggendo il codice e la suite e con 45 prove usa e
 getta (registro in fondo, "Appendice"). Non modifica nessun file del progetto. Riferimenti `pacchetto/file.py:riga`

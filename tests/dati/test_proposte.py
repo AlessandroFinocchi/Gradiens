@@ -55,7 +55,7 @@ def test_approvare_cambia_il_raffinamento_ma_non_la_descrizione(s):
 
 
 def test_nuovo_interesse_dai_cuori_nuovi_di_qualsiasi_notizia(s):
-    # Decisione 57: contano tutti i cuori nuovi, anche su notizie pertinenti (le uniche che si vedono);
+    # Decisione 57 dei requisiti: contano tutti i cuori nuovi, anche su notizie pertinenti (le uniche che si vedono);
     # se rivelano un tema nuovo lo decide l'LLM.
     a = interessi.aggiungi(s, "Sicurezza", "attacchi")
     for url in ("1", "2"):

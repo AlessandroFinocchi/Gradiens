@@ -58,7 +58,7 @@ def test_canale_irraggiungibile_senza_segnali_per_tetto_e_pausa(s):
     esecuzioni.inizia(s, "cli")  # in corso: conta l'ultima conclusa
     impostazioni.salva_esecuzione(s, 60, 7, in_pausa=True)
     trovati = segnali.segnali(s)
-    assert "arxiv" not in trovati  # tetto raggiunto: con molte categorie succede sempre (decisione 60)
+    assert "arxiv" not in trovati  # tetto raggiunto: con molte categorie succede sempre (decisione 60 dei requisiti)
     assert trovati["canali-youtube"].motivi == ["Lab: non raggiungibile"]  # solo i canali ancora seguiti
     assert "esecuzione" not in trovati  # la programmazione spenta è una scelta, non qualcosa da guardare
     sezione, segnale = segnali.globale(trovati)

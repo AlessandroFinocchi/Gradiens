@@ -144,8 +144,8 @@ decisione): tre prove sul PC Windows (sì); cartelle `tests/accettazione/` e `do
     cinque passi** R-02a, R-01, R-03, R-04, R-02b (vocabolario comune; metriche, pre-filtro e
     tetto, raccolta e politica dei siti in moduli propri; stati dei siti nel modello della
     dashboard). Gli altri sei passi si fanno solo quando si tocca quel codice.
-    *Stato al 17 nov 2026*: fatto solo R-02a. R-01, R-03, R-04 e R-02b non sono stati fatti, e le modifiche che
-    dovevano precedere (ADR 0010, ADR 0011, decisione 21) sono già nel codice: cosa farne è da decidere di nuovo.
+    *Stato*: fatti tutti e cinque, R-02a il 15 nov e gli altri il 17 nov 2026, dopo ADR 0010, ADR 0011 e la
+    decisione 21 invece che prima (commit in [README.md](README.md), "Fatto").
 29. **Proposta 6b-1, metriche di token dettagliate** (14 nov 2026, domanda 1): **no, per ora**.
     Le metriche restano quelle di oggi. *Conseguenza*: l'effetto del nuovo pre-filtro arXiv (ADR
     0010) e delle altre leve si giudica solo dai totali; il passo R-01 si fa comunque, come base

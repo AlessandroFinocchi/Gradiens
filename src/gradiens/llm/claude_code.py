@@ -29,6 +29,14 @@ OPZIONI_ISOLAMENTO = [
 PAROLE_QUOTA = ("usage limit", "rate limit", "limit reached", "quota")
 # Il testo degli errori di login non è documentato (ipotesi dai messaggi visti): conta anche il codice HTTP.
 PAROLE_LOGIN = ("/login", "not logged in", "invalid api key", "authentication", "unauthorized")
+# `authMethod` di `claude auth status` (CLI reference) diverso da "claude.ai", l'abbonamento.
+COLLEGAMENTI = {
+    "api_key": "collegato con una chiave API",
+    "api_key_helper": "collegato con una chiave API",
+    "oauth_token": "collegato con un token",
+    "third_party": "collegato tramite un altro fornitore",
+}
+_cartella_config: Path | None = None  # `configDirectory` dell'ultimo `claude auth status` (per `scadenza_login`)
 
 
 def trova_eseguibile() -> Path:
@@ -137,7 +145,11 @@ GIORNI_AVVISO_LOGIN = 3
 
 def stato_account(comando: list[str] | None = None) -> str:
     """UI-11: descrizione del collegamento di Claude Code a un account, per esempio "abbonamento Pro".
-    Solleva ErroreLLM, con un messaggio per l'utente, se Claude Code manca o non è collegato."""
+    Solleva ErroreLLM, con un messaggio per l'utente, se Claude Code manca o non è collegato.
+
+    Decide solo con ciò che la CLI reference documenta (doc 05, 4.5 punto 4): il codice di uscita (0 collegato,
+    1 no), `authMethod` e `configDirectory`. `subscriptionType`, non documentato, serve solo per il testo."""
+    global _cartella_config
     try:
         risultato = subprocess.run(
             [*(comando or [str(trova_eseguibile())]), "auth", "status"],
@@ -148,13 +160,22 @@ def stato_account(comando: list[str] | None = None) -> str:
             timeout=30,
             env=_ambiente(),
         )
-        dati = json.loads(risultato.stdout)
-    except OSError, subprocess.TimeoutExpired, json.JSONDecodeError:
+    except OSError, subprocess.TimeoutExpired:
         raise ErroreLLM("Claude Code non risponde: prova ad aprirlo in un terminale con il comando claude.") from None
-    if not dati.get("loggedIn"):
+    try:
+        dati = json.loads(risultato.stdout)
+    except json.JSONDecodeError:
+        dati = None
+    dati = dati if isinstance(dati, dict) else {}
+    metodo = dati.get("authMethod")
+    if risultato.returncode != 0 or metodo == "none":
         raise ErroreLLM(f"Claude Code non è collegato a un account: {RIMEDIO_LOGIN}")
+    if isinstance(cartella := dati.get("configDirectory"), str) and cartella:
+        _cartella_config = Path(cartella)
     abbonamento = dati.get("subscriptionType")
-    return f"abbonamento {str(abbonamento).capitalize()}" if abbonamento else "collegato con una chiave API"
+    if metodo == "claude.ai" or (metodo is None and abbonamento):  # senza `authMethod`: versioni prima della 2.1.268
+        return f"abbonamento {str(abbonamento).capitalize()}" if abbonamento else "abbonamento"
+    return COLLEGAMENTI.get(metodo, "collegato a un account")
 
 
 def versione(comando: list[str] | None = None) -> str | None:
@@ -180,7 +201,8 @@ def scadenza_login() -> datetime | None:
     """Quando scade il rinnovo del login di Claude Code (`refreshTokenExpiresAt` nelle sue credenziali, ora
     del PC). Dopo quella data Claude Code non rinnova più il login da solo e le esecuzioni falliscono. Si legge
     solo la data: i token non si usano né si copiano. None se il file non c'è (es. login tenuto nel Keychain)."""
-    cartella = Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
+    # La cartella detta da `claude auth status`; prima del suo primo controllo, quella che usa Claude Code.
+    cartella = _cartella_config or Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
     try:
         millisecondi = json.loads((cartella / ".credentials.json").read_text(encoding="utf-8"))["claudeAiOauth"][
             "refreshTokenExpiresAt"

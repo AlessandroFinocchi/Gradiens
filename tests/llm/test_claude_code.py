@@ -138,21 +138,62 @@ def test_chiamata_cancellata_chiude_claude(finto):
     assert not (finto.cartella / "finito.txt").exists()  # il processo è stato chiuso prima di finire
 
 
+def _auth_status(uscita: str, codice: int = 0) -> list[str]:
+    """Un `claude` finto che stampa `uscita` ed esce con `codice`."""
+    return [sys.executable, "-c", f"print({uscita!r}); raise SystemExit({codice})"]
+
+
 @pytest.mark.parametrize(
-    "uscita, atteso",
+    "uscita, codice, atteso",
     [
-        ('{"loggedIn": true, "subscriptionType": "pro"}', None),
-        ('{"loggedIn": false}', "non è collegato"),
-        ("non è JSON", "non risponde"),
+        # Doc 05, 4.5 punto 4: contano il codice di uscita (0 collegato, 1 no) e `authMethod`, documentati;
+        # `loggedIn` e `subscriptionType` non sono documentati e servono solo per il testo.
+        ('{"loggedIn": true, "authMethod": "claude.ai", "subscriptionType": "pro"}', 0, "abbonamento Pro"),
+        ('{"authMethod": "claude.ai"}', 0, "abbonamento"),
+        ('{"authMethod": "api_key"}', 0, "collegato con una chiave API"),
+        ('{"authMethod": "oauth_token"}', 0, "collegato con un token"),
+        # Senza `authMethod`: le versioni di Claude Code prima della 2.1.268.
+        ('{"loggedIn": true, "subscriptionType": "pro"}', 0, "abbonamento Pro"),
+        ("non è JSON", 0, "collegato a un account"),  # il codice di uscita basta
+        ('{"loggedIn": true, "authMethod": "claude.ai", "subscriptionType": "pro"}', 1, ErroreLLM("non è collegato")),
+        ('{"authMethod": "none"}', 0, ErroreLLM("non è collegato")),
+        ("non è JSON", 1, ErroreLLM("non è collegato")),
     ],
 )
-def test_pronto_controlla_il_collegamento_all_account(uscita, atteso):
-    provider = ClaudeCode(comando=[sys.executable, "-c", f"print({uscita!r})"])
-    if atteso is None:
-        asyncio.run(provider.pronto())
+def test_stato_dell_account_dai_campi_documentati(uscita, codice, atteso):
+    from gradiens.llm.claude_code import stato_account
+
+    if isinstance(atteso, ErroreLLM):
+        with pytest.raises(ErroreLLM, match=str(atteso)):
+            stato_account(_auth_status(uscita, codice))
     else:
-        with pytest.raises(ErroreLLM, match=atteso):
-            asyncio.run(provider.pronto())
+        assert stato_account(_auth_status(uscita, codice)) == atteso
+
+
+def test_pronto_controlla_il_collegamento_all_account():
+    asyncio.run(ClaudeCode(comando=_auth_status('{"authMethod": "claude.ai"}')).pronto())
+    with pytest.raises(ErroreLLM, match="non è collegato"):
+        asyncio.run(ClaudeCode(comando=_auth_status('{"authMethod": "none"}', 1)).pronto())
+    with pytest.raises(ErroreLLM, match="non risponde"):
+        asyncio.run(ClaudeCode(comando=["/percorso/che/non/esiste/claude"]).pronto())
+
+
+def test_le_credenziali_si_cercano_in_config_directory(tmp_path):
+    # `configDirectory` (documentato dalla 2.1.268) vale più della cartella ricostruita da CLAUDE_CONFIG_DIR
+    # o da ~/.claude.
+    from datetime import datetime
+
+    from gradiens.llm import claude_code
+
+    altrove = tmp_path / "altrove"
+    altrove.mkdir()
+    (altrove / ".credentials.json").write_text(
+        json.dumps({"claudeAiOauth": {"refreshTokenExpiresAt": datetime(2026, 11, 20).timestamp() * 1000}}),
+        encoding="utf-8",
+    )
+    assert claude_code.scadenza_login() is None  # CLAUDE_CONFIG_DIR dei test (conftest) non ha il file
+    claude_code.stato_account(_auth_status(json.dumps({"authMethod": "claude.ai", "configDirectory": str(altrove)})))
+    assert claude_code.scadenza_login() == datetime(2026, 11, 20)
 
 
 @pytest.mark.parametrize("modalita, versione", [("ok", "2.1.325"), ("senza-versione", None)])

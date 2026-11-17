@@ -61,8 +61,8 @@ nov) e l'aiuto al profilo di redhotcyber (6.983 token, con un'uscita di 2.658 to
 - **Dopo il refactoring** (decisione 28, cinque passi fatti il 17 novembre 2026, dopo ADR 0010 e 0011 invece che
   prima: `esecuzione/esecutore.py` è sceso da 604 a 355 righe):
   - non scritti, come da decisione 30: T-12, T-13 e T-14 (la rigenerazione fallita resta senza test);
-  - testi superati: in ADR 0010 "La modifica sta tutta nell'esecutore" e, nella scheda 6b-2, la "costante
-    dell'esecutore" (ora `BLOCCO_PREFILTRO` sta in `esecuzione/prefiltro.py`);
+  - testo superato nella scheda 6b-2, che resta com'è come gli altri documenti di analisi: la "costante
+    dell'esecutore" (ora `BLOCCO_PREFILTRO` sta in `esecuzione/prefiltro.py`; l'ADR 0010 è stato corretto);
   - `prefiltro.py` e `raccolta.py` scrivono nel log con il nome dell'esecutore, così le righe restano identiche.
 - **Decise, senza codice**: avvisi come errori nei test, dopo la pulizia delle connessioni non chiuse (decisione 48);
   il punto 4 della sezione 4.5 del documento 05 (campi documentati di `claude auth status`).

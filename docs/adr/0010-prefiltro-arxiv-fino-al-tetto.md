@@ -51,5 +51,5 @@ già viste."
   (`GIRO_PREFILTRO`). Siti e video si pre-filtrano in blocchi propri, senza paper, in parallelo ai giri.
 - Tetto a 30 (decisione 9): la migrazione `0012` porta a 30 il vecchio predefinito (50) e il tetto usato fino
   ad allora (10); un tetto scelto diverso resta com'è.
-- La modifica sta tutta nell'esecutore: l'interfaccia dei provider LLM non cambia
+- La modifica sta tutta nell'esecuzione (dopo il refactoring R-03 del 17 novembre 2026, in `esecuzione/prefiltro.py`): l'interfaccia dei provider LLM non cambia
   ([ADR 0006](0006-claude-code-come-provider-predefinito.md)) e non c'è differenza tra Windows e Linux.

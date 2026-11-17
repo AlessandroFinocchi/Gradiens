@@ -37,6 +37,14 @@ build-backend = "uv_build"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q --import-mode=importlib"
+# Decisione 48: un avviso nuovo (connessione non chiusa, deprecazione dopo un aggiornamento) fa fallire i test,
+# invece di perdersi nel rumore. Se una deprecazione viene da una libreria e non da Gradiens, si aggiunge qui una
+# riga "ignore:..." mirata, con un commento e il nome della libreria (doc 05, sezione 3.4).
+filterwarnings = [
+    "error::ResourceWarning",
+    "error::pytest.PytestUnraisableExceptionWarning",  # gli avvisi nati nei finalizzatori (connessioni non chiuse)
+    "error::DeprecationWarning",
+]
 
 [tool.ruff]
 line-length = 120  # la lunghezza prevalente nel codice (docs/miglioramenti/05-dipendenze-e-stile.md, punto 5)

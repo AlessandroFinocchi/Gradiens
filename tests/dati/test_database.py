@@ -1,4 +1,5 @@
 import sqlite3
+from contextlib import closing
 
 import pytest
 from alembic import command
@@ -100,7 +101,8 @@ def test_copia_prima_di_una_migrazione_ma_non_su_un_database_nuovo(tmp_path):
         c.exec_driver_sql("INSERT INTO interessi (id, nome, descrizione) VALUES (1, 'AI', 'AI')")
     migra(vecchio)
     [copia] = (tmp_path / "vecchio" / "backup").glob("gradiens-*-migrazione.db")
-    with sqlite3.connect(copia) as c:  # la copia è il database prima della migrazione, con i dati
+    # closing: il `with` di sqlite3 fa commit o rollback, ma non chiude la connessione.
+    with closing(sqlite3.connect(copia)) as c:  # la copia è il database prima della migrazione, con i dati
         assert c.execute("SELECT version_num FROM alembic_version").fetchone() == ("0010",)
         assert c.execute("SELECT nome FROM interessi").fetchall() == [("AI",)]
     migra(vecchio)  # già aggiornato: nessuna copia in più

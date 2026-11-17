@@ -3,6 +3,7 @@ from contextlib import ExitStack
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import Engine, event
 
 from gradiens.app import avvio_sistema
 from gradiens.app.configurazione import Configurazione
@@ -10,6 +11,7 @@ from gradiens.app.servizio import crea_app
 from gradiens.dashboard import rotte_configurazione
 from gradiens.dati import impostazioni
 from gradiens.esecuzione import esecutore
+from gradiens.llm import claude_code
 
 
 def porte_libere(quante: int) -> list[int]:
@@ -21,12 +23,33 @@ def porte_libere(quante: int) -> list[int]:
         return [presa.getsockname()[1] for presa in prese]
 
 
+_motori: set[Engine] = set()  # motori che hanno aperto almeno una connessione durante il test in corso
+
+
+@event.listens_for(Engine, "engine_connect")
+def _ricorda_il_motore(connessione) -> None:
+    _motori.add(connessione.engine)
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_runtest_teardown(item):
+    """Decisione 48: chiude i motori di ogni test, quelli delle fixture, quelli creati dentro un test e quello di
+    `crea_app`. Dopo il teardown delle fixture, perché `dispose()` chiude solo le connessioni tornate al pool, non
+    quelle ancora tenute da una sessione aperta (doc 05, sezione 3.3 e misura M-2)."""
+    try:
+        return (yield)
+    finally:
+        while _motori:
+            _motori.pop().dispose()
+
+
 @pytest.fixture(autouse=True)
 def senza_avvio_registrato(monkeypatch, tmp_path):
     """I test non leggono la registrazione vera dell'avvio all'accensione (systemd o Utilità di pianificazione)."""
     monkeypatch.setattr(avvio_sistema, "_cache", (float("inf"), avvio_sistema.StatoAvvio(False)))
     monkeypatch.setattr(esecutore, "rete_disponibile", lambda: True)  # né la rete vera
     monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path / "claude"))  # né il login vero di Claude Code
+    monkeypatch.setattr(claude_code, "_cartella_config", None)  # né la cartella letta da un test precedente
 
 
 @pytest.fixture

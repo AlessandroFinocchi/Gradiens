@@ -4,8 +4,8 @@ Un pezzo per conversazione. Per ogni pezzo: apri una conversazione nuova, incoll
 partenza** con dentro il **paragrafo del pezzo**, e usa i **prompt per continuare** finché il pezzo
 è chiuso. Poi fai il commit e passa al pezzo successivo.
 
-I 15 pezzi preparati il 15 novembre 2026 sono stati fatti dal 15 al 17 novembre, tranne quattro passi di
-refactoring: l'elenco con i commit è in [README.md](README.md), sezione "Fatto". Qui restano i pezzi ancora
+I 15 pezzi preparati il 15 novembre 2026, il refactoring e il formatter sono stati fatti dal 15 al 17
+novembre: l'elenco con i commit è in [README.md](README.md), sezione "Fatto". Qui restano i pezzi ancora
 aperti. Meglio senza sottoagenti in parallelo: sono loro che hanno fatto finire la quota durante l'analisi.
 
 ## 1. Prompt di partenza (uguale per tutti i pezzi)
@@ -37,32 +37,6 @@ passi, e aspetta il mio ok.
 ```
 
 ## 2. I pezzi rimasti
-
-### Da decidere prima: il refactoring (Opus 5.5, effort high)
-
-R-01, R-03, R-04 e R-02b non sono stati fatti (decisione 28, "Stato al 17 nov 2026"). Prima di usare questo
-paragrafo decidi se farli ancora: il formatter li aspetta (decisione 47). Un passo per conversazione, in
-quest'ordine: `R-01`, `R-03`, `R-04`, `R-02b`.
-
-```text
-Il passo di refactoring <<R-01 | R-03 | R-04 | R-02b>> di
-docs/miglioramenti/03-revisione-architetturale.md (decisione 28), nella versione corretta dopo
-la rilettura. Il codice è cambiato dopo quel documento (ADR 0010, 0011, 0013, decisione 45):
-prima confronta il passo con esecuzione/esecutore.py di oggi e dimmi cosa cambia nel piano. È solo
-uno spostamento di codice: il comportamento non deve cambiare. Non correggere bug: se ne incontri
-uno, lascialo com'è e scrivimelo. Alla fine aggiorna docs/architettura/struttura.md.
-```
-
-### Formatter (Sonnet 5.5, effort medium)
-
-Solo dopo la decisione sul refactoring (decisione 47).
-
-```text
-Ruff come formatter, una cartella alla volta, come nelle sezioni 6.3-6.6 di
-docs/miglioramenti/05-dipendenze-e-stile.md (decisione 47). Le migrazioni restano come le ha
-scritte Alembic. Mostrami prima quanti file cambiano in ogni cartella. Aggiungi il controllo
-alla CI.
-```
 
 ### Avvisi come errori nei test (Opus 5.5, effort high)
 
@@ -123,7 +97,7 @@ causa. Se non la sai, dimmelo invece di tirare a indovinare.
 
 ```text
 Chiudiamo il pezzo:
-1. lancia tutti i test e `uv run ruff check`, e dimmi il risultato;
+1. lancia tutti i test, `uv run ruff check` e `uv run ruff format --check`, e dimmi il risultato;
 2. esegui /ponytail-review e dimmi cosa ha trovato;
 3. aggiorna i documenti che il pezzo tocca e la sezione "Fatto" di docs/miglioramenti/README.md;
 4. dimmi con parole semplici: cosa è cambiato, come lo verifico io a mano, e cosa non hai

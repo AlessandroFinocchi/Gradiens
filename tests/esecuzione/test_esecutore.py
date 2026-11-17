@@ -718,7 +718,7 @@ ESITI = ("scartate_prefiltro", "escluse", "oltre_tetto", "senza_contenuto", "sca
                                       "blocco fallito", "valutazione fallita", "diretta"])
 def test_i_contatori_di_una_fonte_tornano(sessioni, monkeypatch, scenario):
     """T-03, ESE-11: `esaminate` è la somma degli esiti. Non vale con le dirette (YT-04: non entrano in nessun
-    contatore) e quando `errori` conta anche errori di fonte o di sito (`_raccogli`, `_raccogli_sito`)."""
+    contatore) e quando `errori` conta anche errori di fonte o di sito (`raccolta.raccogli`, `raccolta.raccogli_sito`)."""
     from gradiens.esecuzione import prefiltro as modulo
 
     candidate = [candidata("sicurezza-alta", 1), candidata("sicurezza-alta-vecchia", 5), candidata("sicurezza-bassa", 3),
@@ -1192,3 +1192,63 @@ def test_ordine_delle_fasi_e_avanzamento_con_valutazioni_intrecciate(sessioni):
         esecuzione = s.scalars(select(Esecuzione)).one()
         assert esecuzione.stato == "completata"
         assert len(s.scalars(select(Notizia)).all()) == 60
+
+
+async def irraggiungibile(*_args, **_kwargs):
+    raise httpx.ConnectError("rete giù")
+
+
+def test_nessuna_fonte_raggiungibile_e_cancellazione_durante_la_raccolta(sessioni):
+    """T-51: con tutte le fonti in errore l'esecuzione fallisce con il motivo, senza chiamare l'LLM."""
+    with sessioni() as s:
+        impostazioni.aggiungi_canale(s, "UC" + "a" * 22, "Lab di Sicurezza")
+    fonti = {"arxiv": SimpleNamespace(raccogli=irraggiungibile), "youtube": SimpleNamespace(raccogli=irraggiungibile)}
+
+    esecuzione, metriche, salvate, finto = esegui(sessioni, fonti)
+
+    assert (esecuzione.stato, esecuzione.motivo) == ("fallita", "Nessuna fonte raggiungibile.")
+    assert [st["stato"] for f in metriche["fonti"].values() for st in f["stati"]] == ["non raggiungibile"] * 2
+    assert salvate == [] and finto.chiamate == []
+
+
+def test_un_sito_in_errore_non_conta_come_fonte_irraggiungibile(sessioni):
+    """T-51. Osservazione C4 della mappa dei moduli: l'errore di un sito diventa lo stato "errore di lettura",
+    quindi con i soli siti in errore "Nessuna fonte raggiungibile." non scatta e l'esecuzione si completa."""
+    from gradiens.dati import siti as dati_siti
+    from gradiens.fonti import siti
+
+    with sessioni() as s:
+        s.query(CategoriaArxiv).delete()  # solo il sito
+        dati_siti.aggiungi(s, "https://buono.it/", siti.Profilo(url="https://buono.it/").come_dict())
+
+    esecuzione, metriche, _, _ = esegui(sessioni, {"siti": SimpleNamespace(raccogli=irraggiungibile)})
+
+    assert esecuzione.stato == "completata"
+    conta = metriche["fonti"]["siti"]
+    assert (conta["errori"], [st["stato"] for st in conta["stati"]]) == (1, ["errore di lettura"])
+
+
+def test_una_cancellazione_durante_la_raccolta_si_rilancia(sessioni):
+    """T-51: una cancellazione (non è un `Exception`) non diventa "fonte non raggiungibile": arriva all'esecuzione,
+    che resta interrotta come allo spegnimento e non manda il messaggio di fine."""
+    async def cancellata(client, categorie, dal):
+        raise asyncio.CancelledError
+
+    terminate = []
+
+    async def al_termine(id):
+        terminate.append(id)
+
+    async def prova():
+        esecutore = Esecutore(sessioni, fabbrica_provider=lambda nome: Finto(risponditore),
+                              fonti={"arxiv": SimpleNamespace(raccogli=cancellata)})
+        esecutore.al_termine = al_termine
+        esecutore.avvia("cli")
+        with pytest.raises(asyncio.CancelledError):
+            await esecutore.attendi()
+
+    asyncio.run(prova())
+    with sessioni() as s:
+        esecuzione = s.scalars(select(Esecuzione)).one()
+        assert (esecuzione.stato, esecuzione.motivo) == ("interrotta", "Gradiens è stato spento durante l'esecuzione.")
+    assert terminate == []

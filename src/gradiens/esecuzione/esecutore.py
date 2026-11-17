@@ -6,7 +6,6 @@ valutata, così un'interruzione (spegnimento, quota esaurita) non perde il lavor
 
 import asyncio
 import contextlib
-import json
 import logging
 import math
 import socket
@@ -23,12 +22,13 @@ from sqlalchemy.orm import Session, sessionmaker
 from gradiens.dati import argomenti, esecuzioni, impostazioni, interessi, notizie, proposte
 from gradiens.dati import siti as dati_siti
 from gradiens.dati.esecuzioni import NESSUNA_RETE, SPENTO
-from gradiens.dati.modelli import FONTE_DI_TIPO, Notizia, Pertinenza, Sito
+from gradiens.dati.modelli import FONTE_DI_TIPO, Notizia, Pertinenza
 from gradiens.esecuzione import prompt
 from gradiens.esecuzione.chiamata import chiedi
 from gradiens.esecuzione.metriche import Avanzamento, Metriche
 from gradiens.esecuzione.parallelo import foglie, in_parallelo
 from gradiens.esecuzione.prefiltro import applica_tetto, prefiltra
+from gradiens.esecuzione.raccolta import raccogli
 from gradiens.fonti import Candidata, ContenutoAssente, NonAncoraDisponibile, arxiv, siti, youtube
 from gradiens.llm import crea_provider, nome_provider
 from gradiens.llm.base import ErroreBloccante, ErroreLLM, Provider, QuotaEsaurita
@@ -158,80 +158,6 @@ class Esecutore:
             self._fase("attesa della rete", 0)
             await asyncio.sleep(PAUSA_RETE)
 
-    async def _raccogli(self, client: httpx.AsyncClient, s: Session, dal, finestra_giorni: int, m: Metriche,
-                        coperture: dict[int, dati_siti.Copertura]) -> list[Candidata]:
-        """Tutte le fonti in parallelo: una fonte irraggiungibile non ferma le altre."""
-        compiti = []  # (tipo, nome per il resoconto, coroutine)
-        if categorie := impostazioni.categorie_arxiv(s):
-            compiti.append(("arxiv", "arXiv", self._fonti["arxiv"].raccogli(client, categorie, dal)))
-        for canale in impostazioni.canali_youtube(s):
-            compiti.append(("video", canale.nome,
-                            self._fonti["youtube"].raccogli(client, youtube.Canale(canale.id, canale.nome), dal)))
-        for sito in dati_siti.elenca(s):
-            compiti.append(("sito", sito.url, self._raccogli_sito(client, s, sito, dal, finestra_giorni, m, coperture)))
-        if not compiti:
-            raise ValueError("Serve almeno una fonte: un sito, un canale YouTube o una categoria arXiv (Impostazioni).")
-
-        async def cronometra(tipo: str, coroutine):
-            inizio = time.monotonic()
-            try:
-                return await coroutine
-            finally:
-                conta = m.di(tipo)
-                conta.raccolta_s = max(conta.raccolta_s, round(time.monotonic() - inizio, 1))
-
-        trovate: list[Candidata] = []
-        risultati = await asyncio.gather(*(cronometra(t, c) for t, _, c in compiti), return_exceptions=True)
-        for (tipo, nome, _), risultato in zip(compiti, risultati, strict=True):
-            if isinstance(risultato, Exception):
-                log.warning("Raccolta da %s fallita: %s", nome, risultato)
-                m.di(tipo).errori += 1
-                m.di(tipo).stati.append({"fonte": nome, "stato": "non raggiungibile", "dettaglio": str(risultato)})
-            elif isinstance(risultato, BaseException):
-                raise risultato
-            else:
-                trovate += risultato
-                if tipo != "sito":  # lo stato di un sito lo registra `_raccogli_sito`
-                    m.di(tipo).stati.append({"fonte": nome, "stato": "ok"})
-        if all(isinstance(r, BaseException) for r in risultati):
-            raise RuntimeError("Nessuna fonte raggiungibile.")
-        return trovate
-
-    async def _raccogli_sito(self, client: httpx.AsyncClient, s: Session, sito: Sito, dal, finestra_giorni: int,
-                             m: Metriche, coperture: dict[int, dati_siti.Copertura]) -> list[Candidata]:
-        """Un sito: raccolta da "coperto fino a" (ADR 0011), stato (WEB-26), guasti consecutivi e rigenerazione
-        del profilo dopo 3 (WEB-24). Lo stato si salva subito; "coperto fino a" solo a fine esecuzione."""
-        fonte = self._fonti["siti"]
-        id, profilo = sito.id, siti.Profilo.da_dict(json.loads(sito.profilo))
-        ora, impronta = notizie.adesso(), dati_siti.impronta(finestra_giorni, sito.profilo)
-        try:
-            esito = await fonte.raccogli(client, profilo, dati_siti.partenza(sito, dal, finestra_giorni), inizio_finestra=dal)
-        except Exception as errore:  # un sito con un errore imprevisto non ferma gli altri
-            log.warning("Raccolta da %s fallita: %s", profilo.url, errore)
-            esito = siti.EsitoSito([], "errore di lettura", True, str(errore))
-        coperture[id] = dati_siti.Copertura(ora, None if esito.guasto else impronta,
-                                            {c.url: c.pubblicata_il for c in esito.candidate})
-        guasti = dati_siti.registra_esito(s, id, esito.stato, esito.dettaglio, esito.guasto)
-        conta = m.di("sito")
-        if esito.guasto:
-            conta.errori += 1
-        stato = {"fonte": profilo.dominio, "stato": esito.stato, "dettaglio": esito.dettaglio}
-        conta.stati.append(stato)
-        if guasti % dati_siti.GUASTI_PER_RIGENERARE == 0 and guasti:  # al 3°, 6°, 9°… guasto di fila (WEB-24)
-            try:
-                nuovo = await fonte.rigenera(client, profilo)
-            except Exception as errore:
-                log.warning("Rigenerazione del profilo di %s fallita: %s", profilo.url, errore)
-            else:
-                if nuovo is None:  # decisione 21: profilo e guasti restano, così il sito resta tra gli avvisi della Home
-                    stato["dettaglio"] = f"{esito.dettaglio or esito.stato} {siti.PROFILO_TENUTO} Riprovo dopo altri 3 guasti di fila."
-                    dati_siti.aggiorna_dettaglio(s, id, stato["dettaglio"])
-                    return esito.candidate
-                dati_siti.salva_rigenerato(s, id, nuovo.come_dict())
-                stato.update(stato="profilo rigenerato",
-                             dettaglio=f"{esito.dettaglio or esito.stato}. Dopo 3 guasti di fila il profilo è stato ricreato; le tue modifiche restano.")
-        return esito.candidate
-
     async def _pipeline(self, s: Session, m: Metriche, coperture: dict[int, dati_siti.Copertura]) -> None:
         if cancellate := notizie.cancella_scadute(s):  # ESE-09: all'inizio di ogni esecuzione
             log.info("%s notizie più vecchie di 7 giorni cancellate", cancellate)
@@ -253,7 +179,7 @@ class Esecutore:
 
         async with httpx.AsyncClient(follow_redirects=True) as client:
             # Raccolta (ESE-03): solo la finestra, senza le notizie già viste (ESE-07) né i doppioni.
-            trovate = await self._raccogli(client, s, dal, imp.finestra_giorni, m, coperture)
+            trovate = await raccogli(client, s, self._fonti, dal, imp.finestra_giorni, m, coperture)
             viste = notizie.gia_viste(s, [c.url for c in trovate])
             nuove = list({c.url: c for c in trovate if c.url not in viste}.values())
             for c in nuove:

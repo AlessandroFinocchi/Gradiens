@@ -21,7 +21,9 @@ PAUSA_MASSIMA = 10.0  # tetto al Crawl-delay chiesto dal sito
 TIMEOUT = 20.0
 DIMENSIONE_MASSIMA = 15_000_000  # byte: oltre è quasi certamente un errore, non un feed o una pagina
 REDIRECT_MASSIMI = 5
+CODICI_REDIRECT = (301, 302, 303, 307, 308)
 DURATA_ROBOTS = 3600.0
+DURATA_ROBOTS_ERRORE = 300.0  # un 5xx di robots.txt è spesso passeggero: vieta il sito per poco (scheda 14)
 VOCI_CACHE = 500
 
 # Codici speciali di `Pagina.codice` (quelli veri sono 100-599).
@@ -79,6 +81,15 @@ def _origine(url: str) -> str:
     return f"{p.scheme}://{p.netloc}"
 
 
+def _destinazione(url: str, location: str) -> str | None:
+    """Dove porta un redirect, o None se esce da http/https o va verso la rete di casa (WEB-17, S-32)."""
+    destinazione = urljoin(url, location)
+    parti = urlsplit(destinazione)
+    if parti.scheme not in ("http", "https") or not indirizzo_pubblico(parti.hostname or ""):
+        return None
+    return destinazione
+
+
 class Navigatore:
     """Legge le pagine di un sito per conto di una singola analisi, raccolta o estrazione."""
 
@@ -101,8 +112,8 @@ class Navigatore:
         scadenza, regole, vietato = _robots.get(origine, (0.0, None, False))
         if scadenza > time.monotonic():
             return regole, vietato
-        regole, vietato = None, False
-        risposta = await self._scarica(origine + "/robots.txt", seguendo_redirect=True)
+        regole, vietato, durata = None, False, DURATA_ROBOTS
+        risposta = await self._scarica_robots(origine + "/robots.txt")
         if risposta.codice == ERRORE_RETE:
             # Rete assente (es. PC appena acceso): non si legge niente, ma non è un divieto del sito
             # e non si ricorda, così appena torna la rete il sito si legge di nuovo.
@@ -111,10 +122,24 @@ class Navigatore:
         if risposta.ok:
             regole = RobotFileParser()
             regole.parse(risposta.testo.splitlines())
-        elif risposta.codice >= 500 or risposta.codice == 429:
-            vietato = True
-        _robots[origine] = (time.monotonic() + DURATA_ROBOTS, regole, vietato)
+        elif risposta.codice >= 500:
+            vietato, durata = True, DURATA_ROBOTS_ERRORE
+        elif risposta.codice == 429:
+            vietato = True  # il sito ha chiesto di rallentare (WEB-18): si ricorda per un'ora
+        _robots[origine] = (time.monotonic() + durata, regole, vietato)
         return regole, vietato
+
+    async def _scarica_robots(self, url: str) -> Pagina:
+        """robots.txt con i redirect seguiti a mano e controllati come quelli delle pagine (S-32)."""
+        for _ in range(REDIRECT_MASSIMI + 1):
+            risposta = await self._scarica(url)
+            if risposta.codice not in CODICI_REDIRECT:
+                return risposta
+            destinazione = _destinazione(url, risposta.redirect)
+            if destinazione is None:
+                break  # un redirect verso la rete di casa si rifiuta: per il sito vale come rete assente
+            url = destinazione
+        return Pagina(url, ERRORE_RETE)
 
     async def leggi(self, url: str) -> Pagina:
         """GET con robots.txt controllato per ogni dominio toccato, redirect compresi (WEB-17)."""
@@ -125,17 +150,16 @@ class Navigatore:
                 return Pagina(url, ERRORE_RETE if _origine(url) in self._senza_rete else VIETATA)
             self.letture += 1
             pagina = await self._scarica(url)
-            if pagina.codice not in (301, 302, 303, 307, 308):
+            if pagina.codice not in CODICI_REDIRECT:
                 return pagina
-            destinazione = urljoin(url, pagina.redirect)
-            parti = urlsplit(destinazione)
-            if parti.scheme not in ("http", "https") or not indirizzo_pubblico(parti.hostname or ""):
+            destinazione = _destinazione(url, pagina.redirect)
+            if destinazione is None:
                 return Pagina(url, ERRORE_RETE)  # anche un redirect verso la rete di casa si rifiuta
             url = destinazione
         return Pagina(url, ERRORE_RETE)
 
-    async def _scarica(self, url: str, seguendo_redirect: bool = False) -> Pagina:
-        """Una richiesta con pausa per dominio e un nuovo tentativo. Senza redirect: `leggi` li segue controllando robots."""
+    async def _scarica(self, url: str) -> Pagina:
+        """Una richiesta con pausa per dominio e un nuovo tentativo. I redirect li seguono a mano `leggi` e `_scarica_robots`."""
         in_cache = _cache.get(url)
         intestazioni = {"User-Agent": USER_AGENT, **(in_cache[0] if in_cache else {})}
         pagina = Pagina(url, ERRORE_RETE)
@@ -143,7 +167,7 @@ class Navigatore:
             await self._attendi_turno(url)
             try:
                 async with self.client.stream("GET", url, headers=intestazioni, timeout=TIMEOUT,
-                                              follow_redirects=seguendo_redirect) as r:
+                                              follow_redirects=False) as r:
                     if r.status_code == 304 and in_cache:
                         return in_cache[1]
                     dati = bytearray()
@@ -151,7 +175,7 @@ class Navigatore:
                         dati += blocco
                         if len(dati) > DIMENSIONE_MASSIMA:
                             return Pagina(url, ERRORE_RETE)
-                    if r.is_redirect and not seguendo_redirect:
+                    if r.is_redirect:
                         return Pagina(url, r.status_code, redirect=r.headers.get("location", ""))
                     pagina = Pagina(str(r.url), r.status_code, _decomprimi(bytes(dati)), r.headers.get("content-type", ""))
                     convalida = {k: r.headers[v] for k, v in (("If-None-Match", "etag"), ("If-Modified-Since", "last-modified"))

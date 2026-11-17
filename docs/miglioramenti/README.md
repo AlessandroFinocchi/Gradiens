@@ -67,7 +67,12 @@ Tutte e sei le fasi hanno un documento e le decisioni dell'utente sono in [decis
    2026)**: lucchetto attorno all'avvio e allo spegnimento del bot (`telegram/bot.py`), così anche un `ferma()` arrivato durante
    un avvio lo spegne; `/pausa`, `/riprendi`, Aiuto e `TG-10` dicono
    che i comandi a Gradiens spento vanno persi e che `/riprendi` non recupera (decisione 41). Il caso d della
-   scheda 11 (il modulo delle Impostazioni che toglie la pausa) resta per R-09.
+   scheda 11 (il modulo delle Impostazioni che toglie la pausa) resta per R-09. **Fatte le schede 8 e 14 (17 nov
+   2026)**, in `fonti/siti/rete.py`: i redirect di robots.txt si seguono a mano con lo stesso controllo delle pagine
+   (`_destinazione`); un redirect verso la rete di casa vale come rete assente (decisione 39, solo redirect). Un
+   robots.txt con 5xx vieta il sito per 5 minuti invece di un'ora (non solo per il `Navigatore`: l'estrazione ne
+   crea uno per articolo); il 429 resta un'ora. Test in `tests/fonti/siti/test_sicurezza.py` e nel nuovo
+   `tests/fonti/siti/test_rete.py`.
 6. ADR 0013; ADR 0012 per ultimo.
 
 **Ancora aperto**

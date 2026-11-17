@@ -31,6 +31,33 @@ def test_redirect_verso_la_rete_di_casa_rifiutato():
     assert not any("192.168" in r for r in richieste)
 
 
+def test_il_redirect_di_robots_txt_verso_la_rete_di_casa_non_viene_seguito(sito):
+    """S-32, scheda 8: anche il redirect di robots.txt passa dal controllo degli indirizzi, come quello delle pagine."""
+    s = sito({"https://pubblico-ssrf.example/robots.txt": sito.redirect("http://192.168.1.1/riavvia-il-router"),
+              "https://pubblico-ssrf.example/pagina": "<html>ok</html>"})
+
+    pagina = s.esegui(lambda client: Navigatore(client).leggi("https://pubblico-ssrf.example/pagina"))
+
+    assert not any("192.168" in r for r in s.richieste)
+    assert pagina.codice == ERRORE_RETE
+
+
+def test_un_redirect_di_robots_txt_verso_una_pagina_pubblica_si_segue(sito):
+    s = sito({"https://e.org/robots.txt": sito.redirect("https://www.e.org/robots.txt"),
+              "https://www.e.org/robots.txt": "User-agent: *\nDisallow: /privata\n",
+              "https://e.org/privata": "<html>no</html>", "https://e.org/pagina": "<html>ok</html>"})
+
+    async def leggi(client):
+        navigatore = Navigatore(client)
+        return await navigatore.leggi("https://e.org/privata"), await navigatore.leggi("https://e.org/pagina")
+
+    privata, pagina = s.esegui(leggi)
+
+    assert privata.codice == rete.VIETATA  # le regole lette dopo il redirect valgono per e.org
+    assert pagina.ok
+    assert "https://e.org/privata" not in s.richieste
+
+
 def test_senza_rete_robots_txt_non_diventa_un_divieto(sito):
     """PC appena acceso: il robots.txt irraggiungibile non è "robots.txt ora vieta", e non si ricorda per un'ora."""
     s = sito({"https://e.org/robots.txt": "User-agent: *\nAllow: /\n", "https://e.org/pagina": "<html>ok</html>"})

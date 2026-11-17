@@ -16,9 +16,13 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      # Python scaricato da uv, con tkinter: quello già presente su ubuntu-latest non lo ha e il test del pannello
+      # (ADR 0009) non si importava.
+      UV_PYTHON_PREFERENCE: only-managed
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
       - name: Ambiente con le versioni di uv.lock (Python 3.14 compreso)
         run: uv sync --locked
       - name: Linter (ruff, solo controllo; decisione 47)

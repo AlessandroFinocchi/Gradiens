@@ -297,3 +297,11 @@ qui nella rilettura finale del 17 novembre 2026, senza cambiarle.
     scrive da solo; il comportamento è identico. *Rischio accettato*: somiglia alla sintassi di Python 2 e non gira
     sotto Python 3.14, che è già il minimo (`requires-python`). L'alternativa (`target-version = "py313"`) avrebbe
     tolto anche al linter le regole della sintassi nuova.
+66. **La sidebar espansa sposta la pagina** (17 nov 2026, richiesta dell'utente; cambia `UI-01`): quando la sidebar
+    si espande, al passaggio del puntatore o con la tastiera, il contenuto si sposta a destra invece di finire sotto
+    (`stile.css`, `.app:has(.sidebar:hover)`). Sotto i 700 px resta sopra il contenuto: sul telefono, spostandolo,
+    resterebbero pochi pixel di pagina. *Rischio accettato*: passando sulla sidebar la pagina si muove ogni volta.
+67. **CI con il Python di uv** (17 nov 2026): `UV_PYTHON_PREFERENCE: only-managed` nel workflow. Il Python già
+    presente su `ubuntu-latest` non ha `tkinter`, quindi dalla fetta 7 (pannello, ADR 0009) i test su Linux si
+    fermavano alla raccolta di `tests/app/test_pannello.py`. Nello stesso passo `actions/checkout@v5` e
+    `astral-sh/setup-uv@v7`, che girano su Node 24 (Node 20 è deprecato sui runner).

@@ -581,12 +581,15 @@ def test_aiuto(client):
         "cuore",
         "argomenti",
         "stati",
+        "impostazioni-e-segnali",
         "avvio",
         "fuori-casa",
         "cli",
         "telegram",
     ):
         assert f'id="{sezione}"' in pagina and f'href="#{sezione}"' in pagina  # UI-12, con l'indice
+    # Un solo #impostazioni, la finestra: un titolo con lo stesso id riceveva le Impostazioni al posto del <dialog>.
+    assert pagina.count('id="impostazioni"') == 1
     assert f"tailscale serve --bg {client.app.state.conf.porta_remota}" in pagina  # ADR 0013, con la porta vera
     assert "<code>/riprendi</code>" in pagina and "Windows" in pagina and "Linux" in pagina
     assert 'aria-current="page"' in pagina.split("Aiuto</span>")[0].rsplit("<a", 1)[1]  # voce attiva nella sidebar

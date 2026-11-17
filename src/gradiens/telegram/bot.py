@@ -91,6 +91,10 @@ class BotGradiens:
         self._esecutore = esecutore
         self._prossima = prossima
         self._app: Application | None = None
+        # Un avvio o uno spegnimento alla volta: due avvii insieme lascerebbero in ascolto un bot che ferma() non trova
+        # più, e un ferma() durante un avvio non lo spegnerebbe (S-12). Non è rientrante: lo prendono solo avvia,
+        # _riprova e ferma, che chiamano _avvia e _ferma.
+        self._avvio = asyncio.Lock()
         self.errore: str | None = None  # es. token non più valido (segnale di UI-14)
 
     def _chat(self) -> int | None:
@@ -104,7 +108,11 @@ class BotGradiens:
         return self.errore
 
     async def avvia(self) -> None:
-        await self.ferma()
+        async with self._avvio:
+            await self._avvia()
+
+    async def _avvia(self) -> None:
+        await self._ferma()
         token, chat = self._conf.telegram_token, self._chat()
         if token is None or chat is None:
             return
@@ -134,6 +142,10 @@ class BotGradiens:
         log.info("Bot Telegram in ascolto")
 
     async def ferma(self) -> None:
+        async with self._avvio:
+            await self._ferma()
+
+    async def _ferma(self) -> None:
         if self._app is None:
             return
         app, self._app = self._app, None
@@ -151,9 +163,10 @@ class BotGradiens:
             attesa = RIPROVA_MINIMA if self._app is not None else min(attesa * 2, RIPROVA)
 
     async def _riprova(self) -> None:
-        token_rifiutato = self.errore and "token" in self.errore
-        if self._app is None and not token_rifiutato:
-            await self.avvia()
+        async with self._avvio:  # il controllo sta dentro il lucchetto: un avvio in corso conta come bot acceso
+            token_rifiutato = self.errore and "token" in self.errore
+            if self._app is None and not token_rifiutato:
+                await self._avvia()
 
     # ---- Messaggio di fine esecuzione (TG-03, TG-04, TG-09) ----
 
@@ -227,10 +240,19 @@ class BotGradiens:
                                                   link_preview_options=SENZA_ANTEPRIMA)
 
     async def _imposta_pausa(self, update: Update, in_pausa: bool) -> None:
+        # Decisione 41: i comandi mandati a Gradiens spento si scartano e /riprendi non recupera: lo si dice.
         with self._sessioni() as s:
             impostazioni.imposta_pausa(s, in_pausa)
-        await self._rispondi(update, "Programmazione in pausa: le esecuzioni a mano funzionano lo stesso."
-                             if in_pausa else "Programmazione riattivata.")
+        if in_pausa:
+            testo = ("Programmazione in pausa: le esecuzioni a mano funzionano lo stesso.\n"
+                     "Un comando mandato mentre Gradiens è spento va perso.")
+        else:
+            prossima = self._prossima()
+            testo = "Programmazione riattivata."
+            if prossima:
+                testo += f" Prossima esecuzione programmata: {prossima:%d/%m alle %H:%M}"
+            testo += "\nUn'esecuzione saltata durante la pausa non si recupera: se ti serve, usa /aggiorna."
+        await self._rispondi(update, testo)
 
     async def _pausa(self, update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         await self._imposta_pausa(update, True)

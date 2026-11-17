@@ -95,6 +95,20 @@ def test_in_pausa_non_parte_e_non_recupera(sessioni):
     assert p.prossima() is None
 
 
+def test_pausa_e_riprendi_a_cavallo_dell_orario_non_avviano_e_non_recuperano(sessioni):
+    # Scheda 11 (I-2 b) del documento 04, decisione 41: comportamento voluto, scritto nella risposta di /riprendi.
+    p, e = programmatore(sessioni, ora(7, 6, 59), ora(7, 7, 1), ora(7, 7, 2), ora(8, 7, 0))
+    p.controlla()
+    with sessioni() as s:
+        impostazioni.imposta_pausa(s, True)  # /pausa alle 6:59:50
+    p.controlla()
+    with sessioni() as s:
+        impostazioni.imposta_pausa(s, False)  # /riprendi alle 7:00:50
+    p.controlla()
+    assert e.avviate == 0  # quella di oggi è persa
+    p.controlla()
+    assert e.avviate == 1  # si riparte il giorno dopo
+
 def test_orario_spostato_nel_passato_vale_dal_giorno_dopo(sessioni):
     with sessioni() as s:
         impostazioni.salva_esecuzione(s, 60, 7, orario="22:00")

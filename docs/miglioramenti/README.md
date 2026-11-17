@@ -63,7 +63,11 @@ Tutte e sei le fasi hanno un documento e le decisioni dell'utente sono in [decis
    `test_un_video_segnalato_come_sponsorizzato_si_valuta_comunque`, correzione in `esecuzione/esecutore.py`
    (`filtra`), `WEB-23` aggiornato nel PRD.
 4. ADR 0010, poi ADR 0011 con la protezione del profilo (decisione 21).
-5. Le correzioni della fase 4 che hanno una soluzione pronta; ruff come linter.
+5. Le correzioni della fase 4 che hanno una soluzione pronta; ruff come linter. **Fatte le schede 7 e 11 (17 nov
+   2026)**: lucchetto attorno all'avvio e allo spegnimento del bot (`telegram/bot.py`), così anche un `ferma()` arrivato durante
+   un avvio lo spegne; `/pausa`, `/riprendi`, Aiuto e `TG-10` dicono
+   che i comandi a Gradiens spento vanno persi e che `/riprendi` non recupera (decisione 41). Il caso d della
+   scheda 11 (il modulo delle Impostazioni che toglie la pausa) resta per R-09.
 6. ADR 0013; ADR 0012 per ultimo.
 
 **Ancora aperto**

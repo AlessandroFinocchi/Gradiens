@@ -233,7 +233,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
   - la prossima esecuzione programmata, oppure "programmazione in pausa" (vedi `TG-10`).
 - `TG-08` Il comando `/ultima` rimanda il messaggio di fine dell'ultima esecuzione conclusa (`TG-03`). Se non c'è ancora nessuna esecuzione, il bot risponde "nessuna esecuzione ancora".
 - `TG-09` Le notizie del messaggio di `TG-03` sono numerate, e in fondo al messaggio c'è un bottone ❤️ per ognuna, con il suo numero e l'inizio del titolo (Telegram mette i bottoni solo in fondo a un messaggio). Il bottone mette o toglie il cuore, con lo stesso effetto del cuore in dashboard (`UI-05`). Il bottone mostra se il cuore è già messo. Se la notizia è già stata cancellata, il bot risponde "notizia non più disponibile".
-- `TG-10` I comandi `/pausa` e `/riprendi` sospendono e riattivano l'esecuzione programmata giornaliera. Durante la pausa le esecuzioni avviate a mano funzionano normalmente. La pausa resta attiva anche dopo un riavvio, si vede in Home e si può togliere anche dalle Impostazioni.
+- `TG-10` I comandi `/pausa` e `/riprendi` sospendono e riattivano l'esecuzione programmata giornaliera. Durante la pausa le esecuzioni avviate a mano funzionano normalmente. La pausa resta attiva anche dopo un riavvio, si vede in Home e si può togliere anche dalle Impostazioni. I comandi mandati mentre Gradiens è spento vanno persi: un `/pausa` mandato a PC spento non impedisce il recupero all'accensione (`ESE-01`). `/riprendi` non recupera l'esecuzione saltata durante la pausa. Le due cose sono scritte nelle risposte del bot e nell'Aiuto.
 
 ## 8. Dashboard
 

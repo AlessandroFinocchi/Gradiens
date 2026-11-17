@@ -1,6 +1,6 @@
 import asyncio
 import os
-from datetime import timedelta
+from datetime import datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -227,7 +227,7 @@ def test_senza_rete_all_accensione_riprova_presto_e_poi_piu_di_rado(monkeypatch)
         if len(attese) > 6:
             raise asyncio.CancelledError
 
-    monkeypatch.setattr(bot, "avvia", avvia)
+    monkeypatch.setattr(bot, "_avvia", avvia)
     monkeypatch.setattr(telegram.asyncio, "sleep", dorme)
     with pytest.raises(asyncio.CancelledError):
         asyncio.run(bot.gira())
@@ -246,7 +246,7 @@ def test_messaggio_di_prova_prova_prima_a_ricollegare(monkeypatch):
         inviati.append(testo)
 
     inviati = []
-    monkeypatch.setattr(bot, "avvia", avvia)
+    monkeypatch.setattr(bot, "_avvia", avvia)
     monkeypatch.setattr(bot, "_chat", lambda: CHAT)
     asyncio.run(bot.invia_prova())
     assert inviati and "funziona" in inviati[0]
@@ -274,3 +274,95 @@ def test_fonti_con_problemi_nel_messaggio_di_fine_esecuzione(ambiente):
     assert "e.org" not in testo.split("Fonti con problemi")[1] and "nature.com" not in testo  # gli esiti normali no
     assert "• Canale &lt;3&gt;: non raggiungibile" in testo and "Canale &lt;4&gt;" not in testo  # al massimo 5
     assert "… e altre 2: le trovi nel resoconto, nella dashboard." in testo
+
+
+class ApplicazioneFinta:
+    """Finta `Application` di Telegram: ogni passo dell'avvio cede il ciclo di eventi, come le chiamate di rete vere."""
+
+    def __init__(self, create):
+        self.in_ascolto = False
+        self.updater = SimpleNamespace(start_polling=self._ascolta, stop=self._smetti)
+        create.append(self)
+
+    def add_handler(self, *_, **__):
+        pass
+
+    async def initialize(self):
+        await asyncio.sleep(0)
+
+    async def start(self):
+        await asyncio.sleep(0)
+
+    async def _ascolta(self, **_):
+        await asyncio.sleep(0)
+        self.in_ascolto = True
+
+    async def _smetti(self):
+        self.in_ascolto = False
+
+    async def stop(self):
+        pass
+
+    async def shutdown(self):
+        pass
+
+
+@pytest.mark.parametrize("secondo", ["avvia", "_riprova"])
+def test_due_avvii_insieme_non_lasciano_un_bot_in_ascolto(monkeypatch, secondo):
+    # S-12 (scheda 7 del documento 04): durante gli await di avvia un secondo avvio vedeva ancora il bot spento e ne
+    # creava un altro; il primo restava in ascolto senza riferimento e ferma() non lo fermava più.
+    create = []
+    costruttore = SimpleNamespace(token=lambda _: SimpleNamespace(build=lambda: ApplicazioneFinta(create)))
+    monkeypatch.setattr(telegram, "Application", SimpleNamespace(builder=lambda: costruttore))
+    conf = SimpleNamespace(telegram_token=SimpleNamespace(get_secret_value=lambda: TOKEN))
+    bot = telegram.BotGradiens(conf, None, None, lambda: None)
+    monkeypatch.setattr(bot, "_chat", lambda: CHAT)
+
+    async def prova():
+        await asyncio.gather(bot.avvia(), getattr(bot, secondo)())
+        await bot.ferma()
+
+    asyncio.run(prova())
+    assert not [app for app in create if app.in_ascolto]
+    if secondo == "_riprova":  # il bot era già acceso: niente secondo avvio
+        assert len(create) == 1
+
+
+def test_pausa_e_riprendi_dicono_cosa_non_vale(ambiente):
+    # Scheda 11 (I-2 a, b) del documento 04, decisione 41: il comportamento resta, ma lo si dice.
+    client, _ = ambiente
+    b = telegram.BotGradiens(client.app.state.conf, client.app.state.sessioni, EsecutoreFinto(),
+                             lambda: datetime(2026, 11, 18, 7, 0))
+    u = aggiornamento()
+    asyncio.run(b._pausa(u, None))
+    assert "mentre Gradiens è spento va perso" in u.effective_message.testi[0]
+    u = aggiornamento()
+    asyncio.run(b._riprendi(u, None))
+    testo = u.effective_message.testi[0]
+    assert "Prossima esecuzione programmata: 18/11 alle 07:00" in testo and "non si recupera" in testo
+
+
+def test_l_aiuto_dice_cosa_non_valgono_pausa_e_riprendi(client):
+    telegram_ = client.get("/aiuto").text.split('id="telegram"')[1]
+    assert "mentre Gradiens è spento va perso" in telegram_ and "non recupera" in telegram_
+
+
+def test_fermare_il_bot_durante_un_avvio_lo_lascia_spento(monkeypatch):
+    # S-12, seguito della scheda 7: "Cambia chat" o un token nuovo chiamano ferma() mentre un tentativo di avvio è a
+    # metà; ferma() trovava il bot ancora spento e non faceva niente, poi l'avvio finiva e il bot restava acceso.
+    create = []
+    costruttore = SimpleNamespace(token=lambda _: SimpleNamespace(build=lambda: ApplicazioneFinta(create)))
+    monkeypatch.setattr(telegram, "Application", SimpleNamespace(builder=lambda: costruttore))
+    conf = SimpleNamespace(telegram_token=SimpleNamespace(get_secret_value=lambda: TOKEN))
+    bot = telegram.BotGradiens(conf, None, None, lambda: None)
+    monkeypatch.setattr(bot, "_chat", lambda: CHAT)
+
+    async def ferma_subito():
+        await asyncio.sleep(0)  # l'avvio è partito e aspetta la rete
+        await bot.ferma()
+
+    async def prova():
+        await asyncio.gather(bot.avvia(), ferma_subito())
+
+    asyncio.run(prova())
+    assert create and not [app for app in create if app.in_ascolto]

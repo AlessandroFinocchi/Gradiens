@@ -1,7 +1,7 @@
 """T-08 (docs/miglioramenti/02-test-e-copertura.md, decisione 26): per ogni stato di un sito, dove compare come
 problema. L'ADR 0011 aggiunge lo stato "copertura parziale": chi lo aggiunge deve decidere qui, in modo consapevole,
-se è un problema. `STATI_BUONI` è definito in `dati/esecuzioni.py`; l'unica copia scritta a mano è in
-`templates/impostazioni/siti.html`."""
+se è un problema. `STATI_BUONI` è definito una volta sola, in `dati/esecuzioni.py`: i modelli Jinja lo ricevono
+come globale da `dashboard/comune.py`."""
 
 import re
 from dataclasses import asdict

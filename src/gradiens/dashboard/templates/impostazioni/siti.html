@@ -10,7 +10,7 @@
 
 <h3>Siti seguiti</h3>
 {% for sito, p in siti %}
-{% set problema = sito.stato and sito.stato not in ("ok", "nessun articolo nuovo") %}
+{% set problema = sito.stato and sito.stato not in STATI_BUONI %}
 {# WEB-07: i siti collegati da attivare si propongono solo finché il sito è nuovo (c'è il segnale). #}
 {% set proposti = p.collegati_proposti if "sito-" ~ sito.id in voci else [] %}
 <div class="riga{% if problema and sito.stato != 'profilo rigenerato' %} evidenziata{% elif "sito-" ~ sito.id in voci %} proposta{% endif %}" style="display: block">

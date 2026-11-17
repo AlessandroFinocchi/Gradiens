@@ -46,25 +46,40 @@ def finestra(request: Request, s: Session, sezione: str, errore: str | None = No
         raise HTTPException(404, "Sezione inesistente")
     from gradiens.dashboard import rotte_configurazione  # qui: quel modulo importa questo
 
-    if rotte_configurazione.dalla_procedura(request):  # i moduli delle sezioni servono anche alla configurazione iniziale
+    if rotte_configurazione.dalla_procedura(
+        request
+    ):  # i moduli delle sezioni servono anche alla configurazione iniziale
         return rotte_configurazione.passo(request, s, rotte_configurazione.PASSO_DI[sezione], errore=errore, **extra)
     trovati = segnali.segnali(s, request.app.state.bot.problema(), avvio_sistema.stato_avvio(RADICE).problema)
-    contesto = {"sezioni": SEZIONI, "sezione": sezione, "imp": impostazioni.leggi(s), "errore": errore,
-                "segnali": trovati, "segnale_globale": segnali.globale(trovati),
-                "voci": trovati[sezione].voci if sezione in trovati else set(), **dati_sezione(request, s, sezione), **extra}
+    contesto = {
+        "sezioni": SEZIONI,
+        "sezione": sezione,
+        "imp": impostazioni.leggi(s),
+        "errore": errore,
+        "segnali": trovati,
+        "segnale_globale": segnali.globale(trovati),
+        "voci": trovati[sezione].voci if sezione in trovati else set(),
+        **dati_sezione(request, s, sezione),
+        **extra,
+    }
     return frammento(request, "impostazioni", **contesto)
 
 
 def dati_sezione(request: Request, s: Session, sezione: str) -> dict:
     """I dati che il modello della sezione legge."""
     if sezione == "telegram":
-        return {"token_salvato": request.app.state.conf.telegram_token is not None,
-                "problema_bot": request.app.state.bot.errore, "COMANDI": COMANDI}
+        return {
+            "token_salvato": request.app.state.conf.telegram_token is not None,
+            "problema_bot": request.app.state.bot.errore,
+            "COMANDI": COMANDI,
+        }
     if sezione == "interessi":
         pendenti = proposte.pendenti(s)  # INT-04, INT-06
-        return {"interessi": interessi.elenca(s),
-                "proposte": {p.interesse_id: p for p in pendenti if p.interesse_id is not None},
-                "proposta_nuova": next((p for p in pendenti if p.interesse_id is None), None)}
+        return {
+            "interessi": interessi.elenca(s),
+            "proposte": {p.interesse_id: p for p in pendenti if p.interesse_id is not None},
+            "proposta_nuova": next((p for p in pendenti if p.interesse_id is None), None),
+        }
     if sezione == "canali-youtube":
         return {"canali": impostazioni.canali_youtube(s)}
     if sezione == "siti":
@@ -72,8 +87,11 @@ def dati_sezione(request: Request, s: Session, sezione: str) -> dict:
     if sezione == "arxiv":
         return {"categorie": impostazioni.elenca_categorie(s)}
     if sezione == "avvio":
-        return {"avvio": avvio_sistema.stato_avvio(RADICE), "windows": avvio_sistema.su_windows(),
-                "icone": avvio_sistema.icone_presenti()}
+        return {
+            "avvio": avvio_sistema.stato_avvio(RADICE),
+            "windows": avvio_sistema.su_windows(),
+            "icone": avvio_sistema.icone_presenti(),
+        }
     if sezione == "accesso":
         return {"conf": request.app.state.conf, "porta_remota_aperta": request.app.state.porta_remota_aperta}
     return {}
@@ -92,7 +110,9 @@ def _esegui(request: Request, s: Session, sezione: str, azione: Callable[[], obj
 
 Testo = Annotated[str, Form()]
 Numero = Annotated[int, Form()]
-ALZARE_SOLO_DAL_PC = "Da fuori casa i tetti si possono solo abbassare: per alzarli bisogna stare al PC su cui gira Gradiens."
+ALZARE_SOLO_DAL_PC = (
+    "Da fuori casa i tetti si possono solo abbassare: per alzarli bisogna stare al PC su cui gira Gradiens."
+)
 
 
 def _non_alzare(request: Request, nuovo: int, attuale: int) -> None:
@@ -119,8 +139,9 @@ def aggiungi_interesse(request: Request, s: Sessione, nome: Testo, descrizione: 
 
 
 @router.post("/interessi/{id}", response_class=HTMLResponse)
-def modifica_interesse(request: Request, s: Sessione, id: int, nome: Testo, descrizione: Testo,
-                       raffinamento: Annotated[str, Form()] = ""):
+def modifica_interesse(
+    request: Request, s: Sessione, id: int, nome: Testo, descrizione: Testo, raffinamento: Annotated[str, Form()] = ""
+):
     return _esegui(request, s, "interessi", lambda: interessi.modifica(s, id, nome, descrizione, raffinamento))
 
 
@@ -130,8 +151,13 @@ def elimina_interesse(request: Request, s: Sessione, id: int):
 
 
 @router.post("/proposte/{id}/approva", response_class=HTMLResponse)
-def approva_proposta(request: Request, s: Sessione, id: int, testo: Annotated[str | None, Form()] = None,
-                     nome: Annotated[str | None, Form()] = None):
+def approva_proposta(
+    request: Request,
+    s: Sessione,
+    id: int,
+    testo: Annotated[str | None, Form()] = None,
+    nome: Annotated[str | None, Form()] = None,
+):
     """Senza campi si approva il testo proposto; con i campi, la versione modificata dall'utente."""
     return _esegui(request, s, "interessi", lambda: proposte.approva(s, id, testo, nome))
 
@@ -158,6 +184,7 @@ def rimuovi_canale(request: Request, s: Sessione, id: Testo):
 
 # ---------- Siti web (WEB-01, WEB-07, WEB-21, WEB-25) ----------
 
+
 def _indirizzo_web(testo: str) -> str:
     testo = testo.strip()
     parti = urlparse(testo)
@@ -170,11 +197,13 @@ def _indirizzo_web(testo: str) -> str:
 
 def _modifica_profilo(request: Request, s: Session, id: int, cambia: Callable[[Profilo], None]) -> HTMLResponse:
     """Modifica manuale del profilo: la rigenerazione la conserva (WEB-25)."""
+
     def azione():
         sito = s.get_one(Sito, id)
         profilo = Profilo.da_dict(json.loads(sito.profilo))
         cambia(profilo)
         dati_siti.salva_profilo(s, id, profilo.come_dict())
+
     return _esegui(request, s, "siti", azione)
 
 
@@ -185,8 +214,12 @@ async def aggiungi_sito(request: Request, s: Sessione, indirizzo: Testo):
         async with httpx.AsyncClient(follow_redirects=True) as client:
             profilo = await siti.analizza(client, indirizzo)
     except ValueError:
-        return finestra(request, s, "siti", errore="Indirizzo non valido: incolla l'indirizzo della home o di una sezione.")
-    return _esegui(request, s, "siti", lambda: dati_siti.aggiungi(s, profilo.url, profilo.come_dict(), profilo.diagnosi or None))
+        return finestra(
+            request, s, "siti", errore="Indirizzo non valido: incolla l'indirizzo della home o di una sezione."
+        )
+    return _esegui(
+        request, s, "siti", lambda: dati_siti.aggiungi(s, profilo.url, profilo.come_dict(), profilo.diagnosi or None)
+    )
 
 
 @router.post("/siti/{id}/rimuovi", response_class=HTMLResponse, dependencies=[SoloDalPc])
@@ -213,18 +246,21 @@ def includi_percorso(request: Request, s: Sessione, id: int, indirizzo: Testo):
 @router.post("/siti/{id}/collegato", response_class=HTMLResponse)
 def sito_collegato(request: Request, s: Sessione, id: int, dominio: Testo, attivo: Annotated[bool, Form()] = False):
     """WEB-07: i domini esterni trovati nell'analisi sono proposti disattivati; l'utente li attiva."""
+
     def cambia(p: Profilo) -> None:
         if dominio not in p.siti_collegati:
             raise ImpostazioneNonValida("Sito collegato sconosciuto.")
         p.siti_collegati[dominio] = attivo
         if "siti_collegati" not in p.modificati:
             p.modificati.append("siti_collegati")
+
     return _modifica_profilo(request, s, id, cambia)
 
 
 @router.post("/siti/{id}/tetti", response_class=HTMLResponse)
 def tetti_sito(request: Request, s: Sessione, id: int, pagine: Numero, articoli: Numero):
     """WEB-19: per un sito che pubblica molto (es. hwupgrade) si alzano i tetti per esecuzione."""
+
     def cambia(p: Profilo) -> None:
         if not (1 <= pagine <= 500 and 1 <= articoli <= 1000):
             raise ImpostazioneNonValida("Le pagine vanno da 1 a 500, gli articoli da 1 a 1000.")
@@ -232,6 +268,7 @@ def tetti_sito(request: Request, s: Sessione, id: int, pagine: Numero, articoli:
         _non_alzare(request, articoli, p.articoli_massimi)
         p.pagine_massime, p.articoli_massimi = pagine, articoli
         p.modificati += [c for c in ("pagine_massime", "articoli_massimi") if c not in p.modificati]
+
     return _modifica_profilo(request, s, id, cambia)
 
 
@@ -265,9 +302,16 @@ Indirizzi = Annotated[list[str] | None, Form()]
 
 
 @router.post("/siti/{id}/aiuto/applica", response_class=HTMLResponse)
-def applica_aiuto(request: Request, s: Sessione, id: int, aggiungi: Indirizzi = None, togli: Indirizzi = None,
-                  escludi: Indirizzi = None):
+def applica_aiuto(
+    request: Request,
+    s: Sessione,
+    id: int,
+    aggiungi: Indirizzi = None,
+    togli: Indirizzi = None,
+    escludi: Indirizzi = None,
+):
     """Le proposte spuntate diventano modifiche manuali, quindi restano dopo una rigenerazione (WEB-25)."""
+
     def cambia(p: Profilo) -> None:
         for url in aggiungi or []:
             if not p.nel_perimetro(url := _indirizzo_web(url)):
@@ -277,6 +321,7 @@ def applica_aiuto(request: Request, s: Sessione, id: int, aggiungi: Indirizzi = 
             p.togli_sezione(url)
         for prefisso in escludi or []:
             p.escludi(_indirizzo_web(prefisso))
+
     return _modifica_profilo(request, s, id, cambia)
 
 
@@ -295,24 +340,35 @@ def tetto_arxiv(request: Request, s: Sessione, tetto: Numero):
     def azione():
         _non_alzare(request, tetto, impostazioni.leggi(s).tetto_arxiv)
         impostazioni.salva_tetto_arxiv(s, tetto)
+
     return _esegui(request, s, "arxiv", azione)
 
 
 @router.post("/esecuzione", response_class=HTMLResponse)
-def esecuzione(request: Request, s: Sessione, soglia: Numero, finestra_giorni: Numero,
-               escludi_sponsorizzati: Annotated[bool, Form()] = False, escludi_pagamento: Annotated[bool, Form()] = False,
-               orario: Annotated[str | None, Form()] = None, automatica: Annotated[bool, Form()] = False):
+def esecuzione(
+    request: Request,
+    s: Sessione,
+    soglia: Numero,
+    finestra_giorni: Numero,
+    escludi_sponsorizzati: Annotated[bool, Form()] = False,
+    escludi_pagamento: Annotated[bool, Form()] = False,
+    orario: Annotated[str | None, Form()] = None,
+    automatica: Annotated[bool, Form()] = False,
+):
     # Una casella non spuntata non viene inviata: per questo il valore di base qui è False.
     # "Programmazione automatica" è il contrario della pausa di /pausa e /riprendi (TG-10).
     def azione():
         _non_alzare(request, finestra_giorni, impostazioni.leggi(s).finestra_giorni)
-        impostazioni.salva_esecuzione(s, soglia, finestra_giorni, escludi_sponsorizzati, escludi_pagamento, orario,
-                                      not automatica)
+        impostazioni.salva_esecuzione(
+            s, soglia, finestra_giorni, escludi_sponsorizzati, escludi_pagamento, orario, not automatica
+        )
+
     return _esegui(request, s, "esecuzione", azione)
 
 
 # ---------- Telegram (TG-01): tutorial, prova, cambio di chat ----------
 # Cambiare bot o chat solo dal PC: da fuori casa sarebbe il furto del canale di comando (ADR 0013).
+
 
 @router.post("/telegram/token", response_class=HTMLResponse, dependencies=[SoloDalPc])
 async def telegram_token(request: Request, s: Sessione, token: Testo):
@@ -377,7 +433,6 @@ async def telegram_cambia_chat(request: Request, s: Sessione):
     return finestra(request, s, "telegram")
 
 
-
 @router.post("/avvio", response_class=HTMLResponse, dependencies=[SoloDalPc])
 def avvio(request: Request, s: Sessione, attivo: Annotated[bool, Form()] = False):
     """AMB-04. Funzione sincrona: FastAPI la esegue in un thread, così l'attesa della conferma
@@ -403,15 +458,20 @@ def icone(request: Request, s: Sessione, attivo: Annotated[bool, Form()] = False
             avvio_sistema.togli_icone()
     except avvio_sistema.ErroreAvvio as errore:
         return finestra(request, s, "avvio", errore=str(errore))
-    esito = "Icona Gradiens creata sul desktop e nel menu." if attivo else "Icona Gradiens tolta dal desktop e dal menu."
+    esito = (
+        "Icona Gradiens creata sul desktop e nel menu." if attivo else "Icona Gradiens tolta dal desktop e dal menu."
+    )
     return finestra(request, s, "avvio", esito=esito)
 
 
 @router.post("/accesso", response_class=HTMLResponse, dependencies=[SoloDalPc])
-def accesso(request: Request, s: Sessione, indirizzo: Annotated[str, Form()] = "",
-            attivo: Annotated[bool, Form()] = False):
+def accesso(
+    request: Request, s: Sessione, indirizzo: Annotated[str, Form()] = "", attivo: Annotated[bool, Form()] = False
+):
     """ADR 0013: dashboard da fuori casa con Tailscale Serve. Il nome vale subito, senza riavvio."""
+
     def azione():
         impostazioni.salva_accesso_remoto(s, attivo, indirizzo)
         request.app.state.accesso_remoto = impostazioni.nome_remoto(impostazioni.leggi(s))
+
     return _esegui(request, s, "accesso", azione)

@@ -7,8 +7,26 @@ from datetime import UTC, datetime, time, timedelta
 from gradiens.fonti.siti.indirizzi import DATA_NEL_PERCORSO
 
 MESI = {
-    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6, "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
-    "gen": 1, "mag": 5, "giu": 6, "lug": 7, "ago": 8, "set": 9, "ott": 10, "dic": 12,
+    "jan": 1,
+    "feb": 2,
+    "mar": 3,
+    "apr": 4,
+    "may": 5,
+    "jun": 6,
+    "jul": 7,
+    "aug": 8,
+    "sep": 9,
+    "oct": 10,
+    "nov": 11,
+    "dec": 12,
+    "gen": 1,
+    "mag": 5,
+    "giu": 6,
+    "lug": 7,
+    "ago": 8,
+    "set": 9,
+    "ott": 10,
+    "dic": 12,
 }
 MESE = r"(gen|jan|feb|mar|apr|ma[gy]|giu|jun|lug|jul|ago|aug|set|sep|ott|oct|nov|dic|dec)[a-z]*\.?"
 GIORNO_MESE_ANNO = re.compile(rf"\b(\d{{1,2}})\s+{MESE},?\s+(20\d\d)\b", re.I)
@@ -16,10 +34,19 @@ MESE_GIORNO_ANNO = re.compile(rf"\b{MESE}\s+(\d{{1,2}}),?\s+(20\d\d)\b", re.I)
 ISO = re.compile(r"\b(20\d\d)-(\d\d)-(\d\d)\b")
 NUMERICA = re.compile(r"\b(\d{1,2})[/.](\d{1,2})[/.](20\d\d|\d\d)\b(?:\D{1,3}(\d{1,2}):(\d\d)\b)?")  # 06/11/26 11:06
 RELATIVA = re.compile(
-    r"\b(\d+|un|una|uno|a|an|one)\s+(minut|or[ae]|hour|giorn|day|settiman|week|mes[ei]|month)\w*\s+(fa|ago)\b", re.I)
-UNITA = {"minut": timedelta(minutes=1), "or": timedelta(hours=1), "hour": timedelta(hours=1), "giorn": timedelta(days=1),
-         "day": timedelta(days=1), "settiman": timedelta(weeks=1), "week": timedelta(weeks=1),
-         "mes": timedelta(days=30), "month": timedelta(days=30)}
+    r"\b(\d+|un|una|uno|a|an|one)\s+(minut|or[ae]|hour|giorn|day|settiman|week|mes[ei]|month)\w*\s+(fa|ago)\b", re.I
+)
+UNITA = {
+    "minut": timedelta(minutes=1),
+    "or": timedelta(hours=1),
+    "hour": timedelta(hours=1),
+    "giorn": timedelta(days=1),
+    "day": timedelta(days=1),
+    "settiman": timedelta(weeks=1),
+    "week": timedelta(weeks=1),
+    "mes": timedelta(days=30),
+    "month": timedelta(days=30),
+}
 
 
 def adesso() -> datetime:
@@ -27,7 +54,7 @@ def adesso() -> datetime:
 
 
 def da_iso(testo: str | None) -> datetime | None:
-    """"2026-11-05T10:00:00+01:00", "2026-11-05T09:00Z", "2026-11-05" e simili."""
+    """ "2026-11-05T10:00:00+01:00", "2026-11-05T09:00Z", "2026-11-05" e simili."""
     try:
         d = datetime.fromisoformat((testo or "").strip().replace("Z", "+00:00"))
     except ValueError:

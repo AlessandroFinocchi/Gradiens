@@ -46,14 +46,39 @@ def ambiente(client):
     with client.app.state.sessioni() as s:
         a = interessi.aggiungi(s, "Sicurezza", "attacchi")
         e = esecuzioni.inizia(s, "programmazione")
-        for n, (tipo, titolo, punteggio) in enumerate([("sito", "Patch <urgente>", 95), ("sito", "Secondo", 80),
-                                                        ("sito", "Terzo", 70), ("sito", "Quarto", 65), ("video", "Video", 90)]):
-            s.add(Notizia(tipo=tipo, url=f"https://e.org/{n}", fonte="e.org", titolo=titolo, riassunto="Prima frase. Seconda frase. Terza frase.",
-                          pubblicata_il=adesso() - timedelta(hours=1), scoperta_il=adesso(), esecuzione_id=e.id,
-                          pertinenze=[Pertinenza(interesse_id=a.id, punteggio=punteggio)]))
+        for n, (tipo, titolo, punteggio) in enumerate(
+            [
+                ("sito", "Patch <urgente>", 95),
+                ("sito", "Secondo", 80),
+                ("sito", "Terzo", 70),
+                ("sito", "Quarto", 65),
+                ("video", "Video", 90),
+            ]
+        ):
+            s.add(
+                Notizia(
+                    tipo=tipo,
+                    url=f"https://e.org/{n}",
+                    fonte="e.org",
+                    titolo=titolo,
+                    riassunto="Prima frase. Seconda frase. Terza frase.",
+                    pubblicata_il=adesso() - timedelta(hours=1),
+                    scoperta_il=adesso(),
+                    esecuzione_id=e.id,
+                    pertinenze=[Pertinenza(interesse_id=a.id, punteggio=punteggio)],
+                )
+            )
         s.commit()
-        esecuzioni.termina(s, e.id, "completata", {"durata_s": 75, "fonti": {"siti": {"esaminate": 10, "mostrate": 4, "errori": 1}},
-                                                   "token": {"prefiltro": {"ingresso": 1500, "uscita": 500}}})
+        esecuzioni.termina(
+            s,
+            e.id,
+            "completata",
+            {
+                "durata_s": 75,
+                "fonti": {"siti": {"esaminate": 10, "mostrate": 4, "errori": 1}},
+                "token": {"prefiltro": {"ingresso": 1500, "uscita": 500}},
+            },
+        )
         impostazioni.leggi(s).telegram_chat_id = CHAT
         s.commit()
     client.app.state.conf.telegram_token = "presente"  # per problema(): il bot risulta configurato
@@ -61,7 +86,9 @@ def ambiente(client):
 
 
 def bot_di(client, esecutore=None):
-    b = telegram.BotGradiens(client.app.state.conf, client.app.state.sessioni, esecutore or EsecutoreFinto(), lambda: None)
+    b = telegram.BotGradiens(
+        client.app.state.conf, client.app.state.sessioni, esecutore or EsecutoreFinto(), lambda: None
+    )
     inviati = []
 
     async def send_message(chat, testo, **opzioni):
@@ -94,8 +121,12 @@ def test_comandi(ambiente):
     client, _ = ambiente
     esecutore = EsecutoreFinto()
     b, _ = bot_di(client, esecutore)
-    for gestore, attesa in [(b._aggiorna, "Esecuzione avviata"), (b._stato, "Ultima esecuzione completata"),
-                            (b._pausa, "Programmazione in pausa"), (b._aiuto, "/aggiorna")]:
+    for gestore, attesa in [
+        (b._aggiorna, "Esecuzione avviata"),
+        (b._stato, "Ultima esecuzione completata"),
+        (b._pausa, "Programmazione in pausa"),
+        (b._aiuto, "/aggiorna"),
+    ]:
         u = aggiornamento()
         asyncio.run(gestore(u, None))
         assert attesa in u.effective_message.testi[0]
@@ -123,9 +154,15 @@ def test_cuore_da_telegram(ambiente):
 
         async def edit(markup):
             modificate.append(markup)
-        return SimpleNamespace(callback_query=SimpleNamespace(
-            data=dati, answer=answer, edit_message_reply_markup=edit,
-            message=SimpleNamespace(chat=SimpleNamespace(id=chat), reply_markup=tastiera)))
+
+        return SimpleNamespace(
+            callback_query=SimpleNamespace(
+                data=dati,
+                answer=answer,
+                edit_message_reply_markup=edit,
+                message=SimpleNamespace(chat=SimpleNamespace(id=chat), reply_markup=tastiera),
+            )
+        )
 
     primo = tastiera.inline_keyboard[0][0].callback_data
     asyncio.run(b._cuore(domanda(primo), None))
@@ -183,7 +220,9 @@ def test_tutorial_dalle_impostazioni(client, monkeypatch):
     assert TOKEN in client.app.state.conf.file_env.read_text(encoding="utf-8")  # nel .env, non nel database
     trovata = client.post("/impostazioni/telegram/cerca", headers=HTMX).text
     assert "Chat trovata: Alessandro" in trovata
-    collegato = client.post("/impostazioni/telegram/conferma", data={"chat_id": CHAT, "nome": "Alessandro"}, headers=HTMX).text
+    collegato = client.post(
+        "/impostazioni/telegram/conferma", data={"chat_id": CHAT, "nome": "Alessandro"}, headers=HTMX
+    ).text
     assert "collegato" in collegato and "/aggiorna" in collegato and TOKEN not in collegato
     assert chiamate == [("collega", CHAT), ("avvia",)]
     with client.app.state.sessioni() as s:
@@ -208,7 +247,6 @@ def test_gli_errori_di_telegram_non_mostrano_il_token(monkeypatch):
         with pytest.raises(telegram.ErroreTelegram) as errore:
             asyncio.run(chiamata)
         assert TOKEN not in str(errore.value) and str(errore.value) == telegram.RIFIUTATO
-
 
 
 def test_senza_rete_all_accensione_riprova_presto_e_poi_piu_di_rado(monkeypatch):
@@ -265,13 +303,17 @@ def test_link_al_resoconto_solo_con_l_accesso_da_fuori_casa_attivo(ambiente):
         impostazioni.salva_accesso_remoto(s, True, "https://pc.tail1234.ts.net")
     asyncio.run(b.invia_esecuzione(id))
     asyncio.run(b.invia_prova())
-    assert inviati[2][1].endswith(f'\n<a href="https://pc.tail1234.ts.net/esecuzioni/{id}">Apri il resoconto nella dashboard</a>')
+    assert inviati[2][1].endswith(
+        f'\n<a href="https://pc.tail1234.ts.net/esecuzioni/{id}">Apri il resoconto nella dashboard</a>'
+    )
     assert inviati[3][1].endswith("https://pc.tail1234.ts.net/")
 
 
 def test_avviso_del_login_in_fondo_al_messaggio_di_fine_esecuzione(ambiente, monkeypatch):
     client, id = ambiente
-    monkeypatch.setattr(telegram.claude_code, "avviso_login", lambda: "Il login di Claude Code scade il 10/11: rifallo <subito>")
+    monkeypatch.setattr(
+        telegram.claude_code, "avviso_login", lambda: "Il login di Claude Code scade il 10/11: rifallo <subito>"
+    )
     b, inviati = bot_di(client)
     asyncio.run(b.invia_esecuzione(id))
     assert inviati[0][1].endswith("⚠️ Il login di Claude Code scade il 10/11: rifallo &lt;subito&gt;")
@@ -280,8 +322,19 @@ def test_avviso_del_login_in_fondo_al_messaggio_di_fine_esecuzione(ambiente, mon
 def test_cambio_di_versione_di_claude_code_nel_messaggio_di_fine_esecuzione(ambiente):
     client, id = ambiente
     with client.app.state.sessioni() as s:
-        esecuzioni.termina(s, id, "completata", {"versione_llm": {
-            "provider": "claude-code", "versione": "2.1.325", "precedente": "2.1.316", "provata": True}})
+        esecuzioni.termina(
+            s,
+            id,
+            "completata",
+            {
+                "versione_llm": {
+                    "provider": "claude-code",
+                    "versione": "2.1.325",
+                    "precedente": "2.1.316",
+                    "provata": True,
+                }
+            },
+        )
     b, inviati = bot_di(client)
     asyncio.run(b.invia_esecuzione(id))
     assert "ℹ️ Claude Code è passato dalla versione 2.1.316 alla 2.1.325" in inviati[0][1]
@@ -289,8 +342,11 @@ def test_cambio_di_versione_di_claude_code_nel_messaggio_di_fine_esecuzione(ambi
 
 def test_fonti_con_problemi_nel_messaggio_di_fine_esecuzione(ambiente):
     client, id = ambiente
-    stati = [{"fonte": "redhotcyber.com", "stato": "nessuna strategia funzionante"}, {"fonte": "e.org", "stato": "ok"},
-             {"fonte": "nature.com", "stato": "nessun articolo nuovo"}]
+    stati = [
+        {"fonte": "redhotcyber.com", "stato": "nessuna strategia funzionante"},
+        {"fonte": "e.org", "stato": "ok"},
+        {"fonte": "nature.com", "stato": "nessun articolo nuovo"},
+    ]
     stati += [{"fonte": f"Canale <{n}>", "stato": "non raggiungibile"} for n in range(6)]
     with client.app.state.sessioni() as s:
         esecuzioni.termina(s, id, "completata", {"durata_s": 75, "fonti": {"siti": {"esaminate": 10, "stati": stati}}})
@@ -358,8 +414,9 @@ def test_due_avvii_insieme_non_lasciano_un_bot_in_ascolto(monkeypatch, secondo):
 def test_pausa_e_riprendi_dicono_cosa_non_vale(ambiente):
     # Scheda 11 (I-2 a, b) del documento 04, decisione 41: il comportamento resta, ma lo si dice.
     client, _ = ambiente
-    b = telegram.BotGradiens(client.app.state.conf, client.app.state.sessioni, EsecutoreFinto(),
-                             lambda: datetime(2026, 11, 18, 7, 0))
+    b = telegram.BotGradiens(
+        client.app.state.conf, client.app.state.sessioni, EsecutoreFinto(), lambda: datetime(2026, 11, 18, 7, 0)
+    )
     u = aggiornamento()
     asyncio.run(b._pausa(u, None))
     assert "mentre Gradiens è spento va perso" in u.effective_message.testi[0]

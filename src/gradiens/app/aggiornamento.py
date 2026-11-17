@@ -18,8 +18,9 @@ class ErroreAggiornamento(Exception):
 
 def _comando(argomenti: list[str], cartella: Path) -> subprocess.CompletedProcess:
     try:
-        return subprocess.run(argomenti, cwd=cartella, capture_output=True, text=True, encoding="utf-8",
-                              errors="replace", timeout=600)
+        return subprocess.run(
+            argomenti, cwd=cartella, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600
+        )
     except (OSError, subprocess.TimeoutExpired) as errore:
         raise ErroreAggiornamento(f"{Path(argomenti[0]).name} non ha funzionato: {errore}") from None
 
@@ -28,11 +29,15 @@ def aggiorna(conf: Configurazione, avanzamento: Callable[[str], None] = print, r
     """Restituisce l'esito per l'utente, o solleva ErroreAggiornamento senza aver cambiato niente di importante."""
     git, uv = eseguibile("git"), eseguibile("uv")
     if git is None or not (radice / ".git").exists():
-        raise ErroreAggiornamento("Questa copia di Gradiens non è stata scaricata con git: per aggiornarla scaricala di nuovo.")
+        raise ErroreAggiornamento(
+            "Questa copia di Gradiens non è stata scaricata con git: per aggiornarla scaricala di nuovo."
+        )
     if uv is None:
         raise ErroreAggiornamento("uv non è installato: serve per aggiornare le dipendenze (vedi il README).")
     if _comando([git, "status", "--porcelain", "--untracked-files=no"], radice).stdout.strip():
-        raise ErroreAggiornamento("Ci sono modifiche locali al codice di Gradiens: aggiornamento non fatto, per non perderle.")
+        raise ErroreAggiornamento(
+            "Ci sono modifiche locali al codice di Gradiens: aggiornamento non fatto, per non perderle."
+        )
 
     avanzamento("Controllo se c'è una versione nuova…")
     if (r := _comando([git, "fetch", "--quiet"], radice)).returncode != 0:
@@ -59,8 +64,10 @@ def aggiorna(conf: Configurazione, avanzamento: Callable[[str], None] = print, r
             raise ErroreAggiornamento(f"La versione nuova non si applica a questa copia: {r.stderr.strip()[:200]}")
         avanzamento("Aggiorno le dipendenze…")
         if (r := _comando([uv, "sync"], radice)).returncode != 0:
-            raise ErroreAggiornamento(f"Versione nuova scaricata, ma le dipendenze non si sono aggiornate: {r.stderr.strip()[-300:]}"
-                                      " Chiudi il pannello e lancia `uv sync` nella cartella di Gradiens.")
+            raise ErroreAggiornamento(
+                f"Versione nuova scaricata, ma le dipendenze non si sono aggiornate: {r.stderr.strip()[-300:]}"
+                " Chiudi il pannello e lancia `uv sync` nella cartella di Gradiens."
+            )
         problema = "Versione nuova installata."
     except ErroreAggiornamento as errore:
         problema = str(errore)

@@ -118,7 +118,9 @@ class Notizia(Base):
     cuore: Mapped[bool] = mapped_column(default=False, index=True)
     cuore_il: Mapped[datetime | None]  # quando è stato messo il cuore (INT-04, INT-06)
     esecuzione_id: Mapped[int | None] = mapped_column(ForeignKey("esecuzioni.id", ondelete="SET NULL"))
-    argomento_id: Mapped[int | None] = mapped_column(ForeignKey("argomenti.id", ondelete="SET NULL"), index=True)  # ESE-08
+    argomento_id: Mapped[int | None] = mapped_column(
+        ForeignKey("argomenti.id", ondelete="SET NULL"), index=True
+    )  # ESE-08
 
     argomento: Mapped[Argomento | None] = relationship(back_populates="notizie")
 

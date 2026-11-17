@@ -8,8 +8,21 @@ from gradiens.app import aggiornamento
 
 
 def git(cartella, *argomenti):
-    subprocess.run(["git", "-c", "user.name=Prova", "-c", "user.email=prova@example.org", "-c", "init.defaultBranch=main",
-                    *argomenti], cwd=cartella, check=True, capture_output=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Prova",
+            "-c",
+            "user.email=prova@example.org",
+            "-c",
+            "init.defaultBranch=main",
+            *argomenti,
+        ],
+        cwd=cartella,
+        check=True,
+        capture_output=True,
+    )
 
 
 @pytest.fixture
@@ -27,8 +40,13 @@ def installazione(tmp_path, monkeypatch):
     eventi = []
     originale = aggiornamento._comando
     monkeypatch.setattr(aggiornamento, "eseguibile", lambda nome: "git" if nome == "git" else "UV")
-    monkeypatch.setattr(aggiornamento, "_comando", lambda a, c: eventi.append("uv sync") or subprocess.CompletedProcess(a, 0, "", "")
-                        if a[0] == "UV" else originale(a, c))
+    monkeypatch.setattr(
+        aggiornamento,
+        "_comando",
+        lambda a, c: (
+            eventi.append("uv sync") or subprocess.CompletedProcess(a, 0, "", "") if a[0] == "UV" else originale(a, c)
+        ),
+    )
     monkeypatch.setattr(aggiornamento.cli, "_attendi", lambda condizione: True)
     monkeypatch.setattr(aggiornamento.cli, "richiedi_spegnimento", lambda conf: eventi.append("spegni"))
     monkeypatch.setattr(aggiornamento.cli, "_avvia_staccato", lambda conf: eventi.append("riaccendi"))
@@ -75,8 +93,11 @@ def test_dopo_uv_sync_fallito_segnala_anche_che_il_servizio_non_riparte(installa
     monkeypatch.setattr(aggiornamento.cli, "leggi_stato", lambda conf: next(stati, None))
     monkeypatch.setattr(aggiornamento.cli, "_attendi", lambda condizione: condizione())
     originale = aggiornamento._comando
-    monkeypatch.setattr(aggiornamento, "_comando", lambda a, c: subprocess.CompletedProcess(a, 1, "", "rotto")
-                        if a[0] == "UV" else originale(a, c))
+    monkeypatch.setattr(
+        aggiornamento,
+        "_comando",
+        lambda a, c: subprocess.CompletedProcess(a, 1, "", "rotto") if a[0] == "UV" else originale(a, c),
+    )
     with pytest.raises(aggiornamento.ErroreAggiornamento, match="dipendenze non si sono aggiornate.*non è ripartito"):
         aggiornamento.aggiorna(conf, lambda _: None, installata)
 
@@ -96,4 +117,6 @@ def test_non_interrompe_un_esecuzione_in_corso(installazione, monkeypatch):
     monkeypatch.setattr(aggiornamento.cli, "leggi_stato", lambda conf: {"ultima_esecuzione": {"stato": "in_corso"}})
     with pytest.raises(aggiornamento.ErroreAggiornamento, match="esecuzione è in corso"):
         aggiornamento.aggiorna(None, lambda _: None, installata)
-    assert (installata / "README.md").read_text(encoding="utf-8") == "v1\n" and eventi == []  # niente spento né scaricato
+    assert (installata / "README.md").read_text(
+        encoding="utf-8"
+    ) == "v1\n" and eventi == []  # niente spento né scaricato

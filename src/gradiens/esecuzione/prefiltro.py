@@ -18,8 +18,16 @@ BLOCCO_PREFILTRO = 30  # notizie per chiamata di pre-filtro (ADR 0006)
 GIRO_PREFILTRO = 3  # blocchi di paper lanciati insieme in un giro del pre-filtro (ADR 0010)
 
 
-async def prefiltra(s: Session, nuove: list[Candidata], prefiltro: Provider, sistema: str, modello: str,
-                    tetto: int, m: Metriche, avanzamento: Avanzamento) -> tuple[list[Candidata], list[Candidata]]:
+async def prefiltra(
+    s: Session,
+    nuove: list[Candidata],
+    prefiltro: Provider,
+    sistema: str,
+    modello: str,
+    tetto: int,
+    m: Metriche,
+    avanzamento: Avanzamento,
+) -> tuple[list[Candidata], list[Candidata]]:
     """Pre-filtro a blocchi (ESE-04); le notizie scartate entrano nel registro delle viste.
     Siti e video passano tutti. I paper (ARX-02, ADR 0010) passano dal più recente, a giri, finché i
     promossi riempiono il tetto. Restituisce le promosse e i paper rimasti senza pre-filtro."""
@@ -28,7 +36,7 @@ async def prefiltra(s: Session, nuove: list[Candidata], prefiltro: Provider, sis
     avanzamento.inizia_fase("pre-filtro", 0)  # il totale cresce a ogni giro: all'inizio non si sa quanti giri servono
 
     async def filtra_blocchi(notizie_: list[Candidata]) -> list[list[Candidata] | None]:
-        blocchi = [notizie_[i:i + BLOCCO_PREFILTRO] for i in range(0, len(notizie_), BLOCCO_PREFILTRO)]
+        blocchi = [notizie_[i : i + BLOCCO_PREFILTRO] for i in range(0, len(notizie_), BLOCCO_PREFILTRO)]
         avanzamento.totale += len(blocchi)
         return await in_parallelo(filtra(b) for b in blocchi)
 
@@ -47,8 +55,13 @@ async def prefiltra(s: Session, nuove: list[Candidata], prefiltro: Provider, sis
 
     async def filtra(blocco: list[Candidata]) -> list[Candidata] | None:
         try:
-            risposta = await chiedi(prefiltro, sistema=sistema, messaggio=prompt.messaggio_prefiltro(blocco),
-                                    schema=prompt.SCHEMA_PREFILTRO, modello=modello)
+            risposta = await chiedi(
+                prefiltro,
+                sistema=sistema,
+                messaggio=prompt.messaggio_prefiltro(blocco),
+                schema=prompt.SCHEMA_PREFILTRO,
+                modello=modello,
+            )
         except ErroreBloccante:
             raise
         except ErroreLLM as errore:  # il blocco non si segna come visto: ci si riprova la volta dopo
@@ -59,6 +72,7 @@ async def prefiltra(s: Session, nuove: list[Candidata], prefiltro: Provider, sis
         finally:
             avanzamento.fatti += 1
         m.conta_token("prefiltro", risposta)
+
         def validi(chiave: str) -> set[int]:
             return {i for i in risposta.dati.get(chiave, []) if isinstance(i, int) and 0 <= i < len(blocco)}
 
@@ -80,8 +94,9 @@ async def prefiltra(s: Session, nuove: list[Candidata], prefiltro: Provider, sis
     return [c for esito in esiti_altre if esito for c in esito] + promossi, non_prefiltrati
 
 
-def applica_tetto(s: Session, passate: list[Candidata], non_prefiltrati: list[Candidata], tetto: int,
-                  m: Metriche) -> list[Candidata]:
+def applica_tetto(
+    s: Session, passate: list[Candidata], non_prefiltrati: list[Candidata], tetto: int, m: Metriche
+) -> list[Candidata]:
     """Tetto arXiv (ARX-03): si elaborano i paper più recenti; gli altri, compresi quelli mai
     pre-filtrati (ARX-02), si considerano visti. Restituisce le notizie da valutare."""
     paper = sorted((c for c in passate if c.tipo == "arxiv"), key=lambda c: c.pubblicata_il, reverse=True)

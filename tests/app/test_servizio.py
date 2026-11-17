@@ -58,7 +58,8 @@ def test_spegnimento_solo_dal_pc_stesso(conf):
 
 
 def test_dalla_porta_per_tailscale_serve_non_si_spegne(conf):
-    # ADR 0013: Serve inoltra da 127.0.0.1 e l'Host lo scrive il cliente; conta solo la porta su cui arriva la richiesta.
+    # ADR 0013: Serve inoltra da 127.0.0.1 e l'Host lo scrive il cliente;
+    # conta solo la porta su cui arriva la richiesta.
     app = crea_app(conf)
     da_serve = TestClient(app, base_url=f"http://127.0.0.1:{conf.porta_remota}", client=("127.0.0.1", 50000))
     assert da_serve.post("/api/spegni", headers={"X-Gradiens-Cli": "1"}).status_code == 403

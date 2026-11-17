@@ -31,11 +31,14 @@ def test_interpreta_il_feed_del_canale():
     assert video.pubblicata_il == datetime(2026, 10, 25, 14, 30, 46)
 
 
-@pytest.mark.parametrize("incollato, atteso", [
-    ("@3blue1brown", "https://www.youtube.com/@3blue1brown"),
-    ("UCYO_jab_esuFRV4b17AJtAw", "https://www.youtube.com/channel/UCYO_jab_esuFRV4b17AJtAw"),
-    ("youtu.be/V_uq3v6xK-4", "https://youtu.be/V_uq3v6xK-4"),
-])
+@pytest.mark.parametrize(
+    "incollato, atteso",
+    [
+        ("@3blue1brown", "https://www.youtube.com/@3blue1brown"),
+        ("UCYO_jab_esuFRV4b17AJtAw", "https://www.youtube.com/channel/UCYO_jab_esuFRV4b17AJtAw"),
+        ("youtu.be/V_uq3v6xK-4", "https://youtu.be/V_uq3v6xK-4"),
+    ],
+)
 def test_indirizzi_accettati(incollato, atteso):
     assert youtube.indirizzo_canale(incollato) == atteso
 
@@ -46,8 +49,15 @@ def test_indirizzi_non_youtube_rifiutati():
 
 
 def candidata() -> Candidata:
-    return Candidata(tipo="video", url="https://www.youtube.com/watch?v=V_uq3v6xK-4", fonte="3Blue1Brown",
-                     titolo="t", sommario="s", contenuto="", pubblicata_il=datetime(2026, 11, 1))
+    return Candidata(
+        tipo="video",
+        url="https://www.youtube.com/watch?v=V_uq3v6xK-4",
+        fonte="3Blue1Brown",
+        titolo="t",
+        sommario="s",
+        contenuto="",
+        pubblicata_il=datetime(2026, 11, 1),
+    )
 
 
 def test_completa_riconosce_short_e_dirette(monkeypatch):

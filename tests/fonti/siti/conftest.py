@@ -18,7 +18,8 @@ def rete_pulita(monkeypatch):
 
 
 class Sito:
-    """Un sito finto: indirizzo -> risposta (testo, byte o httpx.Response). Gli indirizzi non elencati rispondono 404."""
+    """Un sito finto: indirizzo -> risposta (testo, byte o httpx.Response).
+    Gli indirizzi non elencati rispondono 404."""
 
     def __init__(self, rotte: dict):
         self.rotte = rotte
@@ -33,7 +34,13 @@ class Sito:
             return voce
         corpo = voce if isinstance(voce, bytes) else voce.encode()
         inizio = corpo.lstrip()[:100].lower()
-        tipo = "text/html" if b"html" in inizio else "application/json" if inizio[:1] in (b"[", b"{") else "application/xml"
+        tipo = (
+            "text/html"
+            if b"html" in inizio
+            else "application/json"
+            if inizio[:1] in (b"[", b"{")
+            else "application/xml"
+        )
         return httpx.Response(200, content=corpo, headers={"content-type": tipo})
 
     def esegui(self, funzione, *argomenti):

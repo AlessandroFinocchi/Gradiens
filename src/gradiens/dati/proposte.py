@@ -33,8 +33,11 @@ def da_raffinare(sessione: Session, soglia: int) -> list[tuple[Interesse, list[N
     for i in interessi.elenca(sessione):
         if i.id in in_sospeso:
             continue
-        query = select(Notizia).join(Pertinenza).where(
-            Notizia.cuore, Pertinenza.interesse_id == i.id, Pertinenza.punteggio >= soglia)
+        query = (
+            select(Notizia)
+            .join(Pertinenza)
+            .where(Notizia.cuore, Pertinenza.interesse_id == i.id, Pertinenza.punteggio >= soglia)
+        )
         if len(notizie := _cuori(sessione, query, i.ultima_proposta_il)) >= MINIMO_CUORI:
             risultato.append((i, notizie))
     return risultato
@@ -45,7 +48,11 @@ def per_interesse_nuovo(sessione: Session) -> list[Notizia]:
     coprono lo decide l'LLM: le notizie sotto la soglia non si salvano, quindi non hanno mai il cuore."""
     if any(p.interesse_id is None for p in pendenti(sessione)):
         return []
-    query = select(Notizia).where(Notizia.cuore).options(selectinload(Notizia.pertinenze).selectinload(Pertinenza.interesse))
+    query = (
+        select(Notizia)
+        .where(Notizia.cuore)
+        .options(selectinload(Notizia.pertinenze).selectinload(Pertinenza.interesse))
+    )
     notizie = _cuori(sessione, query, impostazioni.leggi(sessione).ultima_proposta_interesse_il)
     return notizie if len(notizie) >= MINIMO_CUORI else []
 

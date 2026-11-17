@@ -30,9 +30,12 @@ def per_prompt(sessione: Session) -> list[Argomento]:
     """Argomenti con una notizia scoperta negli ultimi 30 giorni, i più recenti per primi (ADR 0008)."""
     ultima = func.max(Notizia.scoperta_il)
     query = (
-        select(Argomento).join(Notizia).group_by(Argomento.id)
+        select(Argomento)
+        .join(Notizia)
+        .group_by(Argomento.id)
         .having(ultima >= adesso() - timedelta(days=GIORNI_PER_PROMPT))
-        .order_by(ultima.desc()).limit(MASSIMO_PER_PROMPT)
+        .order_by(ultima.desc())
+        .limit(MASSIMO_PER_PROMPT)
     )
     return list(sessione.scalars(query))
 
@@ -52,9 +55,11 @@ def _riassunto(a: Argomento, ultima_esecuzione_id: int | None) -> Riassunto:
 
 def timeline(sessione: Session, ultima_esecuzione_id: int | None) -> list[Riassunto]:
     """UI-09: argomenti con almeno 2 notizie, prima quelli aggiornati più di recente."""
-    elenco = [_riassunto(a, ultima_esecuzione_id)
-              for a in sessione.scalars(select(Argomento).options(selectinload(Argomento.notizie)))
-              if len(a.notizie) >= MINIMO_TIMELINE]
+    elenco = [
+        _riassunto(a, ultima_esecuzione_id)
+        for a in sessione.scalars(select(Argomento).options(selectinload(Argomento.notizie)))
+        if len(a.notizie) >= MINIMO_TIMELINE
+    ]
     return sorted(elenco, key=lambda r: r.aggiornato, reverse=True)
 
 
@@ -92,4 +97,3 @@ def elimina(sessione: Session, id: int) -> None:
     sessione.execute(update(Notizia).where(Notizia.argomento_id == id).values(argomento_id=None))
     sessione.delete(sessione.get_one(Argomento, id))
     sessione.commit()
-

@@ -8,8 +8,10 @@ from gradiens.fonti.siti.strategie import sitemap
 
 
 def test_normalizza_protocollo_mancante_tracciamento_e_indirizzi_non_web():
-    assert normalizza("//feeds.hwupgrade.it/rss_news.xml", "https://www.hwupgrade.it/") == \
-        "https://feeds.hwupgrade.it/rss_news.xml"
+    assert (
+        normalizza("//feeds.hwupgrade.it/rss_news.xml", "https://www.hwupgrade.it/")
+        == "https://feeds.hwupgrade.it/rss_news.xml"
+    )
     assert normalizza("/a?utm_source=rss&id=3#commenti", "http://Sito.IT/x/") == "https://sito.it/a?id=3"
     for cattivo in ("javascript:alert(1)", "mailto:a@b.it", "https://user:pw@sito.it/", "https://sito.it/a b", ""):
         assert normalizza(cattivo, "https://sito.it/") is None
@@ -37,7 +39,9 @@ def test_date():
     assert da_testo("ieri", ora) == datetime(2026, 11, 5)
     assert da_testo("31 febbraio 2026", ora) is None
     assert da_testo("Alert - 06/11/26 11:06", ora) == datetime(2026, 11, 6, 11, 6)  # giorno/mese, come ACN
-    assert da_testo("11/25/2026", datetime(2026, 12, 1)) == datetime(2026, 11, 25)  # all'americana se l'altra è impossibile
+    assert da_testo("11/25/2026", datetime(2026, 12, 1)) == datetime(
+        2026, 11, 25
+    )  # all'americana se l'altra è impossibile
     assert da_testo("nessuna data qui", ora) is None
 
 
@@ -56,7 +60,9 @@ def test_perimetro_di_home_e_sezione():
     home.siti_collegati["fotografidigitali.it"] = True
     assert home.nel_perimetro("https://www.fotografidigitali.it/news/x")
 
-    sezione = Profilo(url="https://projectdiscovery.io/research", perimetro=perimetro_di("https://projectdiscovery.io/research"))
+    sezione = Profilo(
+        url="https://projectdiscovery.io/research", perimetro=perimetro_di("https://projectdiscovery.io/research")
+    )
     assert sezione.perimetro == "projectdiscovery.io/research"
     assert sezione.nel_perimetro("https://projectdiscovery.io/research/titolo")
     assert not sezione.nel_perimetro("https://projectdiscovery.io/researchers")
@@ -69,8 +75,13 @@ def test_pagina_successiva_e_piattaforma():
     from gradiens.fonti.siti.strategie.html import successiva
 
     elenco = b'<html><body><a href="/articles/3/">3</a><a href="/2/">no</a><a href="/articles/2/">2</a></body></html>'
-    assert successiva(Pagina("https://e3rehab.com/articles/", 200, elenco, "text/html")) == "https://e3rehab.com/articles/2/"
-    generatori = b'<html><head><meta name="generator" content="Elementor 3.2"><meta name="generator" content="WordPress 6.7">'
+    assert (
+        successiva(Pagina("https://e3rehab.com/articles/", 200, elenco, "text/html"))
+        == "https://e3rehab.com/articles/2/"
+    )
+    generatori = (
+        b'<html><head><meta name="generator" content="Elementor 3.2"><meta name="generator" content="WordPress 6.7">'
+    )
     assert piattaforma(Pagina("https://e3rehab.com/", 200, generatori, "text/html")) == "wordpress"
 
 

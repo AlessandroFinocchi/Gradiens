@@ -4,15 +4,69 @@ import ipaddress
 import re
 from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
 
-TRACCIAMENTO = re.compile(r"^(utm_\w+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|_ga|ref|ref_src|cmpid|ncid|sr_share)$", re.I)
+TRACCIAMENTO = re.compile(
+    r"^(utm_\w+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|_ga|ref|ref_src|cmpid|ncid|sr_share)$", re.I
+)
 # Segmenti (o loro prima parola: "privacy-policy") di pagine che non sono né articoli né sezioni.
 SERVIZIO = {
-    "tag", "tags", "author", "autore", "authors", "autori", "page", "pagina", "search", "cerca", "login", "signin",
-    "signup", "account", "privacy", "cookie", "cookies", "contatti", "contact", "about", "chi", "feed", "rss", "atom",
-    "wp-content", "wp-admin", "wp-json", "newsletter", "subscribe", "abbonati", "user", "users", "profile", "cart", "shop",
-    "copyright", "terms", "termini", "legal", "note", "support", "help", "faq", "sitemap", "redazione", "jobs", "careers",
+    "tag",
+    "tags",
+    "author",
+    "autore",
+    "authors",
+    "autori",
+    "page",
+    "pagina",
+    "search",
+    "cerca",
+    "login",
+    "signin",
+    "signup",
+    "account",
+    "privacy",
+    "cookie",
+    "cookies",
+    "contatti",
+    "contact",
+    "about",
+    "chi",
+    "feed",
+    "rss",
+    "atom",
+    "wp-content",
+    "wp-admin",
+    "wp-json",
+    "newsletter",
+    "subscribe",
+    "abbonati",
+    "user",
+    "users",
+    "profile",
+    "cart",
+    "shop",
+    "copyright",
+    "terms",
+    "termini",
+    "legal",
+    "note",
+    "support",
+    "help",
+    "faq",
+    "sitemap",
+    "redazione",
+    "jobs",
+    "careers",
 }
-TASSONOMIE = {"category", "categoria", "categorie", "categories", "topic", "topics", "archive", "archivio"}  # sezioni, non articoli
+TASSONOMIE = {
+    "category",
+    "categoria",
+    "categorie",
+    "categories",
+    "topic",
+    "topics",
+    "archive",
+    "archivio",
+}  # sezioni, non articoli
 DATA_NEL_PERCORSO = re.compile(r"/(20\d\d)[/-](0[1-9]|1[0-2])[/-](0[1-9]|[12]\d|3[01])(?:/|-|$)")
 # Nome che finisce con una parte di sole cifre o esadecimale: è un indirizzo IP in forma non canonica (127.1,
 # 2130706433, 0x7f000001, 0177.0.0.1), che il sistema accetta come tale. Nessun dominio vero finisce così.

@@ -28,8 +28,9 @@ def _scadenza(giorno: datetime, orario: str) -> datetime:
 
 
 class Programmatore:
-    def __init__(self, sessioni: sessionmaker[Session], esecutore: Esecutore,
-                 adesso: Callable[[], datetime] = datetime.now):
+    def __init__(
+        self, sessioni: sessionmaker[Session], esecutore: Esecutore, adesso: Callable[[], datetime] = datetime.now
+    ):
         self._sessioni = sessioni
         self._esecutore = esecutore
         self._adesso = adesso
@@ -51,7 +52,7 @@ class Programmatore:
             if ultimo is None or ultimo.date() != adesso.date():  # ESE-09: almeno una volta al giorno
                 try:  # prima della pulizia: la copia contiene ancora le notizie che stanno per scadere
                     copia_giornaliera(s.get_bind())
-                except (OSError, sqlite3.Error):
+                except OSError, sqlite3.Error:
                     log.exception("Copia giornaliera del database non riuscita")
                 notizie.cancella_scadute(s)
             imp = impostazioni.leggi(s)

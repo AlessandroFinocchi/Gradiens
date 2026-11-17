@@ -32,7 +32,11 @@ def descrivi(dati: dict | None) -> tuple[str, str, str]:
         avvio = datetime.fromisoformat(ultima["avviata_il"]).replace(tzinfo=UTC).astimezone()
         return "in_corso", "Esecuzione in corso", f"Avviata alle {avvio:%H:%M}. Gradiens è acceso."
     if prossima := dati.get("prossima_esecuzione"):
-        return "acceso", "Gradiens è acceso", f"Prossima esecuzione: {datetime.fromisoformat(prossima):%d/%m alle %H:%M}."
+        return (
+            "acceso",
+            "Gradiens è acceso",
+            f"Prossima esecuzione: {datetime.fromisoformat(prossima):%d/%m alle %H:%M}.",
+        )
     return "acceso", "Gradiens è acceso", "La programmazione è in pausa."
 
 
@@ -63,7 +67,9 @@ class Pannello:
         bottoni.grid(row=2, column=0, columnspan=2, sticky="w")
         self._accendi = ttk.Button(bottoni, text="Accendi", command=self._premi_accendi)
         self._spegni = ttk.Button(bottoni, text="Spegni", command=self._premi_spegni)
-        self._apri = ttk.Button(bottoni, text="Apri la dashboard", command=lambda: webbrowser.open(conf.indirizzo_locale))
+        self._apri = ttk.Button(
+            bottoni, text="Apri la dashboard", command=lambda: webbrowser.open(conf.indirizzo_locale)
+        )
         self._aggiorna = ttk.Button(bottoni, text="Aggiorna", command=self._premi_aggiorna)
         for colonna, bottone in enumerate((self._accendi, self._spegni, self._apri, self._aggiorna)):
             bottone.grid(row=0, column=colonna, padx=(0, 8))
@@ -95,9 +101,12 @@ class Pannello:
                 self._attesa = None
             elif time.monotonic() > scadenza:
                 self._attesa = None
-                messagebox.showerror("Gradiens", "Gradiens non è partito. I dettagli sono nei log, nella cartella "
-                                     f"{self._conf.cartella_log}." if cosa == "accensione"
-                                     else "Gradiens non si è spento in tempo. Riprova tra poco.")
+                messagebox.showerror(
+                    "Gradiens",
+                    f"Gradiens non è partito. I dettagli sono nei log, nella cartella {self._conf.cartella_log}."
+                    if cosa == "accensione"
+                    else "Gradiens non si è spento in tempo. Riprova tra poco.",
+                )
         self._mostra()
         self.finestra.after(500, self._controlla)
 
@@ -126,8 +135,10 @@ class Pannello:
     def _premi_spegni(self) -> None:
         in_corso = (self._dati or {}).get("ultima_esecuzione", {}) or {}
         if in_corso.get("stato") == "in_corso" and not messagebox.askyesno(
-                "Gradiens", "C'è un'esecuzione in corso: verrà interrotta e le notizie rimaste si riprenderanno "
-                            "alla prossima. Spegnere Gradiens?"):
+            "Gradiens",
+            "C'è un'esecuzione in corso: verrà interrotta e le notizie rimaste si riprenderanno "
+            "alla prossima. Spegnere Gradiens?",
+        ):
             return
         try:
             richiedi_spegnimento(self._conf)
@@ -136,7 +147,6 @@ class Pannello:
             return
         self._attesa = "spegnimento", time.monotonic() + ATTESA_MASSIMA
         self._mostra()
-
 
     def _premi_aggiorna(self) -> None:
         self._attesa, self._passo = ("aggiornamento", float("inf")), "Controllo se c'è una versione nuova…"

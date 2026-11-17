@@ -19,8 +19,16 @@ def s(tmp_path):
 
 def notizia(s, url, tipo="arxiv", giorni_fa=1, cuore=False, punteggi=(), fonte="cs.CR"):
     quando = adesso() - timedelta(days=giorni_fa)
-    n = Notizia(tipo=tipo, url=url, fonte=fonte, titolo=url, riassunto="r", pubblicata_il=quando,
-                scoperta_il=quando, cuore=cuore)
+    n = Notizia(
+        tipo=tipo,
+        url=url,
+        fonte=fonte,
+        titolo=url,
+        riassunto="r",
+        pubblicata_il=quando,
+        scoperta_il=quando,
+        cuore=cuore,
+    )
     n.pertinenze = [Pertinenza(interesse_id=i, punteggio=p) for i, p in punteggi]
     s.add(n)
     s.commit()
@@ -113,17 +121,31 @@ def test_in_evidenza_le_migliori_3_per_fonte_delle_ultime_24_ore(s):
 
 def test_riepilogo_di_un_esecuzione_anche_nel_formato_vecchio(s):
     e = esecuzioni.inizia(s, "cli")
-    esecuzioni.termina(s, e.id, "completata", {
-        "durata_s": 12.5,
-        "fonti": {
-            "siti": {"esaminate": 5, "mostrate": 2, "errori": 1,
-                     "stati": [{"fonte": "a.it", "stato": "ok"}, {"fonte": "b.it", "stato": "accesso bloccato"}]},
-            "arxiv": {"esaminate": 3, "mostrate": 1, "errori": 0, "problemi": [{"fonte": "cs.CR", "stato": "x"}]},
+    esecuzioni.termina(
+        s,
+        e.id,
+        "completata",
+        {
+            "durata_s": 12.5,
+            "fonti": {
+                "siti": {
+                    "esaminate": 5,
+                    "mostrate": 2,
+                    "errori": 1,
+                    "stati": [{"fonte": "a.it", "stato": "ok"}, {"fonte": "b.it", "stato": "accesso bloccato"}],
+                },
+                "arxiv": {"esaminate": 3, "mostrate": 1, "errori": 0, "problemi": [{"fonte": "cs.CR", "stato": "x"}]},
+            },
+            "token": {"prefiltro": {"ingresso": 100, "uscita": 10}, "elaborazione": {"ingresso": 1000, "uscita": 90}},
         },
-        "token": {"prefiltro": {"ingresso": 100, "uscita": 10}, "elaborazione": {"ingresso": 1000, "uscita": 90}},
-    })
+    )
     r = esecuzioni.riepilogo(s.get(Esecuzione, e.id))
-    assert (r["totali"]["esaminate"], r["totali"]["mostrate"], r["totali"]["errori"], r["totali"]["token"]) == (8, 3, 1, 1200)
+    assert (r["totali"]["esaminate"], r["totali"]["mostrate"], r["totali"]["errori"], r["totali"]["token"]) == (
+        8,
+        3,
+        1,
+        1200,
+    )
     assert [st["fonte"] for st in r["stati"]] == ["b.it", "a.it"]  # prima i problemi
     assert len(r["problemi"]) == 1 and r["escluse"] == []
     assert esecuzioni.riepilogo(esecuzioni.inizia(s, "cli"))["totali"]["esaminate"] == 0  # in corso: vuoto
@@ -175,7 +197,11 @@ def test_esecuzioni_rimaste_in_corso_diventano_interrotte(s):
 def test_ricerca_su_titolo_traduzione_riassunto_e_fonte(s):
     a = interessi.aggiungi(s, "A", "a")
     ransomware = notizia(s, "rw", punteggi=[(a.id, 80)], cuore=True)
-    ransomware.titolo, ransomware.titolo_it, ransomware.riassunto = "Ransomware hits hospital", "Ransomware colpisce un ospedale", "Attacco all'ASL di Roma."
+    ransomware.titolo, ransomware.titolo_it, ransomware.riassunto = (
+        "Ransomware hits hospital",
+        "Ransomware colpisce un ospedale",
+        "Attacco all'ASL di Roma.",
+    )
     notizia(s, "chip", tipo="sito", fonte="hwupgrade.it", punteggi=[(a.id, 80)])
     notizia(s, "100%", punteggi=[(a.id, 80)])
     s.commit()

@@ -15,7 +15,9 @@ from gradiens.fonti.siti.strategie.raccolta import Raccolta
 
 PERCORSI_COMUNI = ["sitemap_index.xml", "sitemap.xml", "news-sitemap.xml", "sitemap-news.xml"]
 # Sitemap figlie di pagine statiche, tassonomie e autori (Yoast, Rank Math, WordPress, Ghost…): niente articoli.
-NON_ARTICOLI = re.compile(r"(^|[-_])(pages?|categor\w*|post_tag|tags?|authors?|users?|attachment|taxonomies|products?|labels?)([-_.]|$)", re.I)
+NON_ARTICOLI = re.compile(
+    r"(^|[-_])(pages?|categor\w*|post_tag|tags?|authors?|users?|attachment|taxonomies|products?|labels?)([-_.]|$)", re.I
+)
 DA_PROVARE = 6
 MASSIME = 4
 FIGLIE_MASSIME = 5
@@ -58,8 +60,11 @@ def _non_articoli(url: str) -> bool:
 
 
 async def analizza(nav: Navigatore, profilo, pagina: Pagina | None) -> str | None:
-    candidati = [u for s in await nav.sitemap_dichiarate(profilo.url)
-                 if (u := normalizza(s)) and not u.endswith(".txt") and not _non_articoli(u)]
+    candidati = [
+        u
+        for s in await nav.sitemap_dichiarate(profilo.url)
+        if (u := normalizza(s)) and not u.endswith(".txt") and not _non_articoli(u)
+    ]
     if not candidati:
         candidati = [urljoin(profilo.url, "/" + p) for p in PERCORSI_COMUNI]
     if profilo.sezione:
@@ -100,7 +105,9 @@ async def _leggi(nav: Navigatore, profilo, url: str, dal: datetime, r: Raccolta,
         figlie = [(u, d) for u, d, _, _ in voci if not _non_articoli(u)]
         r.copre |= any(d and not nella_finestra(d, dal) for _, d in figlie)
         recenti = sorted(((u, d) for u, d in figlie if d and nella_finestra(d, dal)), key=lambda f: f[1], reverse=True)
-        senza_data = [(u, d) for u, d in figlie if not d][::-1]  # di solito numerate dalla più vecchia: si parte dall'ultima
+        senza_data = [(u, d) for u, d in figlie if not d][
+            ::-1
+        ]  # di solito numerate dalla più vecchia: si parte dall'ultima
         for u, _ in (recenti + senza_data)[:FIGLIE_MASSIME]:
             await _leggi(nav, profilo, u, dal, r, figlia=True)
         return
@@ -111,7 +118,14 @@ async def _leggi(nav: Navigatore, profilo, url: str, dal: datetime, r: Raccolta,
             r.copre = True
         # senza la data di una news sitemap, l'indirizzo deve avere l'aspetto di un articolo (non annunci, pagine…)
         elif profilo.nel_perimetro(u) and (sembra_articolo(u) if not notizia else not non_articolo(u)):
-            r.candidate.append(Candidata(
-                tipo="sito", url=u, fonte=profilo.dominio, titolo=titolo or titolo_da_url(u),
-                sommario="", contenuto="", pubblicata_il=d,
-            ))
+            r.candidate.append(
+                Candidata(
+                    tipo="sito",
+                    url=u,
+                    fonte=profilo.dominio,
+                    titolo=titolo or titolo_da_url(u),
+                    sommario="",
+                    contenuto="",
+                    pubblicata_il=d,
+                )
+            )

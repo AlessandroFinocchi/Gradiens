@@ -288,3 +288,11 @@ qui nella rilettura finale del 17 novembre 2026, senza cambiarle.
     più punti e avrebbe mostrato una "novità" che non lo è. *Rischio accettato*: un sito che raggiunge spesso il
     tetto si nota solo guardando la sezione Siti o il resoconto (la pagina Aiuto suggerisce di alzare i tetti).
     Test: T-08 (`tests/dashboard/test_stati_dei_siti.py`).
+64. **Formatter** (17 nov 2026, attua la decisione 47): `ruff format` con lo stile predefinito (virgolette doppie,
+    come già tutto il codice) e `line-length = 120`; migrazioni escluse. E501 entra nel linter: le 28 righe lunghe
+    che il formatter non spezza (stringhe, commenti, docstring) sono state spezzate a mano. `ruff format --check` in
+    CI, su Windows e Linux. Un commit per cartella e proprietario, elencati in `.git-blame-ignore-revs`.
+65. **`except A, B:` senza parentesi** (17 nov 2026): si accetta la forma di Python 3.14 (PEP 758) che il formatter
+    scrive da solo; il comportamento è identico. *Rischio accettato*: somiglia alla sintassi di Python 2 e non gira
+    sotto Python 3.14, che è già il minimo (`requires-python`). L'alternativa (`target-version = "py313"`) avrebbe
+    tolto anche al linter le regole della sintassi nuova.

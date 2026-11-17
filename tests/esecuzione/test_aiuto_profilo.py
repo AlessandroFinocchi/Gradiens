@@ -15,9 +15,11 @@ from gradiens.llm.base import ErroreLLM, QuotaEsaurita, Risposta
 from gradiens.llm.finto import Finto
 
 PROFILO = Profilo(url="https://sito.it/", perimetro="sito.it", sezioni=["https://sito.it/eventi/"])
-GRUPPI = [Gruppo("/notizie", [("https://sito.it/notizie/", "Notizie")], 1),
-          Gruppo("/eventi", [("https://sito.it/eventi/", "Eventi")], 1),
-          Gruppo("/offerte", [("https://sito.it/offerte/", "Offerte")], 1)]
+GRUPPI = [
+    Gruppo("/notizie", [("https://sito.it/notizie/", "Notizie")], 1),
+    Gruppo("/eventi", [("https://sito.it/eventi/", "Eventi")], 1),
+    Gruppo("/offerte", [("https://sito.it/offerte/", "Offerte")], 1),
+]
 
 
 @pytest.fixture
@@ -52,12 +54,19 @@ def _aiuta(sessione, provider):
 
 
 def test_proposta_convalidata_dal_provider_dell_elaborazione(sessione, albero):
-    finto = Finto(lambda sistema, messaggio, schema: {
-        "sezioni": ["https://sito.it/notizie/", "https://altro.example/notizie/"],
-        "esclusi": ["https://sito.it/offerte/"], "nota": "Gli eventi non sono notizie."})
+    finto = Finto(
+        lambda sistema, messaggio, schema: {
+            "sezioni": ["https://sito.it/notizie/", "https://altro.example/notizie/"],
+            "esclusi": ["https://sito.it/offerte/"],
+            "nota": "Gli eventi non sono notizie.",
+        }
+    )
     aiuto, nomi = _aiuta(sessione, finto)
     assert nomi == [impostazioni.leggi(sessione).provider_elaborazione]
-    assert (aiuto.proposta.sezioni_aggiunte, aiuto.proposta.sezioni_tolte) == (["https://sito.it/notizie/"], ["https://sito.it/eventi/"])
+    assert (aiuto.proposta.sezioni_aggiunte, aiuto.proposta.sezioni_tolte) == (
+        ["https://sito.it/notizie/"],
+        ["https://sito.it/eventi/"],
+    )
     assert aiuto.proposta.esclusi_nuovi == ["https://sito.it/offerte/"]
     assert not aiuto.oltre_il_tetto and aiuto.gruppi_tolti == 0
     sistema, messaggio = finto.chiamate[0]
@@ -70,15 +79,20 @@ def test_proposta_convalidata_dal_provider_dell_elaborazione(sessione, albero):
 
 def test_l_albero_si_accorcia_per_stare_nel_tetto(sessione, albero):
     lungo = "https://sito.it/" + "x" * 150
-    albero["gruppi"] = GRUPPI + [Gruppo(f"/g{i}/*", [(f"{lungo}/{i}/{j}", "testo " * 10) for j in range(3)])
-                                 for i in range(200)]
+    albero["gruppi"] = GRUPPI + [
+        Gruppo(f"/g{i}/*", [(f"{lungo}/{i}/{j}", "testo " * 10) for j in range(3)]) for i in range(200)
+    ]
     finto = Finto(lambda *_: {"sezioni": [], "esclusi": []})
     aiuto, _ = _aiuta(sessione, finto)
     sistema, messaggio = finto.chiamate[0]
     stima = (len(sistema) + len(messaggio)) / aiuto_profilo.CARATTERI_PER_TOKEN
     assert stima + aiuto_profilo.CARICO_FISSO + aiuto_profilo.USCITA <= aiuto_profilo.TETTO
     assert 0 < aiuto.gruppi_tolti < 200
-    assert [g["forma"] for g in json.loads(messaggio)["gruppi"][:3]] == ["/notizie", "/eventi", "/offerte"]  # si tolgono gli ultimi
+    assert [g["forma"] for g in json.loads(messaggio)["gruppi"][:3]] == [
+        "/notizie",
+        "/eventi",
+        "/offerte",
+    ]  # si tolgono gli ultimi
 
 
 class Costoso:
@@ -121,11 +135,14 @@ class Rotto:
         return Risposta(dati=self.dati, token_ingresso=10, token_uscita=10)
 
 
-@pytest.mark.parametrize("provider, messaggio", [
-    (Rotto(al_pronto=True), "non è collegato"),
-    (Rotto(QuotaEsaurita("Quota esaurita.")), "Quota esaurita"),
-    (Rotto(dati={"esclusi": []}), "forma inattesa"),
-])
+@pytest.mark.parametrize(
+    "provider, messaggio",
+    [
+        (Rotto(al_pronto=True), "non è collegato"),
+        (Rotto(QuotaEsaurita("Quota esaurita.")), "Quota esaurita"),
+        (Rotto(dati={"esclusi": []}), "forma inattesa"),
+    ],
+)
 def test_errori_del_provider_diventano_un_messaggio_per_l_utente(sessione, albero, provider, messaggio):
     with pytest.raises(AiutoNonDisponibile, match=messaggio):
         _aiuta(sessione, provider)

@@ -33,9 +33,7 @@ class Filtri:
 
 def elenca(sessione: Session, filtri: Filtri, soglia: int) -> list[Notizia]:
     if filtri.interesse_id is None:
-        punteggio = (
-            select(func.max(Pertinenza.punteggio)).where(Pertinenza.notizia_id == Notizia.id).scalar_subquery()
-        )
+        punteggio = select(func.max(Pertinenza.punteggio)).where(Pertinenza.notizia_id == Notizia.id).scalar_subquery()
     else:  # UI-07: con un interesse filtrato conta il suo punteggio
         punteggio = (
             select(Pertinenza.punteggio)
@@ -43,8 +41,9 @@ def elenca(sessione: Session, filtri: Filtri, soglia: int) -> list[Notizia]:
             .scalar_subquery()
         )
 
-    query = select(Notizia).options(selectinload(Notizia.pertinenze).selectinload(Pertinenza.interesse),
-                                    selectinload(Notizia.argomento))
+    query = select(Notizia).options(
+        selectinload(Notizia.pertinenze).selectinload(Pertinenza.interesse), selectinload(Notizia.argomento)
+    )
     if filtri.archivio:
         query = query.where(Notizia.cuore)
         if filtri.interesse_id is not None:
@@ -64,16 +63,23 @@ def elenca(sessione: Session, filtri: Filtri, soglia: int) -> list[Notizia]:
     # shortcut: LIKE di SQLite ignora maiuscole e minuscole solo per le lettere senza accento ("È" non trova "è").
     # Per qualche migliaio di notizie basta; con molte di più servirebbe la ricerca full-text (FTS5).
     for parola in filtri.testo.split():
-        query = query.where(or_(*(campo.icontains(parola, autoescape=True)
-                                   for campo in (Notizia.titolo, Notizia.titolo_it, Notizia.riassunto, Notizia.fonte))))
+        query = query.where(
+            or_(
+                *(
+                    campo.icontains(parola, autoescape=True)
+                    for campo in (Notizia.titolo, Notizia.titolo_it, Notizia.riassunto, Notizia.fonte)
+                )
+            )
+        )
 
     chiave = punteggio if filtri.ordine == "pertinenza" else Notizia.pubblicata_il
     query = query.order_by(chiave.asc() if filtri.crescente else chiave.desc(), Notizia.pubblicata_il.desc())
     return list(sessione.scalars(query))
 
 
-def in_evidenza(sessione: Session, soglia: int, esecuzione_id: int | None = None,
-                quante: int = 3) -> dict[str, list[Notizia]]:
+def in_evidenza(
+    sessione: Session, soglia: int, esecuzione_id: int | None = None, quante: int = 3
+) -> dict[str, list[Notizia]]:
     """Per tipo di fonte, le notizie mostrate più pertinenti: quelle scoperte nelle ultime 24 ore
     (Home, UI-02) oppure quelle di un'esecuzione (messaggio Telegram, TG-03)."""
     dal = adesso() - timedelta(hours=24)

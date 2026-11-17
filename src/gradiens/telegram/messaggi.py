@@ -23,7 +23,7 @@ COMANDI = {
 
 
 def _taglia(testo: str, massimo: int) -> str:
-    return testo if len(testo) <= massimo else testo[:massimo - 1].rstrip() + "…"
+    return testo if len(testo) <= massimo else testo[: massimo - 1].rstrip() + "…"
 
 
 def _due_frasi(riassunto: str) -> str:
@@ -38,14 +38,25 @@ def _quando(e: Esecuzione) -> str:
 def riga_metriche(r: dict) -> str:
     t = r["totali"]
     errori = "1 errore" if t["errori"] == 1 else f"{t['errori']} errori"
-    return f"{t['esaminate']} esaminate · {t['mostrate']} mostrate · {durata(r['durata_s'])} · {errori} · {token_brevi(t['token'])} token"
+    return (
+        f"{t['esaminate']} esaminate · {t['mostrate']} mostrate · {durata(r['durata_s'])} · {errori} · "
+        f"{token_brevi(t['token'])} token"
+    )
 
 
-def fine_esecuzione(e: Esecuzione, r: dict, gruppi: dict[str, list[Notizia]], nomi_categorie: dict[str, str],
-                    avviso: str | None = None, dashboard: str | None = None) -> tuple[str, list[Notizia]]:
+def fine_esecuzione(
+    e: Esecuzione,
+    r: dict,
+    gruppi: dict[str, list[Notizia]],
+    nomi_categorie: dict[str, str],
+    avviso: str | None = None,
+    dashboard: str | None = None,
+) -> tuple[str, list[Notizia]]:
     """TG-03, TG-04, ESE-13: testo del messaggio e notizie numerate, nell'ordine dei bottoni ❤️. `dashboard` è
     l'indirizzo da fuori casa, solo con l'accesso attivo (ADR 0013)."""
-    righe = [f"<b>Esecuzione {escape(e.stato)}</b> · {_quando(e)} · avviata da: {AVVIATA_DA.get(e.avviata_da, e.avviata_da)}"]
+    righe = [
+        f"<b>Esecuzione {escape(e.stato)}</b> · {_quando(e)} · avviata da: {AVVIATA_DA.get(e.avviata_da, e.avviata_da)}"
+    ]
     if e.motivo:
         righe.append(f"Motivo: {escape(e.motivo)}")
     numerate: list[Notizia] = []
@@ -56,8 +67,13 @@ def fine_esecuzione(e: Esecuzione, r: dict, gruppi: dict[str, list[Notizia]], no
         for n in elenco:
             numerate.append(n)
             migliore = n.pertinenze[0]
-            righe.append(f'{len(numerate)}. <a href="{escape(n.url)}">{escape(_taglia(n.titolo_it or n.titolo, MAX_TITOLO))}</a>')
-            righe.append(f"<i>{escape(nome_fonte(n.tipo, n.fonte, nomi_categorie))} · {escape(migliore.interesse.nome)} {migliore.punteggio}</i>")
+            righe.append(
+                f'{len(numerate)}. <a href="{escape(n.url)}">{escape(_taglia(n.titolo_it or n.titolo, MAX_TITOLO))}</a>'
+            )
+            righe.append(
+                f"<i>{escape(nome_fonte(n.tipo, n.fonte, nomi_categorie))} · "
+                f"{escape(migliore.interesse.nome)} {migliore.punteggio}</i>"
+            )
             righe.append(escape(_due_frasi(n.riassunto)))
     righe.append(f"\n{riga_metriche(r)}")
     # Un sito in errore o un canale irraggiungibile si vedrebbero solo aprendo la dashboard.
@@ -91,7 +107,9 @@ def stato(avanzamento, ultima: Esecuzione | None, r: dict | None, prossima: date
         righe.append(riga_metriche(r))
     else:
         righe = ["Nessuna esecuzione ancora."]
-    righe.append(f"Prossima esecuzione programmata: {prossima:%d/%m alle %H:%M}" if prossima else "Programmazione in pausa.")
+    righe.append(
+        f"Prossima esecuzione programmata: {prossima:%d/%m alle %H:%M}" if prossima else "Programmazione in pausa."
+    )
     return "\n".join(righe)
 
 

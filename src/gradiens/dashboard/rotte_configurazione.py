@@ -52,20 +52,34 @@ def _fatti(request: Request, s: Session, con_claude: bool) -> tuple[dict[str, bo
         # Decisione 56 dei requisiti: basta una fonte di qualsiasi tipo.
         "fonti": bool(impostazioni.canali_youtube(s) or dati_siti.elenca(s) or impostazioni.categorie_arxiv(s)),
         "claude": claude,
-        "telegram": request.app.state.conf.telegram_token is not None and impostazioni.leggi(s).telegram_chat_id is not None,
+        "telegram": request.app.state.conf.telegram_token is not None
+        and impostazioni.leggi(s).telegram_chat_id is not None,
     }
     return fatti, account
 
 
 def passo(request: Request, s: Session, nome: str, errore: str | None = None, **extra) -> HTMLResponse:
     fatti, account = _fatti(request, s, con_claude=nome == "claude")
-    contesto = {"passi": PASSI, "passo": nome, "indice": list(PASSI).index(nome), "fatti": fatti, "MANCA": MANCA,
-                "account": account, "imp": impostazioni.leggi(s), "errore": errore, "voci": set(), **extra}
+    contesto = {
+        "passi": PASSI,
+        "passo": nome,
+        "indice": list(PASSI).index(nome),
+        "fatti": fatti,
+        "MANCA": MANCA,
+        "account": account,
+        "imp": impostazioni.leggi(s),
+        "errore": errore,
+        "voci": set(),
+        **extra,
+    }
     for sezione in PASSI[nome][1]:
         contesto.update(dati_sezione(request, s, sezione))
     intera = not request.headers.get("HX-Request")
-    return modelli.TemplateResponse(request, "configurazione.html" if intera else "configurazione_passo.html",
-                                    {**contesto, "tema": contesto["imp"].tema, "procedura": True})
+    return modelli.TemplateResponse(
+        request,
+        "configurazione.html" if intera else "configurazione_passo.html",
+        {**contesto, "tema": contesto["imp"].tema, "procedura": True},
+    )
 
 
 @router.get("", response_class=HTMLResponse)
@@ -83,14 +97,23 @@ def completa(request: Request, s: Sessione, icone: Annotated[bool, Form()] = Fal
     if mancanti := [MANCA[p] for p, fatto in fatti.items() if not fatto]:
         return passo(request, s, "telegram", errore=" ".join(mancanti))
     if icone and not dal_pc(request):  # ADR 0013: le icone riguardano il PC
-        return passo(request, s, "telegram", errore="L'icona si crea stando al PC su cui gira Gradiens. "
-                                                    "Togli la spunta per continuare senza icona.")
+        return passo(
+            request,
+            s,
+            "telegram",
+            errore="L'icona si crea stando al PC su cui gira Gradiens. Togli la spunta per continuare senza icona.",
+        )
     if icone:  # AMB-05: l'icona del pannello di controllo, proposta alla fine (ADR 0009)
         try:
             avvio_sistema.crea_icone(RADICE)
         except avvio_sistema.ErroreAvvio as errore:
-            return passo(request, s, "telegram", errore=f"{errore} Togli la spunta per continuare senza icona: "
-                                                         "potrai crearla dopo dalle Impostazioni, sezione Avvio.")
+            return passo(
+                request,
+                s,
+                "telegram",
+                errore=f"{errore} Togli la spunta per continuare senza icona: "
+                "potrai crearla dopo dalle Impostazioni, sezione Avvio.",
+            )
     impostazioni.leggi(s).configurazione_completata = True
     s.commit()
     return Response(status_code=204, headers={"HX-Redirect": "/"})

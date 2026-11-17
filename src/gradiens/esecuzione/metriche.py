@@ -44,7 +44,9 @@ class Contatori:
 @dataclass
 class Metriche:
     fonti: dict[str, Contatori] = field(default_factory=dict)
-    token: dict = field(default_factory=lambda: {r: {"ingresso": 0, "uscita": 0} for r in ("prefiltro", "elaborazione")})
+    token: dict = field(
+        default_factory=lambda: {r: {"ingresso": 0, "uscita": 0} for r in ("prefiltro", "elaborazione")}
+    )
     versione_llm: dict | None = None  # decisione 45: provider, versione, precedente (se è cambiata), provata
 
     def escludi(self, c: Candidata, motivo: str) -> None:

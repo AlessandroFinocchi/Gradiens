@@ -133,6 +133,7 @@ def test_pausa_e_riprendi_a_cavallo_dell_orario_non_avviano_e_non_recuperano(ses
     p.controlla()
     assert e.avviate == 1  # si riparte il giorno dopo
 
+
 def test_orario_spostato_nel_passato_vale_dal_giorno_dopo(sessioni):
     with sessioni() as s:
         impostazioni.salva_esecuzione(s, 60, 7, orario="22:00")
@@ -179,6 +180,7 @@ def test_al_ritorno_all_ora_solare_l_esecuzione_parte_una_volta(sessioni):
 
     class Registra(EsecutoreFinto):
         """Scrive la riga dell'esecuzione come l'esecutore vero, con l'ora della partenza (02:30) in UTC."""
+
         def avvia(self, avviata_da: str) -> int:
             with sessioni() as s:
                 riga = esecuzioni.inizia(s, avviata_da)

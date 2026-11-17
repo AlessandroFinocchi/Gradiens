@@ -43,8 +43,9 @@ class Aiuto:
         return self.token > TETTO
 
 
-async def aiuta(s: Session, client: httpx.AsyncClient, profilo: Profilo,
-                fabbrica_provider: Callable[[str], Provider] | None = None) -> Aiuto:
+async def aiuta(
+    s: Session, client: httpx.AsyncClient, profilo: Profilo, fabbrica_provider: Callable[[str], Provider] | None = None
+) -> Aiuto:
     """Rilegge la pagina iniziale e chiede all'LLM dell'elaborazione quali sezioni usare e cosa escludere."""
     gruppi = await leggi_albero(client, profilo)
     if not gruppi:
@@ -59,14 +60,25 @@ async def aiuta(s: Session, client: httpx.AsyncClient, profilo: Profilo,
     try:
         provider = (fabbrica_provider or crea_provider)(imp.provider_elaborazione)
         await provider.pronto()
-        risposta = await chiedi(provider, sistema=sistema, messaggio=messaggio, schema=prompt.SCHEMA_AIUTO_PROFILO,
-                                modello=imp.modello_elaborazione)
+        risposta = await chiedi(
+            provider,
+            sistema=sistema,
+            messaggio=messaggio,
+            schema=prompt.SCHEMA_AIUTO_PROFILO,
+            modello=imp.modello_elaborazione,
+        )
     except ErroreLLM as errore:
         raise AiutoNonDisponibile(str(errore)) from errore
     aiuto = Aiuto(convalida(risposta.dati, gruppi, profilo), risposta.token_ingresso + risposta.token_uscita, tolti)
     livello = logging.WARNING if aiuto.oltre_il_tetto else logging.INFO
-    log.log(livello, "Aiuto al profilo di %s: %d token (tetto %d), %d gruppi di link tolti",
-            profilo.url, aiuto.token, TETTO, tolti)
+    log.log(
+        livello,
+        "Aiuto al profilo di %s: %d token (tetto %d), %d gruppi di link tolti",
+        profilo.url,
+        aiuto.token,
+        TETTO,
+        tolti,
+    )
     return aiuto
 
 

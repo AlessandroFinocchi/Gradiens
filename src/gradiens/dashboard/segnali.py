@@ -40,15 +40,25 @@ def segnali(s: Session, problema_telegram: str | None = None, problema_avvio: st
         segnala("interessi", "avvertimento", "Serve almeno un interesse", "aggiungi")
     for p in proposte.pendenti(s):  # INT-04, INT-06
         if p.interesse is not None:
-            segnala("interessi", "novita", f"{p.interesse.nome}: proposta di raffinamento", f"proposta-{p.interesse_id}")
+            segnala(
+                "interessi", "novita", f"{p.interesse.nome}: proposta di raffinamento", f"proposta-{p.interesse_id}"
+            )
         else:
             segnala("interessi", "novita", f"Proposta di un nuovo interesse: {p.nome}", "proposta-nuovo")
     canali, elenco_siti = impostazioni.canali_youtube(s), dati_siti.elenca(s)
-    if not (canali or elenco_siti or impostazioni.categorie_arxiv(s)):  # decisione 56 dei requisiti: basta una fonte qualsiasi
+    if not (
+        canali or elenco_siti or impostazioni.categorie_arxiv(s)
+    ):  # decisione 56 dei requisiti: basta una fonte qualsiasi
         for sezione, voce in (("canali-youtube", "aggiungi"), ("siti", "aggiungi"), ("arxiv", "categorie")):
-            segnala(sezione, "avvertimento", "Serve almeno una fonte: un canale YouTube, un sito o una categoria arXiv", voce)
+            segnala(
+                sezione,
+                "avvertimento",
+                "Serve almeno una fonte: un canale YouTube, un sito o una categoria arXiv",
+                voce,
+            )
 
-    # Ultima esecuzione conclusa: canali irraggiungibili. Il tetto arXiv raggiunto non si segnala (decisione 60 dei requisiti).
+    # Ultima esecuzione conclusa: canali irraggiungibili.
+    # Il tetto arXiv raggiunto non si segnala (decisione 60 dei requisiti).
     conclusa = next((e for e in esecuzioni.storico(s, 2) if e.stato != "in_corso"), None)
     fonti = esecuzioni.riepilogo(conclusa)["fonti"] if conclusa else {}
     seguiti = {c.nome for c in canali}

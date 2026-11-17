@@ -91,15 +91,17 @@ def interpreta(xml: str, canale: Canale) -> list[Candidata]:
         id = voce.get("yt_videoid", "")
         if not ID_VIDEO.match(id) or "published_parsed" not in voce:
             continue
-        candidate.append(Candidata(
-            tipo="video",  # se è uno short lo scopre `completa`
-            url=f"https://www.youtube.com/watch?v={id}",
-            fonte=canale.nome,
-            titolo=" ".join(voce.get("title", "").split()),
-            sommario=voce.get("summary", "").strip(),
-            contenuto="",
-            pubblicata_il=datetime.fromtimestamp(calendar.timegm(voce.published_parsed), UTC).replace(tzinfo=None),
-        ))
+        candidate.append(
+            Candidata(
+                tipo="video",  # se è uno short lo scopre `completa`
+                url=f"https://www.youtube.com/watch?v={id}",
+                fonte=canale.nome,
+                titolo=" ".join(voce.get("title", "").split()),
+                sommario=voce.get("summary", "").strip(),
+                contenuto="",
+                pubblicata_il=datetime.fromtimestamp(calendar.timegm(voce.published_parsed), UTC).replace(tzinfo=None),
+            )
+        )
     return candidate
 
 
@@ -114,9 +116,9 @@ async def raccogli(client: httpx.AsyncClient, canale: Canale, dal: datetime) -> 
 def _trascrizione(id_video: str) -> str:
     try:
         elenco = YouTubeTranscriptApi().list(id_video)
-    except (TranscriptsDisabled, NoTranscriptFound):
+    except TranscriptsDisabled, NoTranscriptFound:
         raise ContenutoAssente("trascrizione assente") from None
-    except (VideoUnavailable, VideoUnplayable, AgeRestricted):
+    except VideoUnavailable, VideoUnplayable, AgeRestricted:
         raise ContenutoAssente("video non disponibile") from None
     try:
         scelta = elenco.find_transcript(LINGUE)  # preferisce quelle scritte a mano, poi le automatiche (YT-03)

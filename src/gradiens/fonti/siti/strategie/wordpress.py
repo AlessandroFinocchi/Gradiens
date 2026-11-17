@@ -42,8 +42,14 @@ async def analizza(nav: Navigatore, profilo, pagina: Pagina | None) -> str | Non
 async def raccogli(nav: Navigatore, profilo, dal: datetime) -> Raccolta:
     r = Raccolta()
     # `after` usa l'ora locale del sito: un giorno di margine, poi si filtra su date_gmt.
-    letta = await nav.leggi(_api(profilo, after=(dal - timedelta(days=1)).isoformat(), per_page=PER_PAGINA,
-                                 _fields="link,date_gmt,title,excerpt"))
+    letta = await nav.leggi(
+        _api(
+            profilo,
+            after=(dal - timedelta(days=1)).isoformat(),
+            per_page=PER_PAGINA,
+            _fields="link,date_gmt,title,excerpt",
+        )
+    )
     voci = _voci(letta)
     if voci is None:
         if letta.ok:
@@ -59,9 +65,15 @@ async def raccogli(nav: Navigatore, profilo, dal: datetime) -> Raccolta:
         url = normalizza(str(v.get("link", "")))
         data = da_iso(str(v.get("date_gmt", "")))
         if url and data and nella_finestra(data, dal):
-            r.candidate.append(Candidata(
-                tipo="sito", url=url, fonte=profilo.dominio,
-                titolo=_reso(v.get("title")) or titolo_da_url(url), sommario=_reso(v.get("excerpt")), contenuto="",
-                pubblicata_il=data,
-            ))
+            r.candidate.append(
+                Candidata(
+                    tipo="sito",
+                    url=url,
+                    fonte=profilo.dominio,
+                    titolo=_reso(v.get("title")) or titolo_da_url(url),
+                    sommario=_reso(v.get("excerpt")),
+                    contenuto="",
+                    pubblicata_il=data,
+                )
+            )
     return r

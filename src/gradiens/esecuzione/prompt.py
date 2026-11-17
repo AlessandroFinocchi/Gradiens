@@ -24,8 +24,12 @@ def _interessi(interessi: list[Interesse]) -> str:
 
 
 def sistema_prefiltro(interessi: list[Interesse], escludi_sponsorizzati: bool = True) -> str:
-    esclusione = ("\nEscludi i contenuti sponsorizzati e le offerte commerciali: non metterli tra i pertinenti"
-                  " e restituisci i loro id in `sponsorizzate`." if escludi_sponsorizzati else "")  # WEB-22/23
+    esclusione = (
+        "\nEscludi i contenuti sponsorizzati e le offerte commerciali: non metterli tra i pertinenti"
+        " e restituisci i loro id in `sponsorizzate`."
+        if escludi_sponsorizzati
+        else ""
+    )  # WEB-22/23
     return f"""Sei il pre-filtro di Gradiens, un'app che seleziona notizie per un utente.
 
 Interessi dell'utente, con il loro id:
@@ -110,11 +114,20 @@ Ricevi notizie in JSON con id, titolo e riassunto. Per ogni notizia restituisci 
 
 SCHEMA_ARGOMENTI = {
     "type": "object",
-    "properties": {"assegnazioni": {"type": "array", "items": {
-        "type": "object",
-        "properties": {"notizia": {"type": "integer"}, "argomento": {"type": "integer"}, "nuovo": {"type": "string"}},
-        "required": ["notizia"],
-    }}},
+    "properties": {
+        "assegnazioni": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "notizia": {"type": "integer"},
+                    "argomento": {"type": "integer"},
+                    "nuovo": {"type": "string"},
+                },
+                "required": ["notizia"],
+            },
+        }
+    },
     "required": ["assegnazioni"],
 }
 
@@ -143,11 +156,16 @@ cosa interessa di più all'utente dentro questo interesse. Tieni ciò che resta 
 attuale. Se le notizie non aggiungono niente, restituisci una stringa vuota."""
 
 
-SCHEMA_RAFFINAMENTO = {"type": "object", "properties": {"raffinamento": {"type": "string"}}, "required": ["raffinamento"]}
+SCHEMA_RAFFINAMENTO = {
+    "type": "object",
+    "properties": {"raffinamento": {"type": "string"}},
+    "required": ["raffinamento"],
+}
 
 
 def sistema_nuovo_interesse(interessi: list[Interesse]) -> str:
-    """INT-06, decisione 57 dei requisiti: è l'LLM a decidere se i cuori rivelano un tema che gli interessi non coprono."""
+    """INT-06, decisione 57 dei requisiti: è l'LLM a decidere se i cuori rivelano un tema
+    che gli interessi non coprono."""
     return f"""Sei l'assistente di Gradiens che propone nuovi interessi all'utente.
 
 Interessi che l'utente ha già:
@@ -173,10 +191,15 @@ def messaggio_proposta(notizie: list[Notizia]) -> str:
 
 
 def messaggio_nuovo_interesse(notizie: list[Notizia]) -> str:
-    voci = [{"titolo": n.titolo_it or n.titolo, "riassunto": n.riassunto[:600],
-             "punteggi": {p.interesse.nome: p.punteggio for p in n.pertinenze}} for n in notizie]
+    voci = [
+        {
+            "titolo": n.titolo_it or n.titolo,
+            "riassunto": n.riassunto[:600],
+            "punteggi": {p.interesse.nome: p.punteggio for p in n.pertinenze},
+        }
+        for n in notizie
+    ]
     return json.dumps(voci, ensure_ascii=False)
-
 
 
 def sistema_aiuto_profilo() -> str:
@@ -208,6 +231,13 @@ SCHEMA_AIUTO_PROFILO = {
 
 
 def messaggio_aiuto_profilo(profilo: Profilo, gruppi: list[Gruppo]) -> str:
-    return json.dumps({"indirizzo": profilo.url, "perimetro": profilo.perimetro, "sezioni_attuali": profilo.sezioni,
-                       "esclusi_attuali": profilo.esclusi, "gruppi": [g.come_dict() for g in gruppi]},
-                      ensure_ascii=False)
+    return json.dumps(
+        {
+            "indirizzo": profilo.url,
+            "perimetro": profilo.perimetro,
+            "sezioni_attuali": profilo.sezioni,
+            "esclusi_attuali": profilo.esclusi,
+            "gruppi": [g.come_dict() for g in gruppi],
+        },
+        ensure_ascii=False,
+    )

@@ -33,8 +33,12 @@ class Gruppo:
 
     def come_dict(self) -> dict:
         quanti = min(max(ESEMPI, self.nel_menu), ESEMPI_DEL_MENU)
-        return {"forma": self.forma, "link": len(self.link), "nel_menu": self.nel_menu,
-                "esempi": [[url, testo] for url, testo in self.link[:quanti]]}
+        return {
+            "forma": self.forma,
+            "link": len(self.link),
+            "nel_menu": self.nel_menu,
+            "esempi": [[url, testo] for url, testo in self.link[:quanti]],
+        }
 
 
 @dataclass
@@ -61,8 +65,13 @@ async def leggi_albero(client: httpx.AsyncClient, profilo: Profilo) -> list[Grup
     visti = {chiave(pagina.url), chiave(profilo.url)}
     for url, a in collegamenti(doc, pagina.url):
         parti = segmenti(url)
-        if chiave(url) in visti or not profilo.nel_perimetro(url) or profilo.escluso(url) or di_servizio(url) \
-                or (parti and FILE.search(parti[-1])):
+        if (
+            chiave(url) in visti
+            or not profilo.nel_perimetro(url)
+            or profilo.escluso(url)
+            or di_servizio(url)
+            or (parti and FILE.search(parti[-1]))
+        ):
             continue
         visti.add(chiave(url))
         forma = _forma(url, profilo)
@@ -98,8 +107,13 @@ def convalida(dati: dict, gruppi: list[Gruppo], profilo: Profilo) -> Proposta:
     sezioni = sezioni[:SEZIONI_MASSIME]
     esclusi = []
     for prefisso in _indirizzi(dati.get("esclusi")):
-        if profilo.nel_perimetro(prefisso) and not dentro(profilo.url, prefisso) and prefisso not in profilo.esclusi \
-                and prefisso not in esclusi and any(dentro(url, prefisso) for url in nell_albero.values()):
+        if (
+            profilo.nel_perimetro(prefisso)
+            and not dentro(profilo.url, prefisso)
+            and prefisso not in profilo.esclusi
+            and prefisso not in esclusi
+            and any(dentro(url, prefisso) for url in nell_albero.values())
+        ):
             esclusi.append(prefisso)
     nota = dati.get("nota")
     visti = set(nell_albero.values())  # una sezione che l'LLM non ha visto non si propone di toglierla

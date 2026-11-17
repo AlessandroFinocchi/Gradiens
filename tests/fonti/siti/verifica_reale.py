@@ -48,8 +48,10 @@ async def verifica(client: httpx.AsyncClient, url: str) -> str:
         f"ESITO: stato={esito.stato!r} guasto={esito.guasto} articoli={len(esito.candidate)} (data incerta: {incerte})",
         f"dettaglio: {esito.dettaglio}",
     ]
-    righe += [f"  - {c.pubblicata_il:%Y-%m-%d %H:%M}{' ?' if c.data_incerta else ''} {c.titolo[:80]} <{c.url}>"
-              for c in esito.candidate[:5]]
+    righe += [
+        f"  - {c.pubblicata_il:%Y-%m-%d %H:%M}{' ?' if c.data_incerta else ''} {c.titolo[:80]} <{c.url}>"
+        for c in esito.candidate[:5]
+    ]
     return "\n".join(righe) + "\n"
 
 

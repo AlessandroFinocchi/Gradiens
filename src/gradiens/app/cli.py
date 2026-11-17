@@ -20,7 +20,7 @@ def leggi_stato(conf: Configurazione) -> dict | None:
         risposta = httpx.get(f"{conf.indirizzo_locale}/api/stato", timeout=2)
         risposta.raise_for_status()
         return risposta.json()
-    except (httpx.HTTPError, ValueError):
+    except httpx.HTTPError, ValueError:
         return None
 
 
@@ -108,14 +108,17 @@ def _riepilogo(ultima: dict) -> str:
     for fonte, c in (m.get("fonti") or {}).items():
         righe.append(
             f"{nomi.get(fonte, fonte)}: {c['esaminate']} esaminate, {c['scartate_prefiltro']} scartate dal pre-filtro, "
-            f"{c['oltre_tetto']} oltre il tetto, {c.get('escluse', 0)} escluse, {c['senza_contenuto']} senza contenuto, "
+            f"{c['oltre_tetto']} oltre il tetto, {c.get('escluse', 0)} escluse, "
+            f"{c['senza_contenuto']} senza contenuto, "
             f"{c['scartate_valutazione']} scartate dalla valutazione, {c['mostrate']} mostrate, {c['errori']} errori."
         )
         righe += [f"  - {st['fonte']}: {st['stato']}" for st in c.get("stati", []) if st["stato"] not in STATI_BUONI]
         righe += [f"  - {p.get('titolo') or p['fonte']}: {p['stato']}" for p in c.get("problemi", [])]
         righe += [f"  - {n['titolo']}: escluso ({n['motivo']})" for n in c.get("notizie_escluse", [])]
     if t := m.get("token"):
-        righe.append("Token: " + ", ".join(f"{r} {v['ingresso']} in ingresso e {v['uscita']} in uscita" for r, v in t.items()))
+        righe.append(
+            "Token: " + ", ".join(f"{r} {v['ingresso']} in ingresso e {v['uscita']} in uscita" for r, v in t.items())
+        )
     if "durata_s" in m:
         righe.append(f"Durata: {m['durata_s']} s")
     return "\n".join(righe)
@@ -137,13 +140,15 @@ def esegui(conf: Configurazione) -> int:
         time.sleep(1)
         try:
             dati = httpx.get(f"{conf.indirizzo_locale}/api/esecuzione", timeout=10).json()
-        except (httpx.HTTPError, ValueError):  # es. `gradiens spegni` da un altro terminale
+        except httpx.HTTPError, ValueError:  # es. `gradiens spegni` da un altro terminale
             print("Gradiens non risponde più: l'esecuzione è stata interrotta.", file=sys.stderr)
             return 1
         avanzamento = dati["avanzamento"]
         if avanzamento is None or avanzamento["esecuzione_id"] != id:
             break
-        messaggio = f"  {avanzamento['fase']}" + (f": {avanzamento['fatti']} di {avanzamento['totale']}" if avanzamento["totale"] else "…")
+        messaggio = f"  {avanzamento['fase']}" + (
+            f": {avanzamento['fatti']} di {avanzamento['totale']}" if avanzamento["totale"] else "…"
+        )
         if messaggio != ultimo_messaggio:
             print(messaggio, flush=True)
             ultimo_messaggio = messaggio
@@ -157,7 +162,9 @@ def main(argv: list[str] | None = None) -> int:
     for flusso in (sys.stdout, sys.stderr):
         if flusso is not None:
             flusso.reconfigure(encoding="utf-8", errors="replace")
-    parser = argparse.ArgumentParser(prog="gradiens", description="Notizie filtrate e riassunte in base ai tuoi interessi.")
+    parser = argparse.ArgumentParser(
+        prog="gradiens", description="Notizie filtrate e riassunte in base ai tuoi interessi."
+    )
     comandi = parser.add_subparsers(dest="comando", required=True, metavar="comando")
     p_avvia = comandi.add_parser("avvia", help="fa partire dashboard, programmazione giornaliera e bot Telegram")
     p_avvia.add_argument("--primo-piano", action="store_true", help="resta collegato al terminale invece di staccarsi")

@@ -59,19 +59,21 @@ class Pagina:
         """Conta il contenuto prima del Content-Type: alcuni server mandano i feed come text/html."""
         inizio = self.dati.lstrip(b"\xef\xbb\xbf \t\r\n")[:200].lower()
         if inizio.startswith((b"<rss", b"<feed", b"<urlset", b"<sitemapindex")) or (
-                inizio.startswith(b"<?xml") and b"<html" not in self.dati[:1000].lower()):  # l'XHTML resta HTML
+            inizio.startswith(b"<?xml") and b"<html" not in self.dati[:1000].lower()
+        ):  # l'XHTML resta HTML
             return False
         return "html" in self.tipo.lower() or inizio.startswith((b"<!doctype html", b"<html"))
 
     @cached_property
     def testo(self) -> str:
-        """Testo decodificato qualunque sia la codifica (WEB-16): intestazione, poi <meta charset>, poi UTF-8 o cp1252."""
+        """Testo decodificato qualunque sia la codifica (WEB-16):
+        intestazione, poi <meta charset>, poi UTF-8 o cp1252."""
         dichiarate = re.findall(r"charset=[\"']?([\w-]+)", self.tipo, re.I)
         dichiarate += [m.decode() for m in re.findall(rb"<meta[^>]+charset=[\"']?([\w-]+)", self.dati[:4096], re.I)]
         for codifica in dichiarate + ["utf-8"]:
             try:
                 return self.dati.decode(codifica)
-            except (LookupError, UnicodeDecodeError):
+            except LookupError, UnicodeDecodeError:
                 continue
         return self.dati.decode("cp1252", errors="replace")
 
@@ -159,7 +161,8 @@ class Navigatore:
         return Pagina(url, ERRORE_RETE)
 
     async def _scarica(self, url: str) -> Pagina:
-        """Una richiesta con pausa per dominio e un nuovo tentativo. I redirect li seguono a mano `leggi` e `_scarica_robots`."""
+        """Una richiesta con pausa per dominio e un nuovo tentativo.
+        I redirect li seguono a mano `leggi` e `_scarica_robots`."""
         if not indirizzo_pubblico(urlsplit(url).hostname or ""):
             return Pagina(url, ERRORE_RETE)  # ADR 0013: mai la rete di casa, nemmeno da un feed aggiunto a mano
         in_cache = _cache.get(url)
@@ -168,8 +171,9 @@ class Navigatore:
         for tentativo in range(2):
             await self._attendi_turno(url)
             try:
-                async with self.client.stream("GET", url, headers=intestazioni, timeout=TIMEOUT,
-                                              follow_redirects=False) as r:
+                async with self.client.stream(
+                    "GET", url, headers=intestazioni, timeout=TIMEOUT, follow_redirects=False
+                ) as r:
                     if r.status_code == 304 and in_cache:
                         return in_cache[1]
                     dati = bytearray()
@@ -179,15 +183,22 @@ class Navigatore:
                             return Pagina(url, ERRORE_RETE)
                     if r.is_redirect:
                         return Pagina(url, r.status_code, redirect=r.headers.get("location", ""))
-                    pagina = Pagina(str(r.url), r.status_code, _decomprimi(bytes(dati)), r.headers.get("content-type", ""))
-                    convalida = {k: r.headers[v] for k, v in (("If-None-Match", "etag"), ("If-Modified-Since", "last-modified"))
-                                 if v in r.headers}
+                    pagina = Pagina(
+                        str(r.url), r.status_code, _decomprimi(bytes(dati)), r.headers.get("content-type", "")
+                    )
+                    convalida = {
+                        k: r.headers[v]
+                        for k, v in (("If-None-Match", "etag"), ("If-Modified-Since", "last-modified"))
+                        if v in r.headers
+                    }
             except httpx.HTTPError:
                 pagina = Pagina(url, ERRORE_RETE)
                 continue
             if tentativo == 0 and (pagina.codice == 429 or pagina.codice >= 500 and not pagina.bloccata):
                 continue
-            if pagina.ok and convalida and not pagina.html:  # feed e sitemap si rileggono a ogni esecuzione, gli articoli no
+            if (
+                pagina.ok and convalida and not pagina.html
+            ):  # feed e sitemap si rileggono a ogni esecuzione, gli articoli no
                 if len(_cache) >= VOCI_CACHE:
                     _cache.pop(next(iter(_cache)))
                 _cache[url] = (convalida, pagina)
@@ -195,7 +206,8 @@ class Navigatore:
         return pagina
 
     async def _attendi_turno(self, url: str) -> None:
-        """Riserva il prossimo turno libero del dominio senza await in mezzo, così vale anche con richieste concorrenti."""
+        """Riserva il prossimo turno libero del dominio senza await in mezzo,
+        così vale anche con richieste concorrenti."""
         h = urlsplit(url).netloc
         regole, _ = _robots.get(_origine(url), (0.0, None, False))[1:]
         ritardo = regole.crawl_delay(USER_AGENT) if regole else None

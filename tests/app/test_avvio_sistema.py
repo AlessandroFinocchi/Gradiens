@@ -23,6 +23,7 @@ def test_su_linux_il_percorso_resta_quello(monkeypatch):
 
 # ---- Avvio all'accensione (AMB-04) ----
 
+
 @pytest.fixture
 def systemd(tmp_path, monkeypatch):
     """systemctl e loginctl finti: registrano i comandi e rispondono come un sistema con systemd."""
@@ -50,7 +51,9 @@ def systemd(tmp_path, monkeypatch):
 
 
 def test_unita_systemd_con_virgolette_e_percento():
-    unita = avvio_sistema.unita_systemd(PurePosixPath("/home/a/Gradiens 100%"), "/home/a/x/python", "/home/a/.local/bin/claude")
+    unita = avvio_sistema.unita_systemd(
+        PurePosixPath("/home/a/Gradiens 100%"), "/home/a/x/python", "/home/a/.local/bin/claude"
+    )
     assert "WorkingDirectory=/home/a/Gradiens 100%%\n" in unita
     assert 'ExecStart="/home/a/x/python" "-m" "gradiens" "avvia" "--primo-piano"\n' in unita
     assert 'Environment="GRADIENS_CLAUDE=/home/a/.local/bin/claude"\n' in unita  # niente PATH della shell al boot
@@ -85,7 +88,9 @@ def test_linux_registrazione_da_rifare_o_senza_lingering(systemd, tmp_path):
 
 
 def test_script_windows_con_apostrofi_e_utente_letto_prima_dell_elevazione():
-    script = avvio_sistema.script_windows(Path(r"C:\Users\D'Amico\Gradiens"), r"C:\G\.venv\Scripts\python.exe", r"PC\D'Amico")
+    script = avvio_sistema.script_windows(
+        Path(r"C:\Users\D'Amico\Gradiens"), r"C:\G\.venv\Scripts\python.exe", r"PC\D'Amico"
+    )
     assert r"-WorkingDirectory 'C:\Users\D''Amico\Gradiens'" in script
     assert r"-UserId 'PC\D''Amico' -LogonType S4U" in script
     assert "-AtStartup" in script and "-TaskName 'Gradiens'" in script
@@ -104,8 +109,14 @@ XML_ATTIVITA = """<?xml version="1.0" encoding="UTF-16"?>
 def test_stato_dell_attivita_pianificata():
     python = r"C:\G\.venv\Scripts\python.exe"
     assert avvio_sistema.stato_da_xml(XML_ATTIVITA.format(abilitata="true"), Path(r"C:\G"), python).problema is None
-    assert "altra cartella" in avvio_sistema.stato_da_xml(XML_ATTIVITA.format(abilitata="true"), Path(r"C:\H"), python).problema
-    assert "disabilitata" in avvio_sistema.stato_da_xml(XML_ATTIVITA.format(abilitata="false"), Path(r"C:\G"), python).problema
+    assert (
+        "altra cartella"
+        in avvio_sistema.stato_da_xml(XML_ATTIVITA.format(abilitata="true"), Path(r"C:\H"), python).problema
+    )
+    assert (
+        "disabilitata"
+        in avvio_sistema.stato_da_xml(XML_ATTIVITA.format(abilitata="false"), Path(r"C:\G"), python).problema
+    )
 
 
 def test_senza_systemd_lo_stato_diventa_un_problema_non_un_errore(systemd, tmp_path, monkeypatch):
@@ -120,18 +131,24 @@ def test_senza_systemd_lo_stato_diventa_un_problema_non_un_errore(systemd, tmp_p
 
 # ---- Icone del pannello di controllo (AMB-05, ADR 0009) ----
 
+
 def test_icone_linux_nel_menu_e_sul_desktop_nella_lingua_del_sistema(tmp_path, monkeypatch):
     scrivania = tmp_path / "Scrivania"
     scrivania.mkdir()
-    monkeypatch.setattr(avvio_sistema, "os", SimpleNamespace(name="posix", environ={"XDG_DATA_HOME": str(tmp_path / "dati")}))
+    monkeypatch.setattr(
+        avvio_sistema, "os", SimpleNamespace(name="posix", environ={"XDG_DATA_HOME": str(tmp_path / "dati")})
+    )
     monkeypatch.setattr(avvio_sistema.shutil, "which", lambda nome: f"/usr/bin/{nome}")
-    monkeypatch.setattr(avvio_sistema, "_esegui",
-                        lambda comando: subprocess.CompletedProcess(comando, 0, f"{scrivania}\n", ""))
+    monkeypatch.setattr(
+        avvio_sistema, "_esegui", lambda comando: subprocess.CompletedProcess(comando, 0, f"{scrivania}\n", "")
+    )
     menu, desktop = tmp_path / "dati" / "applications" / "gradiens.desktop", scrivania / "gradiens.desktop"
     assert not avvio_sistema.icone_presenti()
     avvio_sistema.crea_icone(tmp_path / "Gradiens")
     assert avvio_sistema.icone_presenti() and desktop.read_text(encoding="utf-8") == menu.read_text(encoding="utf-8")
-    assert os.name == "nt" or desktop.stat().st_mode & 0o111  # KDE e GNOME avviano solo i .desktop eseguibili; Windows non ha il bit
+    assert (
+        os.name == "nt" or desktop.stat().st_mode & 0o111
+    )  # KDE e GNOME avviano solo i .desktop eseguibili; Windows non ha il bit
     avvio_sistema.togli_icone()
     assert not menu.exists() and not desktop.exists()
 
@@ -145,17 +162,23 @@ def test_voce_desktop_con_virgolette_e_percento():
 def test_script_icone_windows_con_apostrofi():
     script = avvio_sistema.script_icone_windows(Path(r"C:\Users\D'Amico\Gradiens"), r"C:\G\.venv\Scripts\pythonw.exe")
     assert r"$c.WorkingDirectory = 'C:\Users\D''Amico\Gradiens'" in script
-    assert "$c.TargetPath = 'C:\\G\\.venv\\Scripts\\pythonw.exe'" in script and "foreach ($cartella in 'Desktop', 'Programs')" in script
+    assert (
+        "$c.TargetPath = 'C:\\G\\.venv\\Scripts\\pythonw.exe'" in script
+        and "foreach ($cartella in 'Desktop', 'Programs')" in script
+    )
 
 
 def test_senza_desktop_l_icona_va_solo_nel_menu(tmp_path, monkeypatch):
     # Senza un desktop configurato (es. un server) xdg-user-dir risponde con la cartella home.
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("USERPROFILE", str(tmp_path))  # Path.home() su Windows
-    monkeypatch.setattr(avvio_sistema, "os", SimpleNamespace(name="posix", environ={"XDG_DATA_HOME": str(tmp_path / "dati")}))
+    monkeypatch.setattr(
+        avvio_sistema, "os", SimpleNamespace(name="posix", environ={"XDG_DATA_HOME": str(tmp_path / "dati")})
+    )
     monkeypatch.setattr(avvio_sistema.shutil, "which", lambda nome: f"/usr/bin/{nome}")
-    monkeypatch.setattr(avvio_sistema, "_esegui",
-                        lambda comando: subprocess.CompletedProcess(comando, 0, f"{tmp_path}\n", ""))
+    monkeypatch.setattr(
+        avvio_sistema, "_esegui", lambda comando: subprocess.CompletedProcess(comando, 0, f"{tmp_path}\n", "")
+    )
     avvio_sistema.crea_icone(tmp_path / "Gradiens")
     assert (tmp_path / "dati" / "applications" / "gradiens.desktop").exists()
     assert not (tmp_path / "gradiens.desktop").exists() and not (tmp_path / "Desktop").exists()

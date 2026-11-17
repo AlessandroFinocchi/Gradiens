@@ -7,8 +7,11 @@ def test_stato_senza_servizio(conf, capsys):
 
 
 def test_stato_mostra_la_prossima_esecuzione_o_la_pausa(conf, monkeypatch, capsys):
-    stato = {"avviato_alle": "2026-11-07T08:00:00", "prossima_esecuzione": "2026-11-08T07:00",
-             "ultima_esecuzione": {"stato": "completata", "avviata_il": "2026-11-07T06:00:00"}}
+    stato = {
+        "avviato_alle": "2026-11-07T08:00:00",
+        "prossima_esecuzione": "2026-11-08T07:00",
+        "ultima_esecuzione": {"stato": "completata", "avviata_il": "2026-11-07T06:00:00"},
+    }
     monkeypatch.setattr(cli, "leggi_stato", lambda c: stato)
     assert cli.stato(conf) == 0
     uscita = capsys.readouterr().out
@@ -28,7 +31,11 @@ def test_esegui_quando_il_servizio_smette_di_rispondere(conf, monkeypatch, capsy
 
     monkeypatch.setattr(cli, "leggi_stato", lambda c: {"avviato_alle": "x"})
     monkeypatch.setattr(cli.time, "sleep", lambda s: None)
-    monkeypatch.setattr(cli.httpx, "post", lambda *a, **k: httpx.Response(200, json={"esecuzione_id": 1}, request=httpx.Request("POST", "http://x")))
+    monkeypatch.setattr(
+        cli.httpx,
+        "post",
+        lambda *a, **k: httpx.Response(200, json={"esecuzione_id": 1}, request=httpx.Request("POST", "http://x")),
+    )
 
     def non_risponde(*a, **k):
         raise httpx.ConnectError("rifiutata")

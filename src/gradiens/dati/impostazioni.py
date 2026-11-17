@@ -31,9 +31,15 @@ def salva_tema(sessione: Session, tema: str) -> None:
     sessione.commit()
 
 
-def salva_esecuzione(sessione: Session, soglia: int, finestra_giorni: int,
-                     escludi_sponsorizzati: bool = True, escludi_pagamento: bool = True,
-                     orario: str | None = None, in_pausa: bool = False) -> None:
+def salva_esecuzione(
+    sessione: Session,
+    soglia: int,
+    finestra_giorni: int,
+    escludi_sponsorizzati: bool = True,
+    escludi_pagamento: bool = True,
+    orario: str | None = None,
+    in_pausa: bool = False,
+) -> None:
     """`orario` None lascia quello attuale."""
     if not 0 <= soglia <= 100:
         raise ImpostazioneNonValida("La soglia va da 0 a 100.")
@@ -73,9 +79,13 @@ def salva_accesso_remoto(sessione: Session, attivo: bool, indirizzo: str) -> Non
             valido = False
         nome = (parti.hostname or "") if valido else ""
         if not NOME_TAILSCALE.fullmatch(nome):
-            raise ImpostazioneNonValida(f"«{testo}» non è un indirizzo Tailscale di questo PC: è del tipo {ESEMPIO_TAILSCALE}")
+            raise ImpostazioneNonValida(
+                f"«{testo}» non è un indirizzo Tailscale di questo PC: è del tipo {ESEMPIO_TAILSCALE}"
+            )
     if attivo and nome is None:
-        raise ImpostazioneNonValida(f"Per attivare l'accesso incolla l'indirizzo Tailscale di questo PC, del tipo {ESEMPIO_TAILSCALE}")
+        raise ImpostazioneNonValida(
+            f"Per attivare l'accesso incolla l'indirizzo Tailscale di questo PC, del tipo {ESEMPIO_TAILSCALE}"
+        )
     imp = leggi(sessione)
     imp.accesso_remoto, imp.indirizzo_remoto = attivo, nome
     sessione.commit()
@@ -116,7 +126,8 @@ def aggiungi_categoria(sessione: Session, codice: str, nome: str = "") -> None:
 
 
 def rimuovi_categoria(sessione: Session, codice: str) -> None:
-    """Anche l'ultima: arXiv è facoltativo se ci sono altre fonti (decisione 56 dei requisiti); senza fonti c'è il segnale."""
+    """Anche l'ultima: arXiv è facoltativo se ci sono altre fonti (decisione 56 dei requisiti);
+    senza fonti c'è il segnale."""
     categoria = sessione.get(CategoriaArxiv, codice)
     if categoria is not None:
         sessione.delete(categoria)

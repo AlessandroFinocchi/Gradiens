@@ -8,7 +8,7 @@ from gradiens.llm.base import ErroreLLM, LoginRifiutato, QuotaEsaurita
 from gradiens.llm.claude_code import ClaudeCode, interpreta
 
 # Finto `claude`: salva argomenti, stdin e ambiente, poi risponde secondo la modalità.
-FINTO = r'''
+FINTO = r"""
 import json, os, sys, time
 cartella = os.path.dirname(os.path.abspath(__file__))
 modalita = open(os.path.join(cartella, "modalita.txt")).read().strip()
@@ -21,7 +21,8 @@ if sys.argv[1:] == ["auth", "status"]:
 chiamate = os.path.join(cartella, "chiamate.txt")
 n = (int(open(chiamate).read()) if os.path.exists(chiamate) else 0) + 1
 open(chiamate, "w").write(str(n))
-json.dump({"argv": sys.argv[1:], "stdin": sys.stdin.buffer.read().decode("utf-8"), "chiave": os.environ.get("ANTHROPIC_API_KEY")},
+json.dump({"argv": sys.argv[1:], "stdin": sys.stdin.buffer.read().decode("utf-8"),
+           "chiave": os.environ.get("ANTHROPIC_API_KEY")},
           open(os.path.join(cartella, "ultima.json"), "w"))
 if modalita == "lento":
     time.sleep(5)
@@ -37,7 +38,7 @@ elif modalita == "rotto" or (modalita == "rotto-una-volta" and n == 1):
 else:
     print(json.dumps({"is_error": False, "structured_output": {"ok": True},
                       "usage": {"input_tokens": 2, "cache_read_input_tokens": 700, "output_tokens": 30}}))
-'''
+"""
 
 
 @pytest.fixture
@@ -53,8 +54,11 @@ def finto(tmp_path):
 
 
 def chiedi(provider):
-    return asyncio.run(provider.chiedi(sistema="istruzioni", messaggio="notizia con è e \"virgolette\"",
-                                       schema={"type": "object"}, modello="haiku"))
+    return asyncio.run(
+        provider.chiedi(
+            sistema="istruzioni", messaggio='notizia con è e "virgolette"', schema={"type": "object"}, modello="haiku"
+        )
+    )
 
 
 def test_chiamata_isolata_con_messaggio_da_stdin(finto, monkeypatch):
@@ -63,7 +67,7 @@ def test_chiamata_isolata_con_messaggio_da_stdin(finto, monkeypatch):
     assert risposta.dati == {"ok": True}
     assert (risposta.token_ingresso, risposta.token_uscita) == (702, 30)
     ultima = json.loads((finto.cartella / "ultima.json").read_text())
-    assert ultima["stdin"] == "notizia con è e \"virgolette\""
+    assert ultima["stdin"] == 'notizia con è e "virgolette"'
     assert ultima["chiave"] is None  # mai l'API a pagamento al posto dell'abbonamento
     for opzione in ("--safe-mode", "--strict-mcp-config", "--no-session-persistence", "--disable-slash-commands"):
         assert opzione in ultima["argv"]
@@ -83,12 +87,15 @@ def test_login_rifiutato_ferma_senza_nuovo_tentativo(finto):
     assert (finto.cartella / "chiamate.txt").read_text() == "1"
 
 
-@pytest.mark.parametrize("risposta", [
-    {"is_error": True, "api_error_status": 401, "result": "errore"},
-    {"is_error": True, "api_error_status": 403, "result": "errore"},
-    {"is_error": True, "result": "Not logged in · Please run /login"},
-    {"is_error": True, "result": "API Error: 401 authentication_error"},
-])
+@pytest.mark.parametrize(
+    "risposta",
+    [
+        {"is_error": True, "api_error_status": 401, "result": "errore"},
+        {"is_error": True, "api_error_status": 403, "result": "errore"},
+        {"is_error": True, "result": "Not logged in · Please run /login"},
+        {"is_error": True, "result": "API Error: 401 authentication_error"},
+    ],
+)
 def test_errori_di_autenticazione_riconosciuti(risposta):
     with pytest.raises(LoginRifiutato):
         interpreta(json.dumps(risposta))
@@ -118,8 +125,9 @@ def test_risposta_che_non_e_un_oggetto_json(uscita):  # S-04
 
 def test_chiamata_cancellata_chiude_claude(finto):
     async def prova():
-        compito = asyncio.create_task(finto("lento-poi-scrive").chiedi(
-            sistema="s", messaggio="m", schema={}, modello="haiku"))
+        compito = asyncio.create_task(
+            finto("lento-poi-scrive").chiedi(sistema="s", messaggio="m", schema={}, modello="haiku")
+        )
         await asyncio.sleep(0.5)
         compito.cancel()
         with pytest.raises(asyncio.CancelledError):
@@ -130,11 +138,14 @@ def test_chiamata_cancellata_chiude_claude(finto):
     assert not (finto.cartella / "finito.txt").exists()  # il processo è stato chiuso prima di finire
 
 
-@pytest.mark.parametrize("uscita, atteso", [
-    ('{"loggedIn": true, "subscriptionType": "pro"}', None),
-    ('{"loggedIn": false}', "non è collegato"),
-    ("non è JSON", "non risponde"),
-])
+@pytest.mark.parametrize(
+    "uscita, atteso",
+    [
+        ('{"loggedIn": true, "subscriptionType": "pro"}', None),
+        ('{"loggedIn": false}', "non è collegato"),
+        ("non è JSON", "non risponde"),
+    ],
+)
 def test_pronto_controlla_il_collegamento_all_account(uscita, atteso):
     provider = ClaudeCode(comando=[sys.executable, "-c", f"print({uscita!r})"])
     if atteso is None:
@@ -162,8 +173,10 @@ def test_avviso_prima_che_il_login_scada(tmp_path, monkeypatch):
     def scade(giorno, ora=4):
         millisecondi = datetime(2026, 11, giorno, ora, 23).timestamp() * 1000
         (tmp_path / "claude").mkdir(exist_ok=True)
-        (tmp_path / "claude" / ".credentials.json").write_text(json.dumps(
-            {"claudeAiOauth": {"accessToken": "segreto", "refreshTokenExpiresAt": millisecondi}}), encoding="utf-8")
+        (tmp_path / "claude" / ".credentials.json").write_text(
+            json.dumps({"claudeAiOauth": {"accessToken": "segreto", "refreshTokenExpiresAt": millisecondi}}),
+            encoding="utf-8",
+        )
 
     scade(20)
     assert claude_code.avviso_login(adesso) is None  # tra 12 giorni
@@ -171,4 +184,8 @@ def test_avviso_prima_che_il_login_scada(tmp_path, monkeypatch):
     assert claude_code.avviso_login(adesso).startswith("Il login di Claude Code scade il 10/11 alle 04:23")
     scade(8)
     avviso = claude_code.avviso_login(adesso)
-    assert avviso.startswith("Il login di Claude Code è scaduto il 08/11") and "/login" in avviso and "segreto" not in avviso
+    assert (
+        avviso.startswith("Il login di Claude Code è scaduto il 08/11")
+        and "/login" in avviso
+        and "segreto" not in avviso
+    )

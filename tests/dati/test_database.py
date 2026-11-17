@@ -43,8 +43,10 @@ def test_le_migrazioni_non_cancellano_le_pertinenze(tmp_path):
         command.upgrade(config, "0008")
         c.exec_driver_sql("INSERT INTO interessi (id, nome, descrizione) VALUES (1, 'AI', 'AI')")
         c.exec_driver_sql(
-            "INSERT INTO notizie (id, tipo, url, fonte, titolo, riassunto, pubblicata_il, data_incerta, scoperta_il, cuore)"
-            " VALUES (1, 'sito', 'https://a.it/1', 'a.it', 'T', 'R', '2026-11-06', 0, '2026-11-06', 1)")
+            "INSERT INTO notizie (id, tipo, url, fonte, titolo, riassunto, pubblicata_il, data_incerta,"
+            " scoperta_il, cuore)"
+            " VALUES (1, 'sito', 'https://a.it/1', 'a.it', 'T', 'R', '2026-11-06', 0, '2026-11-06', 1)"
+        )
         c.exec_driver_sql("INSERT INTO pertinenze VALUES (1, 1, 80)")
     migra(motore)
     with motore.connect() as c:
@@ -118,8 +120,18 @@ def test_copie_giornaliere_una_al_giorno_e_al_massimo_sette(tmp_path):
     assert len(rimaste) == 7 and rimaste[0] == "gradiens-20261004-070000-giornaliera.db"  # via le più vecchie
 
 
-TABELLE = ("interessi", "siti", "esecuzioni", "argomenti", "notizie", "pertinenze", "proposte", "notizie_viste",
-           "canali_youtube", "categorie_arxiv")
+TABELLE = (
+    "interessi",
+    "siti",
+    "esecuzioni",
+    "argomenti",
+    "notizie",
+    "pertinenze",
+    "proposte",
+    "notizie_viste",
+    "canali_youtube",
+    "categorie_arxiv",
+)
 
 
 def test_la_migrazione_dei_siti_non_perde_dati_e_si_ripete_senza_errori(tmp_path):
@@ -130,24 +142,41 @@ def test_la_migrazione_dei_siti_non_perde_dati_e_si_ripete_senza_errori(tmp_path
     motore = crea_motore(tmp_path / "gradiens.db")
     config = Config()
     config.set_main_option("script_location", str(CARTELLA_MIGRAZIONI))
-    profili = [json.dumps({"url": f"https://sito-{i}.it/", "strategie": ["feed"], "esclusi": ["/offerte/"],
-                           "note": "profilo con àccenti"}, ensure_ascii=False) for i in range(13)]
+    profili = [
+        json.dumps(
+            {
+                "url": f"https://sito-{i}.it/",
+                "strategie": ["feed"],
+                "esclusi": ["/offerte/"],
+                "note": "profilo con àccenti",
+            },
+            ensure_ascii=False,
+        )
+        for i in range(13)
+    ]
     with motore.begin() as c:
         config.attributes["connection"] = c
         command.upgrade(config, "0012")
         sql = c.exec_driver_sql
         sql("INSERT INTO interessi (id, nome, descrizione) VALUES (1, 'Sicurezza', 'attacchi'), (2, 'Corsa', 'gare')")
         for i, profilo in enumerate(profili, start=1):
-            sql("INSERT INTO siti (id, url, profilo, profilo_precedente, stato, dettaglio, guasti_consecutivi)"
+            sql(
+                "INSERT INTO siti (id, url, profilo, profilo_precedente, stato, dettaglio, guasti_consecutivi)"
                 " VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (i, f"https://sito-{i - 1}.it/", profilo, profilo if i == 1 else None, "ok", "1 articolo", i % 3))
-        sql("INSERT INTO esecuzioni (id, avviata_il, avviata_da, stato, metriche)"
-            " VALUES (1, '2026-11-10 07:00:00', 'programmazione', 'completata', '{}')")
+                (i, f"https://sito-{i - 1}.it/", profilo, profilo if i == 1 else None, "ok", "1 articolo", i % 3),
+            )
+        sql(
+            "INSERT INTO esecuzioni (id, avviata_il, avviata_da, stato, metriche)"
+            " VALUES (1, '2026-11-10 07:00:00', 'programmazione', 'completata', '{}')"
+        )
         sql("INSERT INTO argomenti (id, nome, creato_il) VALUES (1, 'Attacco alla ASL', '2026-11-10 07:05:00')")
         for n in range(1, 6):
-            sql("INSERT INTO notizie (id, tipo, url, fonte, titolo, riassunto, pubblicata_il, data_incerta, scoperta_il,"
-                " cuore, esecuzione_id, argomento_id) VALUES (?, 'sito', ?, 'sito-0.it', 'T', 'R', '2026-11-10', 0,"
-                " '2026-11-10', ?, 1, ?)", (n, f"https://sito-0.it/{n}", n == 1, 1 if n < 3 else None))
+            sql(
+                "INSERT INTO notizie (id, tipo, url, fonte, titolo, riassunto, pubblicata_il, data_incerta,"
+                " scoperta_il, cuore, esecuzione_id, argomento_id)"
+                " VALUES (?, 'sito', ?, 'sito-0.it', 'T', 'R', '2026-11-10', 0, '2026-11-10', ?, 1, ?)",
+                (n, f"https://sito-0.it/{n}", n == 1, 1 if n < 3 else None),
+            )
             sql("INSERT INTO pertinenze VALUES (?, 1, 80), (?, 2, 10)", (n, n))
             sql("INSERT INTO notizie_viste VALUES (?, '2026-11-10')", (f"https://sito-0.it/{n}",))
         sql("INSERT INTO notizie_viste VALUES ('https://sito-1.it/scartata', '2026-11-10')")
@@ -157,9 +186,13 @@ def test_la_migrazione_dei_siti_non_perde_dati_e_si_ripete_senza_errori(tmp_path
 
     def stato_dei_dati():
         with motore.connect() as c:
-            return ({t: c.exec_driver_sql(f"SELECT COUNT(*) FROM {t}").scalar() for t in TABELLE},
-                    c.exec_driver_sql("SELECT id, url, profilo, profilo_precedente, stato, dettaglio, guasti_consecutivi"
-                                      " FROM siti ORDER BY id").all())
+            return (
+                {t: c.exec_driver_sql(f"SELECT COUNT(*) FROM {t}").scalar() for t in TABELLE},
+                c.exec_driver_sql(
+                    "SELECT id, url, profilo, profilo_precedente, stato, dettaglio, guasti_consecutivi"
+                    " FROM siti ORDER BY id"
+                ).all(),
+            )
 
     prima = stato_dei_dati()
     migra(motore)
@@ -168,8 +201,12 @@ def test_la_migrazione_dei_siti_non_perde_dati_e_si_ripete_senza_errori(tmp_path
         assert c.exec_driver_sql("SELECT version_num FROM alembic_version").scalar() >= "0013"
         colonne = [r[1] for r in c.exec_driver_sql("PRAGMA table_info(siti)")]
         assert {"coperto_fino_a", "coperto_con"} <= set(colonne)
-        assert c.exec_driver_sql("SELECT COUNT(*) FROM siti WHERE coperto_fino_a IS NOT NULL"
-                                 " OR coperto_con IS NOT NULL").scalar() == 0  # prima raccolta: finestra intera
+        assert (
+            c.exec_driver_sql(
+                "SELECT COUNT(*) FROM siti WHERE coperto_fino_a IS NOT NULL OR coperto_con IS NOT NULL"
+            ).scalar()
+            == 0
+        )  # prima raccolta: finestra intera
         assert c.exec_driver_sql("PRAGMA foreign_key_check").all() == []
     assert len(list((tmp_path / "backup").glob("gradiens-*-migrazione.db"))) == 1
 
@@ -186,8 +223,9 @@ def test_la_migrazione_dell_accesso_da_fuori_casa_lo_lascia_spento_e_non_tocca_i
     with motore.begin() as c:
         config.attributes["connection"] = c
         command.upgrade(config, "0013")
-        c.exec_driver_sql("UPDATE impostazioni SET tema = 'dark', soglia = 75, telegram_chat_id = 4242,"
-                          " configurazione_completata = 1")
+        c.exec_driver_sql(
+            "UPDATE impostazioni SET tema = 'dark', soglia = 75, telegram_chat_id = 4242, configurazione_completata = 1"
+        )
         c.exec_driver_sql("INSERT INTO interessi (id, nome, descrizione) VALUES (1, 'Sicurezza', 'attacchi')")
     migra(motore)
     migra(motore)  # una seconda volta non fa niente

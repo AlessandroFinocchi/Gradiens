@@ -31,16 +31,24 @@ def sessioni(tmp_path):
 
 
 def candidata(nome: str, ore_fa: int = 1) -> Candidata:
-    return Candidata(tipo="arxiv", url=f"https://arxiv.org/abs/{nome}", fonte="cs.CR", titolo=nome,
-                     sommario=f"sommario {nome}", contenuto=f"abstract {nome}",
-                     pubblicata_il=notizie.adesso() - timedelta(hours=ore_fa))
+    return Candidata(
+        tipo="arxiv",
+        url=f"https://arxiv.org/abs/{nome}",
+        fonte="cs.CR",
+        titolo=nome,
+        sommario=f"sommario {nome}",
+        contenuto=f"abstract {nome}",
+        pubblicata_il=notizie.adesso() - timedelta(hours=ore_fa),
+    )
 
 
 def raccolta(*candidate):
     """Fonte arXiv finta, nel formato che l'esecutore si aspetta (modulo con `raccogli`)."""
+
     async def raccogli(client, categorie, dal):
         assert categorie == ["cs.CR"]
         return list(candidate)
+
     return {"arxiv": SimpleNamespace(raccogli=raccogli)}
 
 
@@ -52,11 +60,19 @@ def risponditore(sistema, messaggio, schema):
         sponsorizzate = [v["id"] for v in voci if "offerta" in v["titolo"]] if "sponsorizzati" in sistema else []
         return {"pertinenti": [v["id"] for v in voci if "sicurezza" in v["titolo"]], "sponsorizzate": sponsorizzate}
     if schema is prompt.SCHEMA_ARGOMENTI:  # le notizie "attacco" vanno in un argomento solo
-        return {"assegnazioni": [{"notizia": v["id"], "nuovo": "Attacco alla ASL"} for v in json.loads(messaggio)
-                                 if "attacco" in v["titolo"]]}
+        return {
+            "assegnazioni": [
+                {"notizia": v["id"], "nuovo": "Attacco alla ASL"}
+                for v in json.loads(messaggio)
+                if "attacco" in v["titolo"]
+            ]
+        }
     titolo = json.loads(messaggio)["titolo"]
-    return {"punteggi": [{"interesse": 1, "pertinenza": 90 if "alta" in titolo else 30}],
-            "riassunto": f"Riassunto di {titolo}.", "titolo_it": f"IT {titolo}"}
+    return {
+        "punteggi": [{"interesse": 1, "pertinenza": 90 if "alta" in titolo else 30}],
+        "riassunto": f"Riassunto di {titolo}.",
+        "titolo_it": f"IT {titolo}",
+    }
 
 
 def esegui(sessioni, raccogli, provider=None, **imp):
@@ -75,15 +91,24 @@ def esegui(sessioni, raccogli, provider=None, **imp):
     asyncio.run(prova())
     with sessioni() as s:
         esecuzione = s.scalars(select(Esecuzione)).one()
-        return esecuzione, json.loads(esecuzione.metriche), list(s.scalars(select(Notizia).options(selectinload(Notizia.pertinenze)))), finto
+        return (
+            esecuzione,
+            json.loads(esecuzione.metriche),
+            list(s.scalars(select(Notizia).options(selectinload(Notizia.pertinenze)))),
+            finto,
+        )
 
 
 def test_esecuzione_completa(sessioni):
     with sessioni() as s:
         notizie.segna_viste(s, ["https://arxiv.org/abs/sicurezza-vista"])
         s.commit()
-    esecuzione, metriche, salvate, finto = esegui(sessioni, raccolta(
-        candidata("sicurezza-alta"), candidata("sicurezza-bassa"), candidata("cucina"), candidata("sicurezza-vista")))
+    esecuzione, metriche, salvate, finto = esegui(
+        sessioni,
+        raccolta(
+            candidata("sicurezza-alta"), candidata("sicurezza-bassa"), candidata("cucina"), candidata("sicurezza-vista")
+        ),
+    )
 
     assert esecuzione.stato == "completata"
     assert [n.titolo for n in salvate] == ["sicurezza-alta"]
@@ -93,15 +118,27 @@ def test_esecuzione_completa(sessioni):
     assert (a["esaminate"], a["scartate_prefiltro"], a["scartate_valutazione"], a["mostrate"]) == (3, 1, 1, 1)
     assert metriche["token"]["prefiltro"]["ingresso"] > 0
     with sessioni() as s:  # tutte le notizie esaminate sono ora nel registro (ESE-07)
-        assert len(notizie.gia_viste(s, [f"https://arxiv.org/abs/{n}" for n in ("sicurezza-alta", "sicurezza-bassa", "cucina")])) == 3
+        assert (
+            len(
+                notizie.gia_viste(
+                    s, [f"https://arxiv.org/abs/{n}" for n in ("sicurezza-alta", "sicurezza-bassa", "cucina")]
+                )
+            )
+            == 3
+        )
     # Pre-filtro: una sola chiamata a blocchi. La parte fissa (interessi) sta nel prompt di sistema.
     assert sum("pre-filtro" in sistema for sistema, _ in finto.chiamate) == 1
-    assert all("attacchi informatici" in sistema for sistema, _ in finto.chiamate if "passo degli argomenti" not in sistema)
+    assert all(
+        "attacchi informatici" in sistema for sistema, _ in finto.chiamate if "passo degli argomenti" not in sistema
+    )
 
 
 def test_tetto_arxiv_elabora_solo_i_piu_recenti(sessioni):
-    _, metriche, salvate, _ = esegui(sessioni, raccolta(
-        candidata("sicurezza-alta-vecchia", ore_fa=5), candidata("sicurezza-alta-recente", ore_fa=1)), tetto_arxiv=1)
+    _, metriche, salvate, _ = esegui(
+        sessioni,
+        raccolta(candidata("sicurezza-alta-vecchia", ore_fa=5), candidata("sicurezza-alta-recente", ore_fa=1)),
+        tetto_arxiv=1,
+    )
     assert [n.titolo for n in salvate] == ["sicurezza-alta-recente"]
     assert metriche["fonti"]["arxiv"]["oltre_tetto"] == 1
 
@@ -124,8 +161,11 @@ def test_risposta_llm_non_valida_viene_ripulita(sessioni):
     def sbagliato(sistema, messaggio, schema):
         if schema is prompt.SCHEMA_PREFILTRO:
             return {"pertinenti": [0, 7, "x"]}  # 7 e "x" non esistono
-        return {"punteggi": [{"interesse": 99, "pertinenza": 100}, {"interesse": 1, "pertinenza": 150}],
-                "riassunto": "R", "titolo_it": "\"\""}  # due virgolette al posto della stringa vuota
+        return {
+            "punteggi": [{"interesse": 99, "pertinenza": 100}, {"interesse": 1, "pertinenza": 150}],
+            "riassunto": "R",
+            "titolo_it": '""',
+        }  # due virgolette al posto della stringa vuota
 
     _, _, salvate, _ = esegui(sessioni, raccolta(candidata("sicurezza-x")), provider=Finto(sbagliato))
     assert [(p.interesse_id, p.punteggio) for p in salvate[0].pertinenze] == [(1, 100)]
@@ -166,7 +206,8 @@ def test_un_blocco_del_prefiltro_fallito_non_ferma_l_esecuzione(sessioni, monkey
         return risponditore(sistema, messaggio, schema)
 
     esecuzione, metriche, salvate, _ = esegui(
-        sessioni, raccolta(candidata("sicurezza-alta"), candidata("sicurezza-rotto")), provider=Finto(rotto))
+        sessioni, raccolta(candidata("sicurezza-alta"), candidata("sicurezza-rotto")), provider=Finto(rotto)
+    )
     assert esecuzione.stato == "completata"
     assert [n.titolo for n in salvate] == ["sicurezza-alta"]
     assert metriche["fonti"]["arxiv"]["errori"] == 1
@@ -185,8 +226,9 @@ def test_spegnimento_durante_l_esecuzione_la_registra_come_interrotta(sessioni):
             await asyncio.sleep(60)
 
     async def prova():
-        esecutore = Esecutore(sessioni, fabbrica_provider=lambda n: Lento(),
-                              fonti=raccolta(candidata("sicurezza-alta")))
+        esecutore = Esecutore(
+            sessioni, fabbrica_provider=lambda n: Lento(), fonti=raccolta(candidata("sicurezza-alta"))
+        )
         esecutore.avvia("cli")
         await asyncio.sleep(0.1)
         await esecutore.ferma()
@@ -213,7 +255,12 @@ def test_youtube_short_trascrizione_assente_diretta_e_canale_irraggiungibile(ses
     async def raccogli_yt(client, canale, dal):
         if canale.nome == "Canale rotto":
             raise httpx.ConnectError("irraggiungibile")
-        return [video("sicurezza-alta-short"), video("sicurezza-muto"), video("sicurezza-diretta"), video("sicurezza-alta-lungo")]
+        return [
+            video("sicurezza-alta-short"),
+            video("sicurezza-muto"),
+            video("sicurezza-diretta"),
+            video("sicurezza-alta-lungo"),
+        ]
 
     async def completa(client, c):
         if "muto" in c.titolo:
@@ -224,7 +271,10 @@ def test_youtube_short_trascrizione_assente_diretta_e_canale_irraggiungibile(ses
         c.contenuto = "parola " * (20_000 if "lungo" in c.titolo else 10)
         return c
 
-    fonti = {**raccolta(candidata("sicurezza-alta-paper")), "youtube": SimpleNamespace(raccogli=raccogli_yt, completa=completa)}
+    fonti = {
+        **raccolta(candidata("sicurezza-alta-paper")),
+        "youtube": SimpleNamespace(raccogli=raccogli_yt, completa=completa),
+    }
     finto = Finto(risponditore)
 
     async def prova():
@@ -258,7 +308,9 @@ def test_siti_stato_guasti_e_rigenerazione_dopo_tre(sessioni):
     from gradiens.fonti import siti
 
     with sessioni() as s:
-        dati_siti.aggiungi(s, "https://redhotcyber.com/", siti.Profilo(url="https://redhotcyber.com/", strategie=["feed"]).come_dict())
+        dati_siti.aggiungi(
+            s, "https://redhotcyber.com/", siti.Profilo(url="https://redhotcyber.com/", strategie=["feed"]).come_dict()
+        )
         dati_siti.aggiungi(s, "https://bloccato.example/", siti.Profilo(url="https://bloccato.example/").come_dict())
 
     rigenerati = []
@@ -267,7 +319,12 @@ def test_siti_stato_guasti_e_rigenerazione_dopo_tre(sessioni):
         if "bloccato" in profilo.url:
             return siti.EsitoSito([], "accesso bloccato", True, "Il sito rifiuta le richieste.")
         articolo = candidata("sicurezza-alta-articolo")
-        articolo.tipo, articolo.url, articolo.fonte, articolo.contenuto = "sito", "https://redhotcyber.com/articolo", "redhotcyber.com", ""
+        articolo.tipo, articolo.url, articolo.fonte, articolo.contenuto = (
+            "sito",
+            "https://redhotcyber.com/articolo",
+            "redhotcyber.com",
+            "",
+        )
         return siti.EsitoSito([articolo], "ok", False, "1 articolo")
 
     async def rigenera(client, profilo):
@@ -310,7 +367,9 @@ def test_sito_che_non_risponde_tiene_il_profilo_vecchio_e_riprova_ogni_tre_guast
     from gradiens.dati.modelli import Sito
     from gradiens.fonti import siti
 
-    vecchio = siti.Profilo(url="https://giu.example/", strategie=["feed"], feed=["https://giu.example/feed/"]).come_dict()
+    vecchio = siti.Profilo(
+        url="https://giu.example/", strategie=["feed"], feed=["https://giu.example/feed/"]
+    ).come_dict()
     with sessioni() as s:
         dati_siti.aggiungi(s, "https://giu.example/", vecchio)
 
@@ -354,12 +413,17 @@ def test_articoli_a_pagamento_e_sponsorizzati_secondo_gli_interruttori(sessioni,
         return c
 
     esecuzione, metriche, salvate, finto = esegui(
-        sessioni, raccolta(a_pagamento("sicurezza-alta-paywall"), candidata("offerta-sconto")),
-        escludi_pagamento=escludi, escludi_sponsorizzati=escludi)
+        sessioni,
+        raccolta(a_pagamento("sicurezza-alta-paywall"), candidata("offerta-sconto")),
+        escludi_pagamento=escludi,
+        escludi_sponsorizzati=escludi,
+    )
     assert (salvate == []) is escludi  # con l'esclusione non si valuta nemmeno (niente quota)
     arxiv = metriche["fonti"]["arxiv"]
     assert arxiv["escluse"] == (2 if escludi else 0)
-    assert [e["motivo"] for e in arxiv["notizie_escluse"]] == (["sponsorizzato o offerta", "a pagamento"] if escludi else [])
+    assert [e["motivo"] for e in arxiv["notizie_escluse"]] == (
+        ["sponsorizzato o offerta", "a pagamento"] if escludi else []
+    )
     assert arxiv["scartate_prefiltro"] == (0 if escludi else 1)
     prefiltro = next(sistema for sistema, _ in finto.chiamate if "pre-filtro" in sistema)
     assert ("sponsorizzati" in prefiltro) is escludi
@@ -383,9 +447,15 @@ def test_un_video_segnalato_come_sponsorizzato_si_valuta_comunque(sessioni):
         return [di_tipo("offerta-alta-video", "video", "https://www.youtube.com/watch?v=v1", "Lab di Sicurezza")]
 
     async def raccogli_sito(client, profilo, dal, inizio_finestra=None):
-        return siti.EsitoSito([di_tipo("offerta-alta-sconto", "sito", "https://buono.it/sconto", "buono.it")], "ok", False, "")
+        return siti.EsitoSito(
+            [di_tipo("offerta-alta-sconto", "sito", "https://buono.it/sconto", "buono.it")], "ok", False, ""
+        )
 
-    fonti = {**raccolta(), "youtube": SimpleNamespace(raccogli=raccogli_yt), "siti": SimpleNamespace(raccogli=raccogli_sito)}
+    fonti = {
+        **raccolta(),
+        "youtube": SimpleNamespace(raccogli=raccogli_yt),
+        "siti": SimpleNamespace(raccogli=raccogli_sito),
+    }
     _, metriche, salvate, _ = esegui(sessioni, fonti)
 
     assert [(n.tipo, n.titolo) for n in salvate] == [("video", "offerta-alta-video")]
@@ -402,7 +472,9 @@ def test_avviso_di_fine_esecuzione_ma_non_allo_spegnimento(sessioni):
         avvisate.append(id)
 
     async def prova():
-        esecutore = Esecutore(sessioni, fabbrica_provider=lambda n: Finto(risponditore), fonti=raccolta(candidata("sicurezza-alta")))
+        esecutore = Esecutore(
+            sessioni, fabbrica_provider=lambda n: Finto(risponditore), fonti=raccolta(candidata("sicurezza-alta"))
+        )
         esecutore.al_termine = al_termine
         prima = esecutore.avvia("telegram")
         await esecutore.attendi()
@@ -410,6 +482,7 @@ def test_avviso_di_fine_esecuzione_ma_non_allo_spegnimento(sessioni):
         async def lenta(client, categorie, dal):
             await asyncio.sleep(10)
             return []
+
         esecutore._fonti = {"arxiv": SimpleNamespace(raccogli=lenta)}
         esecutore.avvia("dashboard")
         await asyncio.sleep(0.05)
@@ -421,12 +494,21 @@ def test_avviso_di_fine_esecuzione_ma_non_allo_spegnimento(sessioni):
 
 def test_argomenti_a_fine_esecuzione(sessioni):
     """ESE-08, ADR 0008: le notizie dello stesso evento finiscono in un argomento solo, anche in blocchi diversi."""
-    esecuzione, metriche, salvate, finto = esegui(sessioni, raccolta(
-        candidata("sicurezza-alta-attacco-1"), candidata("sicurezza-alta-attacco-2"), candidata("sicurezza-alta-guida")))
+    esecuzione, metriche, salvate, finto = esegui(
+        sessioni,
+        raccolta(
+            candidata("sicurezza-alta-attacco-1"),
+            candidata("sicurezza-alta-attacco-2"),
+            candidata("sicurezza-alta-guida"),
+        ),
+    )
     assert esecuzione.stato == "completata"
     with sessioni() as s:
         notizie_salvate = {n.titolo: n for n in s.scalars(select(Notizia))}
-        assert notizie_salvate["sicurezza-alta-attacco-1"].argomento_id == notizie_salvate["sicurezza-alta-attacco-2"].argomento_id
+        assert (
+            notizie_salvate["sicurezza-alta-attacco-1"].argomento_id
+            == notizie_salvate["sicurezza-alta-attacco-2"].argomento_id
+        )
         assert notizie_salvate["sicurezza-alta-attacco-1"].argomento.nome == "Attacco alla ASL"
         assert notizie_salvate["sicurezza-alta-guida"].argomento_id is None
     # Un'esecuzione dopo: l'argomento esistente compare nel prompt con il suo id.
@@ -447,7 +529,9 @@ def test_passo_degli_argomenti_fallito_non_ferma_l_esecuzione(sessioni):
 def test_nuovo_argomento_con_il_nome_di_uno_esistente_non_crea_doppioni(sessioni):
     async def due_esecuzioni():
         for nome in ("sicurezza-alta-attacco-1", "sicurezza-alta-attacco-2"):  # il Claude finto risponde sempre "nuovo"
-            esecutore = Esecutore(sessioni, fabbrica_provider=lambda n: Finto(risponditore), fonti=raccolta(candidata(nome)))
+            esecutore = Esecutore(
+                sessioni, fabbrica_provider=lambda n: Finto(risponditore), fonti=raccolta(candidata(nome))
+            )
             esecutore.avvia("cli")
             await esecutore.attendi()
 
@@ -461,9 +545,20 @@ def test_proposta_di_raffinamento_a_fine_esecuzione(sessioni):
     """INT-04: 3 cuori nuovi su notizie pertinenti, e alla fine dell'esecuzione c'è una proposta."""
     with sessioni() as s:
         for nome in ("a", "b", "c"):
-            s.add(Notizia(tipo="arxiv", url=f"https://arxiv.org/abs/cuore-{nome}", fonte="cs.CR", titolo=nome, riassunto="r",
-                          pubblicata_il=notizie.adesso(), scoperta_il=notizie.adesso(), cuore=True, cuore_il=notizie.adesso(),
-                          pertinenze=[Pertinenza(interesse_id=1, punteggio=90)]))
+            s.add(
+                Notizia(
+                    tipo="arxiv",
+                    url=f"https://arxiv.org/abs/cuore-{nome}",
+                    fonte="cs.CR",
+                    titolo=nome,
+                    riassunto="r",
+                    pubblicata_il=notizie.adesso(),
+                    scoperta_il=notizie.adesso(),
+                    cuore=True,
+                    cuore_il=notizie.adesso(),
+                    pertinenze=[Pertinenza(interesse_id=1, punteggio=90)],
+                )
+            )
         s.commit()
 
     def con_proposta(sistema, messaggio, schema):
@@ -482,9 +577,9 @@ def test_proposta_di_raffinamento_a_fine_esecuzione(sessioni):
         assert (p.interesse_id, p.testo, p.notizie) == (1, "Soprattutto ransomware nella sanità.", 3)
 
 
-
 def test_senza_claude_code_collegato_l_esecuzione_non_parte(sessioni):
     """ACC-15: prima si fallivano tutti i blocchi del pre-filtro e l'esecuzione risultava "completata"."""
+
     class Scollegato(Finto):
         async def pronto(self):
             raise ErroreLLM("Claude Code non è collegato a un account.")
@@ -511,7 +606,10 @@ def test_aspetta_la_rete_prima_di_raccogliere(sessioni, monkeypatch):
         s.query(Esecuzione).delete()
         s.commit()
     esecuzione, _, _, _ = esegui(sessioni, raccolta(candidata("sicurezza-altra")))
-    assert (esecuzione.stato, esecuzione.motivo) == ("fallita", "Nessuna connessione a internet: controlla la rete e riprova.")
+    assert (esecuzione.stato, esecuzione.motivo) == (
+        "fallita",
+        "Nessuna connessione a internet: controlla la rete e riprova.",
+    )
 
 
 def test_aspetta_la_rete_fino_a_quindici_minuti(sessioni, monkeypatch):
@@ -554,10 +652,12 @@ async def completa_finta(client, c):
 
 def guasto_su(parola: str, schema_guasto: dict, errore: Exception) -> Finto:
     """Finto che solleva `errore` quando il messaggio di quello schema contiene `parola`."""
+
     def risponde(sistema, messaggio, schema):
         if schema is schema_guasto and parola in messaggio:
             raise errore
         return risponditore(sistema, messaggio, schema)
+
     return Finto(risponde)
 
 
@@ -593,11 +693,16 @@ class Concorrente(Finto):
 
 def blocchi_prefiltro(provider: Finto) -> list[list[str]]:
     """I titoli di ogni chiamata di pre-filtro, nell'ordine delle chiamate."""
-    return [[v["titolo"] for v in json.loads(m)] for sistema, m in provider.chiamate if sistema.startswith("Sei il pre-filtro")]
+    return [
+        [v["titolo"] for v in json.loads(m)]
+        for sistema, m in provider.chiamate
+        if sistema.startswith("Sei il pre-filtro")
+    ]
 
 
 # ADR 0010: i paper passano dal pre-filtro dal più recente, a giri, finché i promossi riempiono il tetto.
 # Sostituiscono T-02, che fissava il comportamento precedente (tutti i paper pre-filtrati, poi il tetto).
+
 
 def test_prefiltro_arxiv_si_ferma_quando_i_promossi_riempiono_il_tetto(sessioni):
     paper = [candidata(f"sicurezza-alta-{i:02d}", ore_fa=i + 1) for i in range(100)]  # 00 è il più recente
@@ -623,18 +728,32 @@ def test_con_pochi_promossi_i_giri_continuano_fino_all_ultimo_paper(sessioni, mo
     from gradiens.esecuzione import prefiltro as modulo
 
     monkeypatch.setattr(modulo, "BLOCCO_PREFILTRO", 1)
-    nomi = ["sicurezza-alta-0", "sicurezza-alta-1", "cucina-2", "cucina-3", "sicurezza-alta-4", "cucina-5",
-            "cucina-6", "cucina-7", "sicurezza-alta-8"]
+    nomi = [
+        "sicurezza-alta-0",
+        "sicurezza-alta-1",
+        "cucina-2",
+        "cucina-3",
+        "sicurezza-alta-4",
+        "cucina-5",
+        "cucina-6",
+        "cucina-7",
+        "sicurezza-alta-8",
+    ]
     provider = Concorrente(risponditore)
-    _, metriche, salvate, _ = esegui(sessioni, raccolta(*(candidata(n, ore_fa=i + 1) for i, n in enumerate(nomi))),
-                                     provider=provider, tetto_arxiv=4)
+    _, metriche, salvate, _ = esegui(
+        sessioni, raccolta(*(candidata(n, ore_fa=i + 1) for i, n in enumerate(nomi))), provider=provider, tetto_arxiv=4
+    )
 
     # giro 1: 3 blocchi (mancano 4, al massimo 3 insieme), 2 promossi; giro 2: 2 blocchi, 1 promosso;
     # giri 3-5: 1 blocco, nessun promosso; giro 6: 1 blocco, il quarto promosso.
     assert blocchi_prefiltro(provider) == [[n] for n in nomi]
     assert provider.massimo == 3
-    assert sorted(n.titolo for n in salvate) == ["sicurezza-alta-0", "sicurezza-alta-1", "sicurezza-alta-4",
-                                                 "sicurezza-alta-8"]
+    assert sorted(n.titolo for n in salvate) == [
+        "sicurezza-alta-0",
+        "sicurezza-alta-1",
+        "sicurezza-alta-4",
+        "sicurezza-alta-8",
+    ]
     a = metriche["fonti"]["arxiv"]
     assert (a["scartate_prefiltro"], a["oltre_tetto"]) == (5, 0)
 
@@ -644,20 +763,32 @@ def test_i_paper_valutati_sono_i_piu_recenti_tra_i_promossi(sessioni, monkeypatc
     from gradiens.esecuzione import prefiltro as modulo
 
     monkeypatch.setattr(modulo, "BLOCCO_PREFILTRO", 2)
-    ore = {"sicurezza-alta-a": 2, "cucina-b": 1, "sicurezza-alta-c": 5, "sicurezza-alta-d": 3, "cucina-e": 4,
-           "sicurezza-alta-f": 6, "sicurezza-alta-g": 7}
+    ore = {
+        "sicurezza-alta-a": 2,
+        "cucina-b": 1,
+        "sicurezza-alta-c": 5,
+        "sicurezza-alta-d": 3,
+        "cucina-e": 4,
+        "sicurezza-alta-f": 6,
+        "sicurezza-alta-g": 7,
+    }
     provider = Finto(risponditore)
-    _, metriche, salvate, _ = esegui(sessioni, raccolta(*(candidata(n, ore_fa=o) for n, o in ore.items())),
-                                     provider=provider, tetto_arxiv=3)
+    _, metriche, salvate, _ = esegui(
+        sessioni, raccolta(*(candidata(n, ore_fa=o) for n, o in ore.items())), provider=provider, tetto_arxiv=3
+    )
 
     # giro 1: due blocchi, promossi a e d; giro 2: un blocco, promossi c e f (uno in eccesso); g mai pre-filtrato.
-    assert blocchi_prefiltro(provider) == [["cucina-b", "sicurezza-alta-a"], ["sicurezza-alta-d", "cucina-e"],
-                                           ["sicurezza-alta-c", "sicurezza-alta-f"]]
+    assert blocchi_prefiltro(provider) == [
+        ["cucina-b", "sicurezza-alta-a"],
+        ["sicurezza-alta-d", "cucina-e"],
+        ["sicurezza-alta-c", "sicurezza-alta-f"],
+    ]
     assert sorted(n.titolo for n in salvate) == ["sicurezza-alta-a", "sicurezza-alta-c", "sicurezza-alta-d"]
     assert metriche["fonti"]["arxiv"]["oltre_tetto"] == 2  # f promosso in eccesso, g non pre-filtrato
     with sessioni() as s:
-        assert notizie.gia_viste(s, ["https://arxiv.org/abs/sicurezza-alta-f", "https://arxiv.org/abs/sicurezza-alta-g"]) == {
-            "https://arxiv.org/abs/sicurezza-alta-f", "https://arxiv.org/abs/sicurezza-alta-g"}
+        assert notizie.gia_viste(
+            s, ["https://arxiv.org/abs/sicurezza-alta-f", "https://arxiv.org/abs/sicurezza-alta-g"]
+        ) == {"https://arxiv.org/abs/sicurezza-alta-f", "https://arxiv.org/abs/sicurezza-alta-g"}
 
 
 def test_dopo_un_blocco_fallito_non_partono_giri_nuovi(sessioni, monkeypatch):
@@ -698,8 +829,11 @@ def test_siti_e_youtube_si_prefiltrano_tutti_e_non_si_mescolano_ai_paper(session
         return siti.EsitoSito([di_sito("sicurezza-alta-articolo", "https://buono.it/articolo")], "ok", False, "")
 
     paper = [candidata(f"sicurezza-alta-paper-{i}", ore_fa=i + 1) for i in range(5)]
-    fonti = {**raccolta(*paper), "youtube": SimpleNamespace(raccogli=raccogli_yt),
-             "siti": SimpleNamespace(raccogli=raccogli_sito)}
+    fonti = {
+        **raccolta(*paper),
+        "youtube": SimpleNamespace(raccogli=raccogli_yt),
+        "siti": SimpleNamespace(raccogli=raccogli_sito),
+    }
     provider = Finto(risponditore)
     _, metriche, salvate, _ = esegui(sessioni, fonti, provider=provider, tetto_arxiv=1)
 
@@ -711,18 +845,40 @@ def test_siti_e_youtube_si_prefiltrano_tutti_e_non_si_mescolano_ai_paper(session
     assert metriche["fonti"]["arxiv"]["oltre_tetto"] == 4
 
 
-ESITI = ("scartate_prefiltro", "escluse", "oltre_tetto", "senza_contenuto", "scartate_valutazione", "mostrate", "errori")
+ESITI = (
+    "scartate_prefiltro",
+    "escluse",
+    "oltre_tetto",
+    "senza_contenuto",
+    "scartate_valutazione",
+    "mostrate",
+    "errori",
+)
 
 
-@pytest.mark.parametrize("scenario", ["tetto", "tetto con paper non pre-filtrati", "esclusioni e senza contenuto",
-                                      "blocco fallito", "valutazione fallita", "diretta"])
+@pytest.mark.parametrize(
+    "scenario",
+    [
+        "tetto",
+        "tetto con paper non pre-filtrati",
+        "esclusioni e senza contenuto",
+        "blocco fallito",
+        "valutazione fallita",
+        "diretta",
+    ],
+)
 def test_i_contatori_di_una_fonte_tornano(sessioni, monkeypatch, scenario):
     """T-03, ESE-11: `esaminate` è la somma degli esiti. Non vale con le dirette (YT-04: non entrano in nessun
-    contatore) e quando `errori` conta anche errori di fonte o di sito (`raccolta.raccogli`, `raccolta.raccogli_sito`)."""
+    contatore) e quando `errori` conta anche errori di fonte o di sito
+    (`raccolta.raccogli`, `raccolta.raccogli_sito`)."""
     from gradiens.esecuzione import prefiltro as modulo
 
-    candidate = [candidata("sicurezza-alta", 1), candidata("sicurezza-alta-vecchia", 5), candidata("sicurezza-bassa", 3),
-                 candidata("cucina")]
+    candidate = [
+        candidata("sicurezza-alta", 1),
+        candidata("sicurezza-alta-vecchia", 5),
+        candidata("sicurezza-bassa", 3),
+        candidata("cucina"),
+    ]
     imp, provider, esito_atteso = {}, None, "errori"
     if scenario == "tetto":
         imp, esito_atteso = {"tetto_arxiv": 1}, "oltre_tetto"
@@ -767,7 +923,8 @@ def test_una_valutazione_fallita_non_segna_vista_la_notizia_e_la_rimanda_al_pref
 
     provider = Finto(rotta)
     (prima, m1), (seconda, m2) = esecuzioni_di_fila(
-        sessioni, raccolta(candidata("sicurezza-alta"), candidata("sicurezza-alta-rotta")), provider, volte=2)
+        sessioni, raccolta(candidata("sicurezza-alta"), candidata("sicurezza-alta-rotta")), provider, volte=2
+    )
 
     assert (prima.stato, seconda.stato) == ("completata", "completata")
     assert (m1["fonti"]["arxiv"]["mostrate"], m1["fonti"]["arxiv"]["errori"]) == (1, 1)
@@ -781,6 +938,7 @@ def test_una_valutazione_fallita_non_segna_vista_la_notizia_e_la_rimanda_al_pref
 
 class QuotaAlPrimoBlocco:
     """Provider: il primo blocco di pre-filtro trova la quota esaurita, gli altri restano in attesa."""
+
     nome = "finto"
 
     def __init__(self):
@@ -841,8 +999,11 @@ def test_l_esecutore_passa_a_ogni_fonte_la_finestra_di_raccolta(sessioni, giorni
         ricevuti["siti"] = dal
         return siti.EsitoSito([], "nessun articolo nuovo", False, "")
 
-    fonti = {"arxiv": SimpleNamespace(raccogli=da_arxiv), "youtube": SimpleNamespace(raccogli=da_youtube),
-             "siti": SimpleNamespace(raccogli=da_sito)}
+    fonti = {
+        "arxiv": SimpleNamespace(raccogli=da_arxiv),
+        "youtube": SimpleNamespace(raccogli=da_youtube),
+        "siti": SimpleNamespace(raccogli=da_sito),
+    }
     prima = notizie.adesso()
     esecuzione, _, _, _ = esegui(sessioni, fonti, finestra_giorni=giorni)
     dopo = notizie.adesso()
@@ -873,7 +1034,10 @@ def test_lo_stato_del_sito_si_registra_alla_raccolta_anche_se_l_esecuzione_e_int
     with sessioni() as s:
         sito = s.scalars(select(Sito)).one()
         assert (sito.stato, sito.dettaglio, sito.guasti_consecutivi) == (
-            "ok", "Problemi: il feed non ha articoli recenti.", 1)
+            "ok",
+            "Problemi: il feed non ha articoli recenti.",
+            1,
+        )
         assert notizie.gia_viste(s, [articolo.url]) == set()
 
 
@@ -930,7 +1094,9 @@ def test_una_notizia_rimasta_senza_esito_trattiene_il_sito_alla_sua_data(session
     rimasta.pubblicata_il = notizie.adesso() - timedelta(hours=20)
     fonti, ricevuti = sito_che_registra(di_sito("sicurezza-alta-articolo", "https://buono.it/articolo"), rimasta)
 
-    (esecuzione, _), = esecuzioni_di_fila(sessioni, fonti, guasto_su("rotta", prompt.SCHEMA_VALUTAZIONE, errore), volte=1)
+    ((esecuzione, _),) = esecuzioni_di_fila(
+        sessioni, fonti, guasto_su("rotta", prompt.SCHEMA_VALUTAZIONE, errore), volte=1
+    )
     esecuzioni_di_fila(sessioni, fonti, Finto(risponditore), volte=1)
 
     assert esecuzione.stato == ("interrotta" if isinstance(errore, QuotaEsaurita) else "completata")
@@ -964,22 +1130,30 @@ def test_dopo_un_guasto_o_un_cambio_si_riparte_dalla_finestra_intera(sessioni, c
 
 def prefiltro_che_solleva(errori: dict[str, BaseException]) -> Finto:
     """Finto: il blocco di pre-filtro che contiene una delle parole solleva l'errore associato."""
+
     def risponde(sistema, messaggio, schema):
         for parola, errore in errori.items():
             if schema is prompt.SCHEMA_PREFILTRO and parola in messaggio:
                 raise errore
         return risponditore(sistema, messaggio, schema)
+
     return Finto(risponde)
 
 
-@pytest.mark.parametrize("errori, stato, motivo", [
-    # T-27, S-02: la quota ha la precedenza anche se nello stesso gruppo c'è un altro errore.
-    ({"quota": QuotaEsaurita("Quota dell'abbonamento esaurita"), "rotto": RuntimeError("guasto")},
-     "interrotta", "Quota dell'abbonamento esaurita"),
-    # S-07: il motivo è il testo dell'errore, non "unhandled errors in a TaskGroup".
-    ({"rotto": RuntimeError("guasto")}, "fallita", "guasto"),
-    ({"rotto": RuntimeError("guasto"), "quota": KeyError("chiave")}, "fallita", "guasto; 'chiave'"),
-])
+@pytest.mark.parametrize(
+    "errori, stato, motivo",
+    [
+        # T-27, S-02: la quota ha la precedenza anche se nello stesso gruppo c'è un altro errore.
+        (
+            {"quota": QuotaEsaurita("Quota dell'abbonamento esaurita"), "rotto": RuntimeError("guasto")},
+            "interrotta",
+            "Quota dell'abbonamento esaurita",
+        ),
+        # S-07: il motivo è il testo dell'errore, non "unhandled errors in a TaskGroup".
+        ({"rotto": RuntimeError("guasto")}, "fallita", "guasto"),
+        ({"rotto": RuntimeError("guasto"), "quota": KeyError("chiave")}, "fallita", "guasto; 'chiave'"),
+    ],
+)
 def test_quota_insieme_ad_un_altro_errore_nello_stesso_gruppo(sessioni, monkeypatch, errori, stato, motivo):
     from gradiens.esecuzione import prefiltro as modulo
 
@@ -1029,6 +1203,7 @@ def test_risposte_llm_di_forma_inattesa(sessioni, monkeypatch, forma):
 
 def test_una_pertinenza_con_la_virgola_si_arrotonda(sessioni):
     """Scheda 4 (b): tolleranti sui valori. Prima 85.5 era ignorato e la notizia scartata e vista."""
+
     def con_virgola(sistema, messaggio, schema):
         dati = risponditore(sistema, messaggio, schema)
         if schema is prompt.SCHEMA_VALUTAZIONE:
@@ -1081,6 +1256,7 @@ def test_un_errore_di_database_alla_chiusura_non_lascia_l_esecuzione_in_corso(se
 
 def test_un_argomento_del_tipo_sbagliato_non_fa_fallire_l_esecuzione(sessioni):
     """Prima `argomento: [1]` faceva fallire l'esecuzione in `_argomenti`; ora il passo degli argomenti non riesce."""
+
     def sbagliato(sistema, messaggio, schema):
         if schema is prompt.SCHEMA_ARGOMENTI:
             return {"assegnazioni": [{"notizia": 0, "argomento": [1]}]}
@@ -1095,6 +1271,7 @@ def test_un_argomento_del_tipo_sbagliato_non_fa_fallire_l_esecuzione(sessioni):
 def test_login_rifiutato_ferma_l_esecuzione(sessioni, schema):
     """Doc 05, 4.5 punto 2: un login rifiutato vale per tutte le chiamate. Prima l'esecuzione falliva notizia
     per notizia (con un nuovo tentativo ciascuna) e finiva "completata" senza notizie."""
+
     def rifiuta(sistema, messaggio, schema_chiesto):
         if schema_chiesto is schema:
             raise LoginRifiutato("Claude Code ha rifiutato il login")
@@ -1135,7 +1312,10 @@ def test_versione_registrata_e_prova_di_fumo_solo_quando_cambia(sessioni):
     assert [e.stato for e, _ in tutte] == ["completata"] * 3
     versione = {"provider": "claude-code", "versione": "2.1.316", "precedente": None, "provata": True}
     assert [m["versione_llm"] for _, m in tutte] == [
-        versione, versione, {**versione, "versione": "2.1.325", "precedente": "2.1.316"}]
+        versione,
+        versione,
+        {**versione, "versione": "2.1.325", "precedente": "2.1.316"},
+    ]
     assert tutte[2][1]["token"]["prefiltro"]["ingresso"] > 0  # i token della prova contano
 
 
@@ -1146,7 +1326,9 @@ def test_prova_di_fumo_fallita_ferma_l_esecuzione_e_si_ripete(sessioni):
         return risponditore(sistema, messaggio, schema)
 
     provider = ConVersione(rotto)
-    (prima, metriche), (seconda, _) = esecuzioni_di_fila(sessioni, raccolta(candidata("sicurezza-alta")), provider, volte=2)
+    (prima, metriche), (seconda, _) = esecuzioni_di_fila(
+        sessioni, raccolta(candidata("sicurezza-alta")), provider, volte=2
+    )
 
     assert prima.stato == seconda.stato == "fallita"
     assert prima.motivo.startswith("Claude Code 2.1.316: la prova di funzionamento non è riuscita")
@@ -1179,14 +1361,21 @@ def test_ordine_delle_fasi_e_avanzamento_con_valutazioni_intrecciate(sessioni):
         esecutore.avvia("cli")
         await esecutore.attendi()
 
-    esecutore = Esecutore(sessioni, fabbrica_provider=lambda nome: ConLatenza(risponditore),
-                          fonti={"arxiv": SimpleNamespace(raccogli=raccogli)})
+    esecutore = Esecutore(
+        sessioni,
+        fabbrica_provider=lambda nome: ConLatenza(risponditore),
+        fonti={"arxiv": SimpleNamespace(raccogli=raccogli)},
+    )
     asyncio.run(prova())
 
     # 60 paper: un giro di due blocchi da 30 insieme; le valutazioni partono tutte prima che una finisca;
     # 60 notizie mostrate: due blocchi di argomenti, uno dopo l'altro.
-    assert letti == ([("raccolta", 0, 0)] + [("pre-filtro", 0, 2)] * 2 + [("valutazione", 0, 60)] * 60
-                     + [("argomenti", 0, 2), ("argomenti", 1, 2)])
+    assert letti == (
+        [("raccolta", 0, 0)]
+        + [("pre-filtro", 0, 2)] * 2
+        + [("valutazione", 0, 60)] * 60
+        + [("argomenti", 0, 2), ("argomenti", 1, 2)]
+    )
     assert esecutore.avanzamento is None
     with sessioni() as s:
         esecuzione = s.scalars(select(Esecuzione)).one()
@@ -1231,6 +1420,7 @@ def test_un_sito_in_errore_non_conta_come_fonte_irraggiungibile(sessioni):
 def test_una_cancellazione_durante_la_raccolta_si_rilancia(sessioni):
     """T-51: una cancellazione (non è un `Exception`) non diventa "fonte non raggiungibile": arriva all'esecuzione,
     che resta interrotta come allo spegnimento e non manda il messaggio di fine."""
+
     async def cancellata(client, categorie, dal):
         raise asyncio.CancelledError
 
@@ -1240,8 +1430,11 @@ def test_una_cancellazione_durante_la_raccolta_si_rilancia(sessioni):
         terminate.append(id)
 
     async def prova():
-        esecutore = Esecutore(sessioni, fabbrica_provider=lambda nome: Finto(risponditore),
-                              fonti={"arxiv": SimpleNamespace(raccogli=cancellata)})
+        esecutore = Esecutore(
+            sessioni,
+            fabbrica_provider=lambda nome: Finto(risponditore),
+            fonti={"arxiv": SimpleNamespace(raccogli=cancellata)},
+        )
         esecutore.al_termine = al_termine
         esecutore.avvia("cli")
         with pytest.raises(asyncio.CancelledError):

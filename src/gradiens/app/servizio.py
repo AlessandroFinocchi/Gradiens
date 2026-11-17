@@ -79,9 +79,16 @@ def esecuzione(request: Request) -> dict:
     avanzamento = request.app.state.esecutore.avanzamento
     with request.app.state.sessioni() as s:
         u = esecuzioni.ultima(s)
-        ultima = None if u is None else {
-            "id": u.id, "stato": u.stato, "motivo": u.motivo, "metriche": json.loads(u.metriche or "null"),
-        }
+        ultima = (
+            None
+            if u is None
+            else {
+                "id": u.id,
+                "stato": u.stato,
+                "motivo": u.motivo,
+                "metriche": json.loads(u.metriche or "null"),
+            }
+        )
     return {"avanzamento": vars(avanzamento) if avanzamento else None, "ultima": ultima}
 
 
@@ -94,8 +101,11 @@ def rifiuto_da_fuori(nome: str | None, intestazioni: Headers) -> Response | None
     if intestazioni.get("host", "").split(":")[0].lower() != nome:
         return PlainTextResponse("Invalid host header", 400)
     if "tailscale-user-login" not in intestazioni:
-        return PlainTextResponse("Richiesta senza l'identità di Tailscale: la dashboard si apre solo dai dispositivi "
-                                 "della tua rete Tailscale, mai da internet con Funnel.", 403)
+        return PlainTextResponse(
+            "Richiesta senza l'identità di Tailscale: la dashboard si apre solo dai dispositivi "
+            "della tua rete Tailscale, mai da internet con Funnel.",
+            403,
+        )
     return None
 
 
@@ -121,8 +131,10 @@ class ControlloHost:
 async def ciclo_di_vita(app: FastAPI):
     # Prima il bot: un'esecuzione recuperata all'avvio che fallisce subito deve poterlo segnalare (ESE-13).
     await app.state.bot.avvia()
-    compiti = [asyncio.create_task(app.state.programmatore.gira()),  # ESE-01
-               asyncio.create_task(app.state.bot.gira())]  # sezione 7 del PRD
+    compiti = [
+        asyncio.create_task(app.state.programmatore.gira()),  # ESE-01
+        asyncio.create_task(app.state.bot.gira()),
+    ]  # sezione 7 del PRD
     yield
     for compito in compiti:
         compito.cancel()
@@ -165,7 +177,9 @@ def crea_app(conf: Configurazione) -> FastAPI:
 
 def configura_log(conf: Configurazione) -> None:
     conf.cartella_log.mkdir(parents=True, exist_ok=True)
-    gestore = RotatingFileHandler(conf.cartella_log / "gradiens.log", maxBytes=1_000_000, backupCount=3, encoding="utf-8")
+    gestore = RotatingFileHandler(
+        conf.cartella_log / "gradiens.log", maxBytes=1_000_000, backupCount=3, encoding="utf-8"
+    )
     gestore.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
     gestori = [gestore] if sys.stdout is None else [gestore, logging.StreamHandler(sys.stdout)]
     logging.basicConfig(level=logging.INFO, handlers=gestori)
@@ -203,7 +217,11 @@ def esegui(conf: Configurazione) -> None:
     app.state.porta_remota_aperta = len(prese) > 1
     server = uvicorn.Server(configurazione_uvicorn(app))
     app.state.server = server
-    log.info("Gradiens in ascolto su http://%s:%s (porta per Tailscale Serve: %s)", conf.host, conf.porta,
-             conf.porta_remota if app.state.porta_remota_aperta else "non disponibile")
+    log.info(
+        "Gradiens in ascolto su http://%s:%s (porta per Tailscale Serve: %s)",
+        conf.host,
+        conf.porta,
+        conf.porta_remota if app.state.porta_remota_aperta else "non disponibile",
+    )
     server.run(sockets=prese)
     log.info("Gradiens spento")

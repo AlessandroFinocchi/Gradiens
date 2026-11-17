@@ -34,18 +34,26 @@ def candidate(f: feedparser.FeedParserDict, base: str, fonte: str) -> list[Candi
         if not url:
             continue
         data = da_struct(voce.get("published_parsed") or voce.get("updated_parsed"))
-        trovate.append(Candidata(
-            tipo="sito", url=url, fonte=fonte,
-            titolo=testo_semplice(voce.get("title", "")) or titolo_da_url(url),
-            sommario=testo_semplice(voce.get("summary", "")), contenuto="",
-            pubblicata_il=data or adesso(), data_incerta=data is None,
-        ))
+        trovate.append(
+            Candidata(
+                tipo="sito",
+                url=url,
+                fonte=fonte,
+                titolo=testo_semplice(voce.get("title", "")) or titolo_da_url(url),
+                sommario=testo_semplice(voce.get("summary", "")),
+                contenuto="",
+                pubblicata_il=data or adesso(),
+                data_incerta=data is None,
+            )
+        )
     return trovate
 
 
 def _indirizzi_nella_pagina(doc, base: str) -> list[str]:
-    trovati = [normalizza(link.get("href", ""), base)
-               for link in doc.xpath("//link[contains(@rel, 'alternate')][contains(@type, 'rss') or contains(@type, 'atom')]")]
+    trovati = [
+        normalizza(link.get("href", ""), base)
+        for link in doc.xpath("//link[contains(@rel, 'alternate')][contains(@type, 'rss') or contains(@type, 'atom')]")
+    ]
     trovati += [u for u, _ in collegamenti(doc, base) if SEMBRA_FEED.search(urlsplit(u).netloc + urlsplit(u).path)]
     return [u for u in dict.fromkeys(trovati) if u and "comment" not in u.lower()]
 
@@ -73,7 +81,7 @@ async def analizza(nav: Navigatore, profilo, pagina: Pagina | None) -> str | Non
     for url in dalla_pagina:
         if len(profilo.feed) < MASSIMI and await valido(url):
             profilo.feed.append(url)
-    for url in ([] if profilo.feed else dict.fromkeys(comuni)):
+    for url in [] if profilo.feed else dict.fromkeys(comuni):
         if await valido(url):
             profilo.feed.append(url)
             break  # dai percorsi comuni basta il primo
@@ -92,7 +100,10 @@ async def raccogli(nav: Navigatore, profilo, dal) -> Raccolta:
             continue
         f = interpreta(letta)
         if f is None:
-            r.guasti.append(f"il feed {url} non è un feed: risponde con " + ("una pagina HTML" if letta.html else "un formato sconosciuto"))
+            r.guasti.append(
+                f"il feed {url} non è un feed: risponde con "
+                + ("una pagina HTML" if letta.html else "un formato sconosciuto")
+            )
             continue
         r.riuscita = True
         vecchie = False

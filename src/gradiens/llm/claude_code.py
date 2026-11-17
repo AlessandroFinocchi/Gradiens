@@ -17,8 +17,10 @@ log = logging.getLogger(__name__)
 
 # Chiamate isolate: ~700 token di contesto invece di ~36.000 (misure nell'ADR 0006).
 OPZIONI_ISOLAMENTO = [
-    "--output-format", "json",
-    "--tools", "",
+    "--output-format",
+    "json",
+    "--tools",
+    "",
     "--strict-mcp-config",
     "--safe-mode",
     "--disable-slash-commands",
@@ -64,7 +66,9 @@ def interpreta(uscita: str) -> Risposta:
     if not isinstance(dati, dict):
         raise ErroreLLM("Claude Code non ha restituito la risposta strutturata richiesta.")
     usage = d.get("usage") or {}
-    ingresso = sum(usage.get(k) or 0 for k in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"))
+    ingresso = sum(
+        usage.get(k) or 0 for k in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
+    )
     return Risposta(dati=dati, token_ingresso=ingresso, token_uscita=usage.get("output_tokens") or 0)
 
 
@@ -94,16 +98,23 @@ class ClaudeCode:
 
     async def _una_chiamata(self, sistema: str, messaggio: str, schema: dict, modello: str) -> Risposta:
         comando = [
-            *(self._comando or [str(trova_eseguibile())]), "-p",
-            "--model", modello,
-            "--system-prompt", sistema,
-            "--json-schema", json.dumps(schema, ensure_ascii=False),
+            *(self._comando or [str(trova_eseguibile())]),
+            "-p",
+            "--model",
+            modello,
+            "--system-prompt",
+            sistema,
+            "--json-schema",
+            json.dumps(schema, ensure_ascii=False),
             *OPZIONI_ISOLAMENTO,
         ]
         async with self._limite:
             processo = await asyncio.create_subprocess_exec(
-                *comando, stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE, env=_ambiente(),
+                *comando,
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                env=_ambiente(),
             )
             try:
                 # Il messaggio passa da stdin: niente limiti di lunghezza della riga di comando.
@@ -128,10 +139,17 @@ def stato_account(comando: list[str] | None = None) -> str:
     """UI-11: descrizione del collegamento di Claude Code a un account, per esempio "abbonamento Pro".
     Solleva ErroreLLM, con un messaggio per l'utente, se Claude Code manca o non è collegato."""
     try:
-        risultato = subprocess.run([*(comando or [str(trova_eseguibile())]), "auth", "status"], capture_output=True,
-                                   text=True, encoding="utf-8", errors="replace", timeout=30, env=_ambiente())
+        risultato = subprocess.run(
+            [*(comando or [str(trova_eseguibile())]), "auth", "status"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
+            env=_ambiente(),
+        )
         dati = json.loads(risultato.stdout)
-    except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
+    except OSError, subprocess.TimeoutExpired, json.JSONDecodeError:
         raise ErroreLLM("Claude Code non risponde: prova ad aprirlo in un terminale con il comando claude.") from None
     if not dati.get("loggedIn"):
         raise ErroreLLM(f"Claude Code non è collegato a un account: {RIMEDIO_LOGIN}")
@@ -143,9 +161,16 @@ def versione(comando: list[str] | None = None) -> str | None:
     """`claude --version` (opzione documentata, non chiama il modello), es. "2.1.316". None se non si legge:
     l'esecuzione va avanti, manca solo il confronto con la versione precedente."""
     try:
-        risultato = subprocess.run([*(comando or [str(trova_eseguibile())]), "--version"], capture_output=True,
-                                   text=True, encoding="utf-8", errors="replace", timeout=30, env=_ambiente())
-    except (OSError, subprocess.TimeoutExpired, ErroreLLM):
+        risultato = subprocess.run(
+            [*(comando or [str(trova_eseguibile())]), "--version"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
+            env=_ambiente(),
+        )
+    except OSError, subprocess.TimeoutExpired, ErroreLLM:
         return None
     trovata = re.match(r"\d+(\.\d+)+", risultato.stdout.strip()) if risultato.returncode == 0 else None
     return trovata and trovata.group()
@@ -157,9 +182,11 @@ def scadenza_login() -> datetime | None:
     solo la data: i token non si usano né si copiano. None se il file non c'è (es. login tenuto nel Keychain)."""
     cartella = Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
     try:
-        millisecondi = json.loads((cartella / ".credentials.json").read_text(encoding="utf-8"))["claudeAiOauth"]["refreshTokenExpiresAt"]
+        millisecondi = json.loads((cartella / ".credentials.json").read_text(encoding="utf-8"))["claudeAiOauth"][
+            "refreshTokenExpiresAt"
+        ]
         return datetime.fromtimestamp(millisecondi / 1000) if millisecondi else None
-    except (OSError, ValueError, KeyError, TypeError):
+    except OSError, ValueError, KeyError, TypeError:
         return None
 
 
@@ -170,4 +197,7 @@ def avviso_login(adesso: datetime | None = None) -> str | None:
         return None
     if scadenza <= adesso:
         return f"Il login di Claude Code è scaduto il {scadenza:%d/%m alle %H:%M}: {RIMEDIO_LOGIN}"
-    return f"Il login di Claude Code scade il {scadenza:%d/%m alle %H:%M}: per non far fallire le esecuzioni, {RIMEDIO_LOGIN}"
+    return (
+        f"Il login di Claude Code scade il {scadenza:%d/%m alle %H:%M}: "
+        f"per non far fallire le esecuzioni, {RIMEDIO_LOGIN}"
+    )

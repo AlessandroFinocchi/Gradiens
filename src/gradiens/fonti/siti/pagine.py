@@ -26,7 +26,7 @@ def albero(pagina: Pagina) -> lxml.html.HtmlElement | None:
         return None
     try:
         return lxml.html.document_fromstring(pagina.testo)
-    except (etree.ParserError, ValueError):
+    except etree.ParserError, ValueError:
         return None
 
 
@@ -53,15 +53,22 @@ def testo_semplice(frammento: str) -> str:
 
 
 def piattaforma(pagina: Pagina) -> str:
-    """Dal meta generator (un sito WordPress ne ha spesso più d'uno, es. Elementor) o da segni nel codice della pagina."""
+    """Dal meta generator (un sito WordPress ne ha spesso più d'uno, es. Elementor)
+    o da segni nel codice della pagina."""
     doc = albero(pagina)
     generatori = [g.strip().lower() for g in doc.xpath("//meta[@name='generator']/@content")] if doc is not None else []
     for nome in ("wordpress", "blogger", "substack", "ghost", "hugo", "hexo", "jekyll", "drupal", "joomla", "liferay"):
         if any(nome in g for g in generatori):
             return nome
     t = pagina.testo.lower()
-    for segno, nome in (("/wp-content/", "wordpress"), ("/wp-includes/", "wordpress"), ("substackcdn.com", "substack"),
-                        ("www.blogger.com/", "blogger"), ("/_next/", "next.js"), ("/o/liferay", "liferay")):
+    for segno, nome in (
+        ("/wp-content/", "wordpress"),
+        ("/wp-includes/", "wordpress"),
+        ("substackcdn.com", "substack"),
+        ("www.blogger.com/", "blogger"),
+        ("/_next/", "next.js"),
+        ("/o/liferay", "liferay"),
+    ):
         if segno in t:
             return nome
     return generatori[0].split()[0] if generatori and generatori[0] else ""
@@ -78,12 +85,17 @@ def richiede_js(pagina: Pagina) -> bool:
     return len(visibile) < 300 or bool(re.search(r"enable javascript|attiva(re)? javascript", pagina.testo, re.I))
 
 
-COMMERCIALE = re.compile(r"offert[ae]|deals?|coupons?|sconti|promo(zioni)?|shop(ping)?|store|sponsor\w*|advertis\w*|pubblicit\w*"
-                         r"|black-?friday", re.I)
+COMMERCIALE = re.compile(
+    r"offert[ae]|deals?|coupons?|sconti|promo(zioni)?|shop(ping)?|store|sponsor\w*|advertis\w*|pubblicit\w*"
+    r"|black-?friday",
+    re.I,
+)
 # Social network e servizi tecnici (feed, avatar, pagamenti): non sono siti di notizie da proporre (WEB-07).
-SOCIAL = re.compile(r"(^|\.)(facebook|twitter|x|instagram|linkedin|youtube|youtu|t|telegram|tiktok|whatsapp|reddit|"
-                    r"pinterest|github|google|apple|threads|bsky|mastodon|discord|spotify|flipboard|"
-                    r"feedburner|feedly|gravatar|wordpress|wp|paypal|patreon|ko-fi|buymeacoffee|bit)\.\w+$")
+SOCIAL = re.compile(
+    r"(^|\.)(facebook|twitter|x|instagram|linkedin|youtube|youtu|t|telegram|tiktok|whatsapp|reddit|"
+    r"pinterest|github|google|apple|threads|bsky|mastodon|discord|spotify|flipboard|"
+    r"feedburner|feedly|gravatar|wordpress|wp|paypal|patreon|ko-fi|buymeacoffee|bit)\.\w+$"
+)
 SEZIONI_MASSIME = 8
 COLLEGATI_MASSIMI = 10
 
@@ -99,8 +111,15 @@ def sezioni(doc: lxml.html.HtmlElement, base: str, profilo) -> list[str]:
             buona = nel_menu(a) and profilo.nel_perimetro(url) and 1 <= len(parti) <= 2
         # niente articoli, pagine di servizio, numeri di pagina, file (feed, immagini) o offerte
         file = re.search(r"\.(?!html?$|php$|aspx?$)\w{2,5}$", parti[-1]) if parti else None
-        if buona and not file and not parti[-1].isdigit() and not sembra_articolo(url) and not di_servizio(url) \
-                and not profilo.escluso(url) and not _commerciale(url, a):
+        if (
+            buona
+            and not file
+            and not parti[-1].isdigit()
+            and not sembra_articolo(url)
+            and not di_servizio(url)
+            and not profilo.escluso(url)
+            and not _commerciale(url, a)
+        ):
             trovate.append(url)
     return list(dict.fromkeys(trovate))[:SEZIONI_MASSIME]
 
@@ -124,7 +143,7 @@ def commerciali(doc: lxml.html.HtmlElement, base: str, profilo) -> list[str]:
         parti = segmenti(url)
         indice = next((i for i, s in enumerate(parti) if COMMERCIALE.fullmatch(s)), None)
         if indice is not None:
-            trovate.append(f"https://{urlsplit(url).netloc}/{'/'.join(parti[:indice + 1])}/")
+            trovate.append(f"https://{urlsplit(url).netloc}/{'/'.join(parti[: indice + 1])}/")
         elif COMMERCIALE.fullmatch(urlsplit(url).netloc.split(".")[0]):
             trovate.append(f"https://{urlsplit(url).netloc}/")  # es. offerte.sito.it
         elif nel_menu(a) and parti and _voce_commerciale(a):
@@ -140,7 +159,12 @@ def traduzioni(doc: lxml.html.HtmlElement, base: str, profilo) -> list[str]:
     for link in doc.xpath("//link[contains(@rel, 'alternate')][@hreflang]"):
         codice = link.get("hreflang").lower().split("-")[0]
         url = normalizza(link.get("href", ""), base)
-        if not url or codice in ("x", lingua) or chiave(url) == chiave(base) or not stesso_dominio(host(url), profilo.dominio):
+        if (
+            not url
+            or codice in ("x", lingua)
+            or chiave(url) == chiave(base)
+            or not stesso_dominio(host(url), profilo.dominio)
+        ):
             continue  # x-default, la lingua della pagina, la pagina stessa, altri domini
         parti = segmenti(url)
         if parti and parti[0].lower().split("-")[0] == codice:

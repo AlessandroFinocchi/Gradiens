@@ -13,17 +13,20 @@ def test_un_gradiens_nuovo_porta_alla_configurazione(client_nuovo):
         risposta = client_nuovo.get(percorso)
         assert risposta.url.path == "/configurazione" and "Benvenuto in Gradiens" in risposta.text
         assert 'aria-label="Pagine"' not in risposta.text  # niente sidebar: la dashboard non si usa ancora
-    assert "<button class=\"bottone\" disabled>Avanti</button>" in client_nuovo.get("/configurazione").text
+    assert '<button class="bottone" disabled>Avanti</button>' in client_nuovo.get("/configurazione").text
 
 
 def test_i_passi_usano_i_moduli_delle_impostazioni(client_nuovo):
-    passo = client_nuovo.post("/impostazioni/interessi", data={"nome": "AI", "descrizione": "Modelli"},
-                              headers=DALLA_PROCEDURA).text
+    passo = client_nuovo.post(
+        "/impostazioni/interessi", data={"nome": "AI", "descrizione": "Modelli"}, headers=DALLA_PROCEDURA
+    ).text
     assert "Benvenuto in Gradiens" in passo and "finestra-testata" not in passo  # il passo, non la finestra
     assert 'href="/configurazione?passo=fonti">Avanti' in passo
 
     passo = client_nuovo.post("/impostazioni/arxiv/categorie", data={"codice": "cs.CR"}, headers=DALLA_PROCEDURA).text
-    assert 'href="/configurazione?passo=claude">Avanti' in passo  # basta una fonte qualsiasi (decisione 56 dei requisiti)
+    assert (
+        'href="/configurazione?passo=claude">Avanti' in passo
+    )  # basta una fonte qualsiasi (decisione 56 dei requisiti)
 
 
 def test_passo_di_claude_code(client_nuovo, monkeypatch):
@@ -70,6 +73,7 @@ def test_alla_fine_si_puo_creare_l_icona_del_pannello(client_nuovo, monkeypatch)
         impostazioni.leggi(s).telegram_chat_id = 4242
         s.commit()
     client_nuovo.app.state.conf.telegram_token = "presente"
+
     def rotto(radice):
         raise avvio_sistema.ErroreAvvio("Icone non create: PowerShell bloccato.")
 

@@ -16,15 +16,29 @@ from gradiens.telegram import messaggi
 DA_NON_SOMMARE: set[str] = set()
 
 # Una metrica salvata prima della fetta 4b: senza `scartate_prefiltro`, `oltre_tetto` e altre chiavi.
-VECCHIA = {"durata_s": 3.0, "fonti": {"arxiv": {"esaminate": 2, "mostrate": 1, "errori": 0}},
-           "token": {"prefiltro": {"ingresso": 10, "uscita": 1}}}
+VECCHIA = {
+    "durata_s": 3.0,
+    "fonti": {"arxiv": {"esaminate": 2, "mostrate": 1, "errori": 0}},
+    "token": {"prefiltro": {"ingresso": 10, "uscita": 1}},
+}
 
 
 def test_le_chiavi_delle_metriche_e_chi_le_legge():
     """Chi toglie o rinomina una chiave rompe le metriche già salvate: qui si cambia solo per aggiunta."""
     assert list(asdict(Contatori())) == [
-        "raccolta_s", "esaminate", "scartate_prefiltro", "oltre_tetto", "escluse", "senza_contenuto",
-        "scartate_valutazione", "mostrate", "errori", "stati", "problemi", "notizie_escluse"]
+        "raccolta_s",
+        "esaminate",
+        "scartate_prefiltro",
+        "oltre_tetto",
+        "escluse",
+        "senza_contenuto",
+        "scartate_valutazione",
+        "mostrate",
+        "errori",
+        "stati",
+        "problemi",
+        "notizie_escluse",
+    ]
     assert Metriche().token == {"prefiltro": {"ingresso": 0, "uscita": 0}, "elaborazione": {"ingresso": 0, "uscita": 0}}
 
 

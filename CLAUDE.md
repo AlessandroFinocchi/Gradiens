@@ -35,7 +35,7 @@ Gira su Windows e su Linux: niente codice specifico di un sistema fuori da `app/
 - Strategie di scoperta/estrazione dei siti come moduli intercambiabili.
 
 ## Definizione di "fatto"
-Test verdi, `uv run ruff check` verde (decisione 47), /ponytail-review eseguito, commit. Niente review con ocr: l'utente non ha un'API per lanciarlo.
+Test verdi, `uv run ruff format` applicato e `uv run ruff check` verde (decisioni 47 e 64), /ponytail-review eseguito, commit. Niente review con ocr: l'utente non ha un'API per lanciarlo.
 
 ## Lavoro in team
 Ogni membro del team possiede cartelle diverse: mai due membri sullo stesso file.

@@ -1,4 +1,3 @@
-
 import pytest
 
 from gradiens.dashboard.comune import evidenzia
@@ -18,8 +17,16 @@ def s(tmp_path):
 
 
 def con_cuore(s, url, punteggi):
-    n = Notizia(tipo="sito", url=url, fonte="e.org", titolo=url, riassunto="r", pubblicata_il=adesso(),
-                scoperta_il=adesso(), pertinenze=[Pertinenza(interesse_id=i, punteggio=p) for i, p in punteggi])
+    n = Notizia(
+        tipo="sito",
+        url=url,
+        fonte="e.org",
+        titolo=url,
+        riassunto="r",
+        pubblicata_il=adesso(),
+        scoperta_il=adesso(),
+        pertinenze=[Pertinenza(interesse_id=i, punteggio=p) for i, p in punteggi],
+    )
     s.add(n)
     s.commit()
     notizie.imposta_cuore(s, n.id, True)
@@ -78,4 +85,6 @@ def test_nuovo_interesse_dai_cuori_nuovi_di_qualsiasi_notizia(s):
 
 def test_parole_nuove_evidenziate():
     assert evidenzia("Agenti con strumenti.", "agenti con strumenti e cache dei prompt") == [
-        ("agenti con strumenti", False), ("e cache dei prompt", True)]  # punteggiatura e maiuscole non contano
+        ("agenti con strumenti", False),
+        ("e cache dei prompt", True),
+    ]  # punteggiatura e maiuscole non contano

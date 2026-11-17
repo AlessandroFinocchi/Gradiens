@@ -33,16 +33,20 @@ def interpreta(atom: str, categorie: list[str]) -> list[Candidata]:
             continue
         abstract = _spazi(voce.get("summary", ""))
         primaria = voce.get("arxiv_primary_category", {}).get("term", "arXiv")
-        categoria = next((c for c in [primaria, *(tag.term for tag in voce.get("tags", []))] if c in categorie), primaria)
-        candidate.append(Candidata(
-            tipo="arxiv",
-            url=url,
-            fonte=categoria,
-            titolo=_spazi(voce.get("title", "")),
-            sommario=abstract,
-            contenuto=abstract,
-            pubblicata_il=datetime.fromtimestamp(calendar.timegm(voce.published_parsed), UTC).replace(tzinfo=None),
-        ))
+        categoria = next(
+            (c for c in [primaria, *(tag.term for tag in voce.get("tags", []))] if c in categorie), primaria
+        )
+        candidate.append(
+            Candidata(
+                tipo="arxiv",
+                url=url,
+                fonte=categoria,
+                titolo=_spazi(voce.get("title", "")),
+                sommario=abstract,
+                contenuto=abstract,
+                pubblicata_il=datetime.fromtimestamp(calendar.timegm(voce.published_parsed), UTC).replace(tzinfo=None),
+            )
+        )
     return candidate
 
 
@@ -55,10 +59,18 @@ async def raccogli(client: httpx.AsyncClient, categorie: list[str], dal: datetim
     for pagina in range(PAGINE_MASSIME):
         if pagina:
             await asyncio.sleep(PAUSA)
-        risposta = await client.get(API, params={
-            "search_query": query, "sortBy": "submittedDate", "sortOrder": "descending",
-            "start": pagina * PER_PAGINA, "max_results": PER_PAGINA,
-        }, headers={"User-Agent": USER_AGENT}, timeout=60)
+        risposta = await client.get(
+            API,
+            params={
+                "search_query": query,
+                "sortBy": "submittedDate",
+                "sortOrder": "descending",
+                "start": pagina * PER_PAGINA,
+                "max_results": PER_PAGINA,
+            },
+            headers={"User-Agent": USER_AGENT},
+            timeout=60,
+        )
         risposta.raise_for_status()
         blocco = interpreta(risposta.text, categorie)
         trovate += [c for c in blocco if c.pubblicata_il >= dal]

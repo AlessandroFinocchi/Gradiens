@@ -25,10 +25,20 @@ def dati(client):
             ("https://example.org/2", "video", 70, 2, True, "Video sul ransomware"),
             ("https://arxiv.org/abs/3", "arxiv", 95, 30, True, "Paper vecchio con il cuore"),
         ]:
-            s.add(Notizia(tipo=tipo, url=url, fonte="cs.CR" if tipo == "arxiv" else "Lab", titolo=titolo,
-                          titolo_it=None, riassunto="Primo paragrafo.\nSecondo paragrafo.",
-                          pubblicata_il=ora - timedelta(days=giorni), scoperta_il=ora, cuore=cuore,
-                          pertinenze=[Pertinenza(interesse_id=sic.id, punteggio=punteggio)]))
+            s.add(
+                Notizia(
+                    tipo=tipo,
+                    url=url,
+                    fonte="cs.CR" if tipo == "arxiv" else "Lab",
+                    titolo=titolo,
+                    titolo_it=None,
+                    riassunto="Primo paragrafo.\nSecondo paragrafo.",
+                    pubblicata_il=ora - timedelta(days=giorni),
+                    scoperta_il=ora,
+                    cuore=cuore,
+                    pertinenze=[Pertinenza(interesse_id=sic.id, punteggio=punteggio)],
+                )
+            )
         s.commit()
     return client
 
@@ -94,15 +104,19 @@ def test_impostazioni_interessi(dati):
     assert "Esiste già un interesse" in doppione
     with dati.app.state.sessioni() as s:
         id = next(i.id for i in interessi.elenca(s) if i.nome == "LLM")
-    dati.post(f"/impostazioni/interessi/{id}", data={"nome": "LLM e agenti", "descrizione": "modelli",
-                                                      "raffinamento": "soprattutto agenti"}, headers=HTMX)
+    dati.post(
+        f"/impostazioni/interessi/{id}",
+        data={"nome": "LLM e agenti", "descrizione": "modelli", "raffinamento": "soprattutto agenti"},
+        headers=HTMX,
+    )
     with dati.app.state.sessioni() as s:
         assert [i.raffinamento for i in interessi.elenca(s) if i.nome == "LLM e agenti"] == ["soprattutto agenti"]
     assert dati.post("/impostazioni/interessi/9999/elimina", headers=HTMX).status_code == 404
 
 
 def test_segnali_nella_finestra_e_sull_ingranaggio(dati):
-    # Nel fixture c'è solo una categoria arXiv: canali e siti vuoti vanno bene (decisione 56 dei requisiti), manca il bot.
+    # Nel fixture c'è solo una categoria arXiv: canali e siti vuoti vanno bene (decisione 56 dei requisiti),
+    # manca il bot.
     pagina = dati.get("/notizie").text
     assert 'id="apri-impostazioni"' in pagina and "Bot Telegram non collegato" in pagina
     with dati.app.state.sessioni() as s:
@@ -116,16 +130,30 @@ def test_segnali_nella_finestra_e_sull_ingranaggio(dati):
 
 
 def test_impostazioni_arxiv_ed_esecuzione(dati):
-    assert "non sembra una categoria" in dati.post("/impostazioni/arxiv/categorie", data={"codice": "<b>x</b>"}, headers=HTMX).text
+    assert (
+        "non sembra una categoria"
+        in dati.post("/impostazioni/arxiv/categorie", data={"codice": "<b>x</b>"}, headers=HTMX).text
+    )
     assert "cs.AI" in dati.post("/impostazioni/arxiv/categorie", data={"codice": "cs.AI"}, headers=HTMX).text
-    con_nome = dati.post("/impostazioni/arxiv/categorie", data={"codice": "cs.IR", "nome": "Ricerca <i>"}, headers=HTMX).text
-    assert '<div class="titolo"><code>cs.IR</code> · Ricerca &lt;i&gt;</div>' in con_nome  # codice e nome sulla stessa riga
+    con_nome = dati.post(
+        "/impostazioni/arxiv/categorie", data={"codice": "cs.IR", "nome": "Ricerca <i>"}, headers=HTMX
+    ).text
+    assert (
+        '<div class="titolo"><code>cs.IR</code> · Ricerca &lt;i&gt;</div>' in con_nome
+    )  # codice e nome sulla stessa riga
     righe = [con_nome.index(f'<div class="titolo"><code>{c}</code>') for c in ("cs.AI", "cs.CR", "cs.IR")]
     assert righe == sorted(righe)  # in ordine di codice, non di inserimento
     assert con_nome.index("Tetto di paper") < con_nome.index("Categorie seguite") < con_nome.index("<code>cs.IR</code>")
-    assert "va da 1 a 7" in dati.post("/impostazioni/esecuzione", data={"soglia": 60, "finestra_giorni": 9}, headers=HTMX).text
-    assert "non è un orario valido" in dati.post(
-        "/impostazioni/esecuzione", data={"soglia": 60, "finestra_giorni": 7, "orario": "25:00"}, headers=HTMX).text
+    assert (
+        "va da 1 a 7"
+        in dati.post("/impostazioni/esecuzione", data={"soglia": 60, "finestra_giorni": 9}, headers=HTMX).text
+    )
+    assert (
+        "non è un orario valido"
+        in dati.post(
+            "/impostazioni/esecuzione", data={"soglia": 60, "finestra_giorni": 7, "orario": "25:00"}, headers=HTMX
+        ).text
+    )
     sezione = dati.get("/impostazioni/esecuzione", headers=HTMX).text
     assert 'name="automatica" value="true" checked' in sezione  # programmazione automatica accesa
     assert '<div class="riga solo-se-automatica">' in sezione  # l'orario sparisce quando la si spegne
@@ -136,8 +164,11 @@ def test_impostazioni_arxiv_ed_esecuzione(dati):
         assert (imp.soglia, imp.finestra_giorni) == (75, 3)
         assert (imp.orario_programmato, imp.programmazione_in_pausa) == ("06:45", True)
     assert dati.get("/api/stato").json()["prossima_esecuzione"] is None  # in pausa
-    dati.post("/impostazioni/esecuzione", data={"soglia": 75, "finestra_giorni": 3, "orario": "06:45", "automatica": "true"},
-              headers=HTMX)
+    dati.post(
+        "/impostazioni/esecuzione",
+        data={"soglia": 75, "finestra_giorni": 3, "orario": "06:45", "automatica": "true"},
+        headers=HTMX,
+    )
     assert dati.get("/api/stato").json()["prossima_esecuzione"] is not None
 
 
@@ -150,16 +181,53 @@ def test_home_senza_esecuzioni(client):
 def test_home_e_resoconto_di_un_esecuzione(dati):
     with dati.app.state.sessioni() as s:
         e = esecuzioni.inizia(s, "programmazione")
-        esecuzioni.termina(s, e.id, "completata", {
-            "durata_s": 192, "fonti": {"siti": {
-                "raccolta_s": 48, "esaminate": 215, "scartate_prefiltro": 160, "scartate_valutazione": 31, "escluse": 1,
-                "senza_contenuto": 0, "mostrate": 17, "errori": 1,
-                "stati": [{"fonte": "rotto.it", "stato": "accesso bloccato", "dettaglio": "Il sito rifiuta le richieste.", "nuove": 0},
-                          {"fonte": "buono.it", "stato": "ok", "nuove": 12}],
-                "problemi": [],
-                "notizie_escluse": [{"fonte": "buono.it", "titolo": "Sconto <b>40%</b>", "url": "https://buono.it/x", "motivo": "sponsorizzato o offerta"}]}},
-            "token": {"prefiltro": {"ingresso": 61400, "uscita": 4900, "provider": "claude-code", "modello": "haiku"},
-                      "elaborazione": {"ingresso": 142800, "uscita": 21300, "provider": "claude-code", "modello": "haiku"}}})
+        esecuzioni.termina(
+            s,
+            e.id,
+            "completata",
+            {
+                "durata_s": 192,
+                "fonti": {
+                    "siti": {
+                        "raccolta_s": 48,
+                        "esaminate": 215,
+                        "scartate_prefiltro": 160,
+                        "scartate_valutazione": 31,
+                        "escluse": 1,
+                        "senza_contenuto": 0,
+                        "mostrate": 17,
+                        "errori": 1,
+                        "stati": [
+                            {
+                                "fonte": "rotto.it",
+                                "stato": "accesso bloccato",
+                                "dettaglio": "Il sito rifiuta le richieste.",
+                                "nuove": 0,
+                            },
+                            {"fonte": "buono.it", "stato": "ok", "nuove": 12},
+                        ],
+                        "problemi": [],
+                        "notizie_escluse": [
+                            {
+                                "fonte": "buono.it",
+                                "titolo": "Sconto <b>40%</b>",
+                                "url": "https://buono.it/x",
+                                "motivo": "sponsorizzato o offerta",
+                            }
+                        ],
+                    }
+                },
+                "token": {
+                    "prefiltro": {"ingresso": 61400, "uscita": 4900, "provider": "claude-code", "modello": "haiku"},
+                    "elaborazione": {
+                        "ingresso": 142800,
+                        "uscita": 21300,
+                        "provider": "claude-code",
+                        "modello": "haiku",
+                    },
+                },
+            },
+        )
         dati_siti.aggiungi(s, "https://rotto.it/", {"url": "https://rotto.it/"})
         dati_siti.registra_esito(s, dati_siti.elenca(s)[0].id, "accesso bloccato", "x", True)
         id = e.id
@@ -178,10 +246,27 @@ def test_home_e_resoconto_di_un_esecuzione(dati):
 def test_resoconto_di_un_esecuzione_registrata_prima_della_fetta_4b(client):
     with client.app.state.sessioni() as s:
         e = esecuzioni.inizia(s, "cli")
-        esecuzioni.termina(s, e.id, "completata", {"durata_s": 5, "fonti": {"arxiv": {
-            "esaminate": 3, "scartate_prefiltro": 1, "oltre_tetto": 0, "senza_contenuto": 0, "scartate_valutazione": 1,
-            "mostrate": 1, "errori": 0, "problemi": [{"fonte": "arXiv", "stato": "non raggiungibile: x"}]}},
-            "token": {"prefiltro": {"ingresso": 1, "uscita": 1}}})
+        esecuzioni.termina(
+            s,
+            e.id,
+            "completata",
+            {
+                "durata_s": 5,
+                "fonti": {
+                    "arxiv": {
+                        "esaminate": 3,
+                        "scartate_prefiltro": 1,
+                        "oltre_tetto": 0,
+                        "senza_contenuto": 0,
+                        "scartate_valutazione": 1,
+                        "mostrate": 1,
+                        "errori": 0,
+                        "problemi": [{"fonte": "arXiv", "stato": "non raggiungibile: x"}],
+                    }
+                },
+                "token": {"prefiltro": {"ingresso": 1, "uscita": 1}},
+            },
+        )
     resoconto = client.get(f"/esecuzioni/{e.id}")
     assert resoconto.status_code == 200 and "—" in resoconto.text and "non raggiungibile: x" in resoconto.text
 
@@ -207,8 +292,11 @@ def test_timeline_argomento_e_azioni(dati):
     rinomina = dati.post(f"/argomenti/{id_a}/rinomina", data={"nome": "Attacco alla ASL"}, headers=HTMX)
     assert rinomina.status_code == 204 and rinomina.headers["HX-Refresh"] == "true"
     assert dati.post(f"/argomenti/{id_a}/rinomina", data={"nome": " "}, headers=HTMX).status_code == 422
-    unione = dati.post(f"/argomenti/{id_b}/unisci", data={"destinazione": id_a},
-                       headers={**HTMX, "HX-Current-URL": f"http://127.0.0.1/argomenti/{id_b}"})
+    unione = dati.post(
+        f"/argomenti/{id_b}/unisci",
+        data={"destinazione": id_a},
+        headers={**HTMX, "HX-Current-URL": f"http://127.0.0.1/argomenti/{id_b}"},
+    )
     assert unione.headers["HX-Redirect"] == f"/argomenti/{id_a}"
     assert "3 notizie" in dati.get(f"/argomenti/{id_a}").text
     elimina = dati.post(f"/argomenti/{id_a}/elimina", headers={**HTMX, "HX-Current-URL": "http://127.0.0.1/timeline"})
@@ -230,7 +318,10 @@ def test_proposta_di_raffinamento_nelle_impostazioni(dati):
     approvata = dati.post(f"/impostazioni/proposte/{id}/approva", headers=HTMX).text
     assert "Proposta di raffinamento, da" not in approvata
     with dati.app.state.sessioni() as s:
-        assert next(i for i in interessi.elenca(s) if i.nome == "Sicurezza").raffinamento == "Ransomware <b>nella</b> sanità."
+        assert (
+            next(i for i in interessi.elenca(s) if i.nome == "Sicurezza").raffinamento
+            == "Ransomware <b>nella</b> sanità."
+        )
 
 
 def test_avanzamento_dell_esecuzione(dati):
@@ -254,8 +345,13 @@ def test_impostazioni_canali_youtube(dati, monkeypatch):
     monkeypatch.setattr(youtube, "risolvi_canale", risolvi)
     finestra = dati.post("/impostazioni/youtube", data={"indirizzo": "@lab"}, headers=HTMX).text
     assert "Lab &lt;b&gt;di&lt;/b&gt; Sicurezza" in finestra  # nome dal web: escapato
-    assert "Non è un indirizzo di YouTube" in dati.post("/impostazioni/youtube", data={"indirizzo": "https://example.org"}, headers=HTMX).text
-    assert "Nessun canale" in dati.post("/impostazioni/youtube/rimuovi", data={"id": "UC" + "x" * 22}, headers=HTMX).text
+    assert (
+        "Non è un indirizzo di YouTube"
+        in dati.post("/impostazioni/youtube", data={"indirizzo": "https://example.org"}, headers=HTMX).text
+    )
+    assert (
+        "Nessun canale" in dati.post("/impostazioni/youtube/rimuovi", data={"id": "UC" + "x" * 22}, headers=HTMX).text
+    )
 
 
 def test_impostazioni_siti(dati, monkeypatch):
@@ -267,8 +363,12 @@ def test_impostazioni_siti(dati, monkeypatch):
     async def analizza(client, indirizzo):
         if "rotto" in indirizzo:
             raise ValueError("indirizzo non valido")
-        return siti.Profilo(url="https://redhotcyber.com/", perimetro="redhotcyber.com", strategie=["feed"],
-                            siti_collegati={"esterno.example": False})
+        return siti.Profilo(
+            url="https://redhotcyber.com/",
+            perimetro="redhotcyber.com",
+            strategie=["feed"],
+            siti_collegati={"esterno.example": False},
+        )
 
     monkeypatch.setattr(siti, "analizza", analizza)
     finestra = dati.post("/impostazioni/siti", data={"indirizzo": "redhotcyber.com"}, headers=HTMX).text
@@ -276,12 +376,18 @@ def test_impostazioni_siti(dati, monkeypatch):
     # Sito nuovo con un sito collegato da attivare: è una novità, e la riga dice perché è evidenziata.
     assert '<div class="riga proposta"' in finestra and "evidenziata" not in finestra.split("Siti seguiti")[1]
     assert "L'analisi ha trovato un sito collegato: esterno.example" in finestra
-    assert "già tra quelli seguiti" in dati.post("/impostazioni/siti", data={"indirizzo": "redhotcyber.com"}, headers=HTMX).text
+    assert (
+        "già tra quelli seguiti"
+        in dati.post("/impostazioni/siti", data={"indirizzo": "redhotcyber.com"}, headers=HTMX).text
+    )
     assert "Indirizzo non valido" in dati.post("/impostazioni/siti", data={"indirizzo": "rotto"}, headers=HTMX).text
 
     with dati.app.state.sessioni() as s:
         id = s.query(Sito).one().id
-    assert "Serve un indirizzo completo" in dati.post(f"/impostazioni/siti/{id}/feed", data={"indirizzo": "javascript:alert(1)"}, headers=HTMX).text
+    assert (
+        "Serve un indirizzo completo"
+        in dati.post(f"/impostazioni/siti/{id}/feed", data={"indirizzo": "javascript:alert(1)"}, headers=HTMX).text
+    )
     dati.post(f"/impostazioni/siti/{id}/feed", data={"indirizzo": "https://redhotcyber.com/feed/gn"}, headers=HTMX)
     dati.post(f"/impostazioni/siti/{id}/collegato", data={"dominio": "esterno.example", "attivo": "true"}, headers=HTMX)
     with dati.app.state.sessioni() as s:
@@ -301,9 +407,16 @@ def test_tetti_del_sito_e_interruttori_di_esclusione(dati, monkeypatch):
 
     with dati.app.state.sessioni() as s:
         id = dati_siti.aggiungi(s, "https://hwupgrade.it/", siti.Profilo(url="https://hwupgrade.it/").come_dict()).id
-    assert "da 1 a 500" in dati.post(f"/impostazioni/siti/{id}/tetti", data={"pagine": 0, "articoli": 10}, headers=HTMX).text
+    assert (
+        "da 1 a 500"
+        in dati.post(f"/impostazioni/siti/{id}/tetti", data={"pagine": 0, "articoli": 10}, headers=HTMX).text
+    )
     dati.post(f"/impostazioni/siti/{id}/tetti", data={"pagine": 120, "articoli": 400}, headers=HTMX)
-    dati.post("/impostazioni/esecuzione", data={"soglia": 60, "finestra_giorni": 7, "escludi_sponsorizzati": "true"}, headers=HTMX)
+    dati.post(
+        "/impostazioni/esecuzione",
+        data={"soglia": 60, "finestra_giorni": 7, "escludi_sponsorizzati": "true"},
+        headers=HTMX,
+    )
     with dati.app.state.sessioni() as s:
         profilo = json.loads(s.get(Sito, id).profilo)
         imp = impostazioni.leggi(s)
@@ -344,7 +457,9 @@ def test_rigenera_dal_bottone_e_togli_esclusione(dati, monkeypatch):
 
     with dati.app.state.sessioni() as s:
         dati_siti.salva_profilo(s, id, vecchio)
-    finestra = dati.post(f"/impostazioni/siti/{id}/includi", data={"indirizzo": "https://sito.it/en/"}, headers=HTMX).text
+    finestra = dati.post(
+        f"/impostazioni/siti/{id}/includi", data={"indirizzo": "https://sito.it/en/"}, headers=HTMX
+    ).text
     assert "nessuno" in finestra.split("<dt>Esclusi</dt>")[1].split("</dd>")[0]
     with dati.app.state.sessioni() as s:
         profilo = json.loads(s.get(Sito, id).profilo)
@@ -360,11 +475,14 @@ def test_aiuto_dell_llm_al_profilo_mostra_le_differenze_e_applica_le_scelte(dati
     from gradiens.fonti import siti
     from gradiens.fonti.siti.aiuto import Proposta
 
-    vecchio = siti.Profilo(url="https://sito.it/", perimetro="sito.it", strategie=["feed"],
-                           sezioni=["https://sito.it/eventi/"]).come_dict()
+    vecchio = siti.Profilo(
+        url="https://sito.it/", perimetro="sito.it", strategie=["feed"], sezioni=["https://sito.it/eventi/"]
+    ).come_dict()
     with dati.app.state.sessioni() as s:
         id = dati_siti.aggiungi(s, "https://sito.it/", vecchio, "ok").id
-    assert "https://sito.it/eventi/" in dati.get("/impostazioni/siti").text.split("<dt>Sezioni</dt>")[1].split("</dd>")[0]
+    assert (
+        "https://sito.it/eventi/" in dati.get("/impostazioni/siti").text.split("<dt>Sezioni</dt>")[1].split("</dd>")[0]
+    )
 
     risposte = []
 
@@ -375,8 +493,12 @@ def test_aiuto_dell_llm_al_profilo_mostra_le_differenze_e_applica_le_scelte(dati
         return risposta
 
     monkeypatch.setattr(aiuto_profilo, "aiuta", aiuta)
-    proposta = Proposta(["https://sito.it/notizie/"], ["https://sito.it/eventi/"], ["https://sito.it/offerte/"],
-                        "Gli <b>eventi</b> non sono notizie.")
+    proposta = Proposta(
+        ["https://sito.it/notizie/"],
+        ["https://sito.it/eventi/"],
+        ["https://sito.it/offerte/"],
+        "Gli <b>eventi</b> non sono notizie.",
+    )
     risposte.append(aiuto_profilo.Aiuto(proposta, 4321, 2))
     finestra = dati.post(f"/impostazioni/siti/{id}/aiuto", headers=HTMX).text
     assert "Gli &lt;b&gt;eventi&lt;/b&gt; non sono notizie." in finestra  # testo dell'LLM: escapato
@@ -389,15 +511,24 @@ def test_aiuto_dell_llm_al_profilo_mostra_le_differenze_e_applica_le_scelte(dati
     with dati.app.state.sessioni() as s:
         assert json.loads(s.get(Sito, id).profilo) == vecchio  # niente cambia prima di "Applica"
 
-    dati.post(f"/impostazioni/siti/{id}/aiuto/applica", headers=HTMX, data={
-        "aggiungi": ["https://sito.it/notizie/"], "togli": ["https://sito.it/eventi/"], "escludi": ["https://sito.it/offerte/"]})
+    dati.post(
+        f"/impostazioni/siti/{id}/aiuto/applica",
+        headers=HTMX,
+        data={
+            "aggiungi": ["https://sito.it/notizie/"],
+            "togli": ["https://sito.it/eventi/"],
+            "escludi": ["https://sito.it/offerte/"],
+        },
+    )
     with dati.app.state.sessioni() as s:
         profilo = json.loads(s.get(Sito, id).profilo)
     assert (profilo["sezioni"], profilo["esclusi"]) == (["https://sito.it/notizie/"], ["https://sito.it/offerte/"])
     assert set(profilo["modificati"]) == {"sezioni", "esclusi"}  # restano dopo una rigenerazione (WEB-25)
     assert "html" in profilo["strategie"]  # una sezione rende attiva la strategia che la usa
 
-    errore = dati.post(f"/impostazioni/siti/{id}/aiuto/applica", headers=HTMX, data={"aggiungi": ["https://altro.example/x/"]}).text
+    errore = dati.post(
+        f"/impostazioni/siti/{id}/aiuto/applica", headers=HTMX, data={"aggiungi": ["https://altro.example/x/"]}
+    ).text
     assert "fuori dal sito" in errore
 
     risposte.append(aiuto_profilo.Aiuto(Proposta([], [], []), 10_500, 0))
@@ -437,13 +568,24 @@ def test_segnale_dell_avvio_da_rifare(client, monkeypatch):
     monkeypatch.setattr(avvio_sistema, "_cache", (float("inf"), stato))
     pagina = client.get("/impostazioni/avvio").text
     assert "Il servizio non è abilitato." in pagina and "sudo loginctl enable-linger io" in pagina
-    assert 'evidenziata' in pagina
+    assert "evidenziata" in pagina
 
 
 def test_aiuto(client):
     pagina = client.get("/aiuto").text
-    for sezione in ("esecuzione", "fonti", "siti", "interessi", "cuore", "argomenti", "stati", "avvio", "fuori-casa", "cli",
-                    "telegram"):
+    for sezione in (
+        "esecuzione",
+        "fonti",
+        "siti",
+        "interessi",
+        "cuore",
+        "argomenti",
+        "stati",
+        "avvio",
+        "fuori-casa",
+        "cli",
+        "telegram",
+    ):
         assert f'id="{sezione}"' in pagina and f'href="#{sezione}"' in pagina  # UI-12, con l'indice
     assert f"tailscale serve --bg {client.app.state.conf.porta_remota}" in pagina  # ADR 0013, con la porta vera
     assert "<code>/riprendi</code>" in pagina and "Windows" in pagina and "Linux" in pagina
@@ -455,7 +597,9 @@ def test_interruttore_dell_icona_del_pannello(client, monkeypatch):
     monkeypatch.setattr(avvio_sistema, "crea_icone", lambda radice: create.append(radice))
     monkeypatch.setattr(avvio_sistema, "togli_icone", lambda: create.clear())
     assert "Icona Gradiens sul desktop e nel menu" in client.get("/impostazioni/avvio", headers=HTMX).text
-    assert "Icona Gradiens creata" in client.post("/impostazioni/avvio/icone", data={"attivo": "true"}, headers=HTMX).text
+    assert (
+        "Icona Gradiens creata" in client.post("/impostazioni/avvio/icone", data={"attivo": "true"}, headers=HTMX).text
+    )
     assert create
     assert "Icona Gradiens tolta" in client.post("/impostazioni/avvio/icone", headers=HTMX).text and not create
 
@@ -464,7 +608,7 @@ def test_i_file_statici_hanno_la_versione_nell_indirizzo(client):
     # Senza, dopo un aggiornamento il browser usava il vecchio stile.css dalla cache.
     pagina = client.get("/").text
     for nome in ("stile.css", "app.js", "htmx.min.js", "gradiens.png"):
-        assert f'/static/{nome}?v=' in pagina
+        assert f"/static/{nome}?v=" in pagina
     indirizzo = pagina.split('<link rel="stylesheet" href="')[1].split('"')[0]
     assert client.get(indirizzo).status_code == 200
 
@@ -485,7 +629,9 @@ def test_cambio_di_versione_di_claude_code_nella_home(client):
     assert "Claude Code è passato" not in client.get("/").text
     with client.app.state.sessioni() as s:
         e = esecuzioni.inizia(s, "cli")
-        esecuzioni.termina(s, e.id, "completata", {"versione_llm": {**versione, "versione": "2.1.325", "precedente": "2.1.316"}})
+        esecuzioni.termina(
+            s, e.id, "completata", {"versione_llm": {**versione, "versione": "2.1.325", "precedente": "2.1.316"}}
+        )
     assert "Claude Code è passato dalla versione 2.1.316 alla 2.1.325" in client.get("/").text
 
 
@@ -504,7 +650,10 @@ def test_righe_compatte_delle_fonti(dati, monkeypatch):
         id = dati_siti.aggiungi(s, "https://e.org/", {"url": "https://e.org/", "perimetro": "e.org"}, None).id
         dati_siti.registra_esito(s, id, "accesso bloccato", "Il sito rifiuta le richieste.", True)
     canali = dati.get("/impostazioni/canali-youtube", headers=HTMX).text
-    assert '<div class="titolo"><a href="https://www.youtube.com/channel/UC123"' in canali and ">Lab di Sicurezza</a>" in canali
+    assert (
+        '<div class="titolo"><a href="https://www.youtube.com/channel/UC123"' in canali
+        and ">Lab di Sicurezza</a>" in canali
+    )
     assert "youtube.com/channel/UC123</a>" not in canali  # niente più link sotto il nome
     siti = dati.get("/impostazioni/siti", headers=HTMX).text.split("Siti seguiti")[1]
     assert 'class="riga evidenziata"' in siti  # il problema si vede dallo sfondo della riga

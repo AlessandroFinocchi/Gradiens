@@ -21,6 +21,7 @@ def orologio(monkeypatch):
 
 def _esecuzione(s, letture: int = 1) -> list[rete.Pagina]:
     """Un'esecuzione: un Navigatore nuovo che legge la pagina `letture` volte."""
+
     async def leggi(client):
         navigatore = rete.Navigatore(client)
         return [await navigatore.leggi(PAGINA) for _ in range(letture)]

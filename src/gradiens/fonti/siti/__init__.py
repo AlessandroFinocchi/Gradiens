@@ -28,14 +28,16 @@ PARZIALE = "copertura parziale"  # ADR 0011: un tetto raggiunto prima di coprire
 BLOCCATO, JAVASCRIPT, NESSUNA = "accesso bloccato", "richiede JavaScript", "nessuna strategia funzionante"
 SUGGERIMENTI = {
     BLOCCATO: "Il sito rifiuta le richieste automatiche e le protezioni non si aggirano. Se il sito ha un feed RSS "
-              "ufficiale, inseriscine a mano l'indirizzo nel profilo.",
+    "ufficiale, inseriscine a mano l'indirizzo nel profilo.",
     JAVASCRIPT: "Il sito mostra gli articoli solo tramite JavaScript, che Gradiens non esegue. Inserisci a mano "
-                "l'indirizzo di un feed nel profilo.",
+    "l'indirizzo di un feed nel profilo.",
     NESSUNA: "Non ho trovato feed, sitemap o elenchi di articoli leggibili. Inserisci a mano l'indirizzo di un feed "
-             "o di una sezione nel profilo.",
+    "o di una sezione nel profilo.",
 }
-PROFILO_TENUTO = ("Ho rianalizzato il sito, ma non ho trovato nessuna strategia che funziona: "
-                  "tengo il profilo di prima.")  # decisione 21
+PROFILO_TENUTO = (
+    "Ho rianalizzato il sito, ma non ho trovato nessuna strategia che funziona: "
+    "tengo il profilo di prima."
+)  # decisione 21
 
 
 @dataclass
@@ -47,7 +49,8 @@ class EsitoSito:
 
 
 async def analizza(client: httpx.AsyncClient, url: str) -> Profilo:
-    """Crea il profilo di un sito dal solo indirizzo (WEB-01, WEB-02). Solleva ValueError se l'indirizzo non è valido."""
+    """Crea il profilo di un sito dal solo indirizzo (WEB-01, WEB-02).
+    Solleva ValueError se l'indirizzo non è valido."""
     url = normalizza(url if "://" in url else "https://" + url.strip())
     if not url:
         raise ValueError("indirizzo non valido")
@@ -56,7 +59,9 @@ async def analizza(client: httpx.AsyncClient, url: str) -> Profilo:
     pagina = await nav.leggi(url)
     if (doc := albero(pagina)) is not None:
         profilo.piattaforma = piattaforma(pagina)
-        profilo.esclusi = list(dict.fromkeys(commerciali(doc, pagina.url, profilo) + traduzioni(doc, pagina.url, profilo)))
+        profilo.esclusi = list(
+            dict.fromkeys(commerciali(doc, pagina.url, profilo) + traduzioni(doc, pagina.url, profilo))
+        )
         profilo.sezioni = [s for s in sezioni(doc, pagina.url, profilo) if await nav.consentito(s)]
         profilo.siti_collegati = dict.fromkeys(collegati(doc, pagina.url, profilo), False)
     for nome, strategia in STRATEGIE.items():
@@ -89,8 +94,9 @@ async def rigenera(client: httpx.AsyncClient, vecchio: Profilo) -> Profilo | Non
     return nuovo
 
 
-async def raccogli(client: httpx.AsyncClient, profilo: Profilo, dal: datetime,
-                   inizio_finestra: datetime | None = None) -> EsitoSito:
+async def raccogli(
+    client: httpx.AsyncClient, profilo: Profilo, dal: datetime, inizio_finestra: datetime | None = None
+) -> EsitoSito:
     """Articoli pubblicati da `dal` (UTC senza fuso): cascata di strategie che combina i risultati (WEB-10).
 
     Con la raccolta incrementale (ADR 0011) `dal` è "coperto fino a" e `inizio_finestra` l'inizio della finestra di
@@ -127,7 +133,7 @@ async def raccogli(client: httpx.AsyncClient, profilo: Profilo, dal: datetime,
     candidate = sorted(trovate.values(), key=lambda c: c.pubblicata_il, reverse=True)
     candidate.sort(key=lambda c: c.data_incerta)
     oltre_il_tetto = len(candidate) > profilo.articoli_massimi
-    candidate = await _date_incerte(nav, candidate[:profilo.articoli_massimi], dal)
+    candidate = await _date_incerte(nav, candidate[: profilo.articoli_massimi], dal)
     pagine_finite = nav.letture >= profilo.pagine_massime
 
     note = []
@@ -162,7 +168,8 @@ def _unisci(trovate: dict[str, Candidata], c: Candidata) -> None:
 
 
 async def _date_incerte(nav: Navigatore, candidate: list[Candidata], dal: datetime) -> list[Candidata]:
-    """Data mancante (WEB-15): dall'URL, poi dai metadati della pagina, entro il tetto di pagine; altrimenti resta incerta."""
+    """Data mancante (WEB-15): dall'URL, poi dai metadati della pagina, entro il tetto di pagine;
+    altrimenti resta incerta."""
     risultato = []
     for c in candidate:
         if c.data_incerta:

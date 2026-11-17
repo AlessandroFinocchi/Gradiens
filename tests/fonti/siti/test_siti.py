@@ -12,12 +12,16 @@ DAL = datetime(2026, 11, 1)
 
 def test_redhotcyber_feed_che_risponde_html_e_feed_tra_i_link(sito):
     home = sito.fixture("wordpress_home.html")
-    s = sito({
-        "https://www.redhotcyber.com/": home,
-        "https://www.redhotcyber.com/feed/": sito.redirect("https://www.redhotcyber.com/"),  # 301 verso la home HTML
-        "https://www.redhotcyber.com/feed/gn": sito.fixture("rss_gn.xml"),
-        "https://www.redhotcyber.com/wp-json/wp/v2/posts?per_page=1&_fields=link": '[{"link": "https://www.redhotcyber.com/x"}]',
-    })
+    s = sito(
+        {
+            "https://www.redhotcyber.com/": home,
+            "https://www.redhotcyber.com/feed/": sito.redirect(
+                "https://www.redhotcyber.com/"
+            ),  # 301 verso la home HTML
+            "https://www.redhotcyber.com/feed/gn": sito.fixture("rss_gn.xml"),
+            "https://www.redhotcyber.com/wp-json/wp/v2/posts?per_page=1&_fields=link": '[{"link": "https://www.redhotcyber.com/x"}]',
+        }
+    )
     profilo = s.esegui(analizza, "https://www.redhotcyber.com/")
     assert profilo.feed == ["https://www.redhotcyber.com/feed/gn"]  # il feed rel=alternate non è un feed
     assert profilo.piattaforma == "wordpress"
@@ -40,13 +44,15 @@ def test_redhotcyber_feed_che_risponde_html_e_feed_tra_i_link(sito):
 
 
 def test_robots_che_vieta_l_api_non_viene_mai_chiamata(sito):
-    s = sito({
-        "https://www.ilsoftware.it/robots.txt": "User-agent: *\nDisallow: /wp-json/\n"
-                                                "Sitemap: https://www.ilsoftware.it/news-sitemap.xml\n",
-        "https://www.ilsoftware.it/": sito.fixture("ilsoftware_home.html"),
-        "https://www.ilsoftware.it/feed/": sito.fixture("feed_ilsoftware.xml"),
-        "https://www.ilsoftware.it/news-sitemap.xml": sito.fixture("news_sitemap.xml"),
-    })
+    s = sito(
+        {
+            "https://www.ilsoftware.it/robots.txt": "User-agent: *\nDisallow: /wp-json/\n"
+            "Sitemap: https://www.ilsoftware.it/news-sitemap.xml\n",
+            "https://www.ilsoftware.it/": sito.fixture("ilsoftware_home.html"),
+            "https://www.ilsoftware.it/feed/": sito.fixture("feed_ilsoftware.xml"),
+            "https://www.ilsoftware.it/news-sitemap.xml": sito.fixture("news_sitemap.xml"),
+        }
+    )
     profilo = s.esegui(analizza, "www.ilsoftware.it")  # anche senza protocollo
     assert profilo.piattaforma == "wordpress"
     assert profilo.feed == ["https://www.ilsoftware.it/feed/"]  # dal percorso comune: manca rel=alternate
@@ -62,11 +68,14 @@ def test_robots_che_vieta_l_api_non_viene_mai_chiamata(sito):
 
 
 def test_hwupgrade_iso_8859_1_feed_su_altro_sottodominio_ed_esclusioni(sito):
-    s = sito({
-        "https://www.hwupgrade.it/": httpx.Response(200, content=sito.fixture("hwupgrade_home.html"),
-                                                     headers={"content-type": "text/html"}),
-        "https://feeds.hwupgrade.it/rss_news.xml": sito.fixture("hwupgrade_feed.xml"),
-    })
+    s = sito(
+        {
+            "https://www.hwupgrade.it/": httpx.Response(
+                200, content=sito.fixture("hwupgrade_home.html"), headers={"content-type": "text/html"}
+            ),
+            "https://feeds.hwupgrade.it/rss_news.xml": sito.fixture("hwupgrade_feed.xml"),
+        }
+    )
     profilo = s.esegui(analizza, "https://www.hwupgrade.it/")
     assert profilo.feed == ["https://feeds.hwupgrade.it/rss_news.xml"]
     assert "https://www.hwupgrade.it/offerte/" in profilo.esclusi
@@ -86,10 +95,12 @@ def test_pagina_iso_8859_1_senza_charset_nell_intestazione(sito):
 
 
 def test_sezione_con_articoli_fuori_dal_prefisso_e_nessun_articolo_nuovo(sito):
-    s = sito({
-        "https://e3rehab.com/articles/": sito.fixture("e3rehab_articles.html"),
-        "https://e3rehab.com/feed/": sito.fixture("e3rehab_feed.xml"),
-    })
+    s = sito(
+        {
+            "https://e3rehab.com/articles/": sito.fixture("e3rehab_articles.html"),
+            "https://e3rehab.com/feed/": sito.fixture("e3rehab_feed.xml"),
+        }
+    )
     profilo = s.esegui(analizza, "https://e3rehab.com/articles/")
     assert profilo.perimetro == "e3rehab.com/articles"
     # Il feed è di tutto il sito, ma i suoi articoli sono quelli elencati dalla sezione (WEB-09): si tiene.
@@ -108,11 +119,13 @@ def test_sezione_con_articoli_fuori_dal_prefisso_e_nessun_articolo_nuovo(sito):
 
 
 def test_acn_accesso_bloccato_poi_feed_aggiunto_a_mano_non_ordinato(sito):
-    s = sito({
-        "https://www.acn.gov.it/robots.txt": httpx.Response(403, text="Access Denied"),
-        "https://www.acn.gov.it/portale/csirt-italia/": httpx.Response(403, text="Access Denied"),
-        "https://www.acn.gov.it/portale/feedrss/-/journal/rss/20119/723192": sito.fixture("acn_feed.xml"),
-    })
+    s = sito(
+        {
+            "https://www.acn.gov.it/robots.txt": httpx.Response(403, text="Access Denied"),
+            "https://www.acn.gov.it/portale/csirt-italia/": httpx.Response(403, text="Access Denied"),
+            "https://www.acn.gov.it/portale/feedrss/-/journal/rss/20119/723192": sito.fixture("acn_feed.xml"),
+        }
+    )
     profilo = s.esegui(analizza, "https://www.acn.gov.it/portale/csirt-italia/")
     assert profilo.diagnosi == "accesso bloccato"
     esito = s.esegui(raccogli, profilo, DAL)
@@ -123,14 +136,19 @@ def test_acn_accesso_bloccato_poi_feed_aggiunto_a_mano_non_ordinato(sito):
     esito = s.esegui(raccogli, profilo, DAL)
     assert esito.stato == "ok"
     # elementi non in ordine di data e fuori dal prefisso della sezione: valgono tutti quelli recenti
-    assert [c.titolo for c in esito.candidate] == ["Aggiornamenti di sicurezza mensili", "Vulnerabilità in un prodotto di rete"]
+    assert [c.titolo for c in esito.candidate] == [
+        "Aggiornamenti di sicurezza mensili",
+        "Vulnerabilità in un prodotto di rete",
+    ]
 
 
 def test_sezione_solo_html_con_date_testuali_e_pagine_successive(sito):
-    s = sito({
-        "https://projectdiscovery.io/research": sito.fixture("research_1.html"),
-        "https://projectdiscovery.io/research?page=2": sito.fixture("research_2.html"),
-    })
+    s = sito(
+        {
+            "https://projectdiscovery.io/research": sito.fixture("research_1.html"),
+            "https://projectdiscovery.io/research?page=2": sito.fixture("research_2.html"),
+        }
+    )
     profilo = s.esegui(analizza, "https://projectdiscovery.io/research")
     assert profilo.strategie == ["html"]
     assert profilo.data_da == "elenco della pagina"
@@ -157,8 +175,13 @@ def test_sito_che_richiede_javascript(sito):
 
 
 def test_feed_che_risponde_html_o_404_e_un_guasto(sito):
-    profilo = Profilo(url="https://sito.it/", perimetro="sito.it", feed=["https://sito.it/feed/"],
-                      sitemap=["https://sito.it/sitemap.xml"], strategie=["feed", "sitemap"])
+    profilo = Profilo(
+        url="https://sito.it/",
+        perimetro="sito.it",
+        feed=["https://sito.it/feed/"],
+        sitemap=["https://sito.it/sitemap.xml"],
+        strategie=["feed", "sitemap"],
+    )
     s = sito({"https://sito.it/feed/": "<html><body>home</body></html>"})
     esito = s.esegui(raccogli, profilo, DAL)
     assert esito.guasto and "HTML" in esito.dettaglio
@@ -170,17 +193,27 @@ def test_feed_che_risponde_html_o_404_e_un_guasto(sito):
 
 
 def test_feed_fermo_mentre_la_sitemap_ha_articoli_recenti(sito):
-    s = sito({
-        "https://www.chipsandcheese.com/feed": sito.fixture("feed_fermo.xml"),
-        "https://www.chipsandcheese.com/sitemap_index.xml": sito.fixture("sitemap_index.xml"),
-        "https://www.chipsandcheese.com/post-sitemap.xml": sito.fixture("post_sitemap.xml"),
-    })
-    profilo = Profilo(url="https://www.chipsandcheese.com/", perimetro="chipsandcheese.com",
-                      feed=["https://www.chipsandcheese.com/feed"],
-                      sitemap=["https://www.chipsandcheese.com/sitemap_index.xml"], strategie=["feed", "sitemap"])
+    s = sito(
+        {
+            "https://www.chipsandcheese.com/feed": sito.fixture("feed_fermo.xml"),
+            "https://www.chipsandcheese.com/sitemap_index.xml": sito.fixture("sitemap_index.xml"),
+            "https://www.chipsandcheese.com/post-sitemap.xml": sito.fixture("post_sitemap.xml"),
+        }
+    )
+    profilo = Profilo(
+        url="https://www.chipsandcheese.com/",
+        perimetro="chipsandcheese.com",
+        feed=["https://www.chipsandcheese.com/feed"],
+        sitemap=["https://www.chipsandcheese.com/sitemap_index.xml"],
+        strategie=["feed", "sitemap"],
+    )
     esito = s.esegui(raccogli, profilo, DAL)
-    assert [c.url for c in esito.candidate] == ["https://www.chipsandcheese.com/p/a-look-at-the-new-gpu-memory-subsystem"]
-    assert esito.candidate[0].titolo == "A look at the new gpu memory subsystem"  # dallo slug, finché `completa` non lo legge
+    assert [c.url for c in esito.candidate] == [
+        "https://www.chipsandcheese.com/p/a-look-at-the-new-gpu-memory-subsystem"
+    ]
+    assert (
+        esito.candidate[0].titolo == "A look at the new gpu memory subsystem"
+    )  # dallo slug, finché `completa` non lo legge
     assert esito.guasto and "fermo" in esito.dettaglio
     # sitemap figlie di pagine e quelle più vecchie della finestra non si leggono
     assert "https://www.chipsandcheese.com/page-sitemap.xml" not in s.richieste
@@ -192,11 +225,13 @@ def test_data_incerta_dai_metadati_della_pagina_o_resta_incerta(sito):
       <item><title>Con metadati</title><link>https://sito.it/articolo-con-metadati-della-pagina</link></item>
       <item><title>Senza data</title><link>https://sito.it/articolo-senza-alcuna-data</link></item>
     </channel></rss>"""
-    s = sito({
-        "https://sito.it/feed": feed,
-        "https://sito.it/articolo-con-metadati-della-pagina": sito.fixture("articolo_paywall.html"),
-        "https://sito.it/articolo-senza-alcuna-data": "<html><body><p>Nessuna data.</p></body></html>",
-    })
+    s = sito(
+        {
+            "https://sito.it/feed": feed,
+            "https://sito.it/articolo-con-metadati-della-pagina": sito.fixture("articolo_paywall.html"),
+            "https://sito.it/articolo-senza-alcuna-data": "<html><body><p>Nessuna data.</p></body></html>",
+        }
+    )
     profilo = Profilo(url="https://sito.it/", perimetro="sito.it", feed=["https://sito.it/feed"], strategie=["feed"])
     esito = s.esegui(raccogli, profilo, DAL)
     date = {c.titolo: (c.pubblicata_il, c.data_incerta) for c in esito.candidate}
@@ -205,11 +240,19 @@ def test_data_incerta_dai_metadati_della_pagina_o_resta_incerta(sito):
 
 
 def test_tetto_di_articoli(sito):
-    voci = "".join(f"<item><title>N{i}</title><link>https://sito.it/n-{i}</link>"
-                   f"<pubDate>Thu, 05 Nov 2026 {i:02d}:00:00 +0000</pubDate></item>" for i in range(10))
+    voci = "".join(
+        f"<item><title>N{i}</title><link>https://sito.it/n-{i}</link>"
+        f"<pubDate>Thu, 05 Nov 2026 {i:02d}:00:00 +0000</pubDate></item>"
+        for i in range(10)
+    )
     s = sito({"https://sito.it/feed": f"<rss version='2.0'><channel>{voci}</channel></rss>"})
-    profilo = Profilo(url="https://sito.it/", perimetro="sito.it", feed=["https://sito.it/feed"], strategie=["feed"],
-                      articoli_massimi=3)
+    profilo = Profilo(
+        url="https://sito.it/",
+        perimetro="sito.it",
+        feed=["https://sito.it/feed"],
+        strategie=["feed"],
+        articoli_massimi=3,
+    )
     esito = s.esegui(raccogli, profilo, DAL)
     assert [c.titolo for c in esito.candidate] == ["N9", "N8", "N7"]
     assert "tetto" in esito.dettaglio
@@ -218,18 +261,25 @@ def test_tetto_di_articoli(sito):
 
 def test_tetto_di_pagine_da_copertura_parziale(sito):
     """ADR 0011, WEB-26: le pagine finite prima di coprire il periodo da cercare si vedono nello stato del sito."""
-    voci = "".join(f"<item><title>N{i}</title><link>https://sito.it/n-{i}</link></item>" for i in range(3))  # senza date
+    voci = "".join(
+        f"<item><title>N{i}</title><link>https://sito.it/n-{i}</link></item>" for i in range(3)
+    )  # senza date
     s = sito({"https://sito.it/feed": f"<rss version='2.0'><channel>{voci}</channel></rss>"})
-    profilo = Profilo(url="https://sito.it/", perimetro="sito.it", feed=["https://sito.it/feed"], strategie=["feed"],
-                      pagine_massime=1)
+    profilo = Profilo(
+        url="https://sito.it/", perimetro="sito.it", feed=["https://sito.it/feed"], strategie=["feed"], pagine_massime=1
+    )
     esito = s.esegui(raccogli, profilo, DAL)
     assert (esito.stato, esito.guasto) == ("copertura parziale", False)
     assert "tetto di 1 pagine" in esito.dettaglio
 
 
 def test_profilo_json_e_rigenerazione_che_conserva_le_modifiche_manuali(sito):
-    s = sito({"https://e3rehab.com/articles/": sito.fixture("e3rehab_articles.html"),
-              "https://e3rehab.com/feed/": sito.fixture("e3rehab_feed.xml")})
+    s = sito(
+        {
+            "https://e3rehab.com/articles/": sito.fixture("e3rehab_articles.html"),
+            "https://e3rehab.com/feed/": sito.fixture("e3rehab_feed.xml"),
+        }
+    )
     profilo = s.esegui(analizza, "https://e3rehab.com/articles/")
     profilo.aggiungi_feed("https://e3rehab.com/feed-a-mano/")
     profilo.escludi("https://e3rehab.com/articles/training/")
@@ -254,9 +304,16 @@ def test_completa_testo_pulito_paywall_e_data(sito):
     from gradiens.fonti import Candidata
 
     s = sito({"https://www.nature.com/articles/d41586-026-01234-5": sito.fixture("articolo_paywall.html")})
-    candidata = Candidata(tipo="sito", url="https://www.nature.com/articles/d41586-026-01234-5", fonte="nature.com",
-                          titolo="D41586 026 01234 5", sommario="", contenuto="", pubblicata_il=datetime(2026, 11, 6),
-                          data_incerta=True)
+    candidata = Candidata(
+        tipo="sito",
+        url="https://www.nature.com/articles/d41586-026-01234-5",
+        fonte="nature.com",
+        titolo="D41586 026 01234 5",
+        sommario="",
+        contenuto="",
+        pubblicata_il=datetime(2026, 11, 6),
+        data_incerta=True,
+    )
     completa_ = s.esegui(completa, candidata)
     assert "temperatura ambiente" in completa_.contenuto and "<" not in completa_.contenuto
     assert completa_.stato == "contenuto parziale (paywall)"
@@ -268,8 +325,15 @@ def test_completa_senza_testo_solleva_contenuto_assente(sito):
     from gradiens.fonti import Candidata
 
     s = sito({"https://sito.it/vuoto": "<html><body></body></html>"})
-    candidata = Candidata(tipo="sito", url="https://sito.it/vuoto", fonte="sito.it", titolo="t", sommario="",
-                          contenuto="", pubblicata_il=datetime(2026, 11, 5))
+    candidata = Candidata(
+        tipo="sito",
+        url="https://sito.it/vuoto",
+        fonte="sito.it",
+        titolo="t",
+        sommario="",
+        contenuto="",
+        pubblicata_il=datetime(2026, 11, 5),
+    )
     with pytest.raises(ContenutoAssente, match="errore di estrazione"):
         s.esegui(completa, candidata)
 
@@ -278,8 +342,11 @@ def test_sitemap_rigenerata_con_lo_stesso_lastmod_non_da_date():
     from gradiens.fonti.siti.rete import Pagina
     from gradiens.fonti.siti.strategie import sitemap
 
-    voci = "".join(f"<url><loc>https://nature.com/nature-index/supplements/indice-numero-{i}</loc>"
-                   f"<lastmod>2026-11-06T03:57:00Z</lastmod></url>" for i in range(12))
+    voci = "".join(
+        f"<url><loc>https://nature.com/nature-index/supplements/indice-numero-{i}</loc>"
+        f"<lastmod>2026-11-06T03:57:00Z</lastmod></url>"
+        for i in range(12)
+    )
     xml = f'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{voci}</urlset>'.encode()
     tipo, lette = sitemap.interpreta(Pagina("https://nature.com/sitemap.xml", 200, xml, "application/xml"))
     assert tipo == "elenco" and all(data is None for _, data, _, _ in lette)
@@ -301,13 +368,22 @@ async def _raccogli_wordpress(client, profilo, dal):
 
 
 def test_wordpress_raccogli_usa_la_data_gmt_la_finestra_e_il_limite_di_100_voci(sito):
-    """T-10 (doc. 02, decisione 26): la strategia non era mai eseguita. 6a-5, 6a-7 e ADR 0011 cambiano `dal` e la cascata."""
+    """T-10 (doc. 02, decisione 26): la strategia non era mai eseguita.
+    6a-5, 6a-7 e ADR 0011 cambiano `dal` e la cascata."""
     voci = [
-        {"link": "https://wp.it/articolo-nuovo/?utm_source=rss", "date_gmt": "2026-11-05T08:00:00",
-         "title": {"rendered": "Titolo &amp; <b>altro</b>"}, "excerpt": {"rendered": "<p>Il riassunto.</p>"}},
+        {
+            "link": "https://wp.it/articolo-nuovo/?utm_source=rss",
+            "date_gmt": "2026-11-05T08:00:00",
+            "title": {"rendered": "Titolo &amp; <b>altro</b>"},
+            "excerpt": {"rendered": "<p>Il riassunto.</p>"},
+        },
         # ora locale del sito nella finestra, ma conta date_gmt, che è fuori
-        {"link": "https://wp.it/ieri-sera/", "date": "2026-11-01T01:00:00", "date_gmt": "2026-10-31T23:00:00",
-         "title": {"rendered": "Ieri sera"}},
+        {
+            "link": "https://wp.it/ieri-sera/",
+            "date": "2026-11-01T01:00:00",
+            "date_gmt": "2026-10-31T23:00:00",
+            "title": {"rendered": "Ieri sera"},
+        },
         {"link": "https://wp.it/senza-data/", "date_gmt": "", "title": {"rendered": "Senza data"}},
         {"link": "https://wp.it/senza-titolo/", "date_gmt": "2026-11-02T10:00:00Z"},
         "non è un oggetto",
@@ -319,7 +395,14 @@ def test_wordpress_raccogli_usa_la_data_gmt_la_finestra_e_il_limite_di_100_voci(
     assert _api_wordpress("wp.it") in s.richieste
     assert (r.riuscita, r.copre, r.guasti) == (True, True, [])  # meno di 100 voci: la finestra è coperta
     assert [(c.url, c.titolo, c.sommario, c.pubblicata_il, c.fonte, c.data_incerta) for c in r.candidate] == [
-        ("https://wp.it/articolo-nuovo/", "Titolo & altro", "Il riassunto.", datetime(2026, 11, 5, 8, 0), "wp.it", False),
+        (
+            "https://wp.it/articolo-nuovo/",
+            "Titolo & altro",
+            "Il riassunto.",
+            datetime(2026, 11, 5, 8, 0),
+            "wp.it",
+            False,
+        ),
         ("https://wp.it/senza-titolo/", "Senza titolo", "", datetime(2026, 11, 2, 10, 0), "wp.it", False),
     ]
 
@@ -329,12 +412,15 @@ def test_wordpress_raccogli_usa_la_data_gmt_la_finestra_e_il_limite_di_100_voci(
     assert (len(r.candidate), r.copre) == (100, False)  # 100 voci: forse ce ne sono altre, la cascata prosegue
 
 
-@pytest.mark.parametrize("risposta, prima, dopo", [
-    ("{non è json", "l'API di WordPress", " non risponde in JSON"),
-    ("<html><body>home</body></html>", "l'API di WordPress", " non risponde in JSON"),
-    (httpx.Response(500), "l'API di WordPress", " non si legge (500)"),
-    ("robots", "robots.txt ora vieta l'API di WordPress", ""),
-])
+@pytest.mark.parametrize(
+    "risposta, prima, dopo",
+    [
+        ("{non è json", "l'API di WordPress", " non risponde in JSON"),
+        ("<html><body>home</body></html>", "l'API di WordPress", " non risponde in JSON"),
+        (httpx.Response(500), "l'API di WordPress", " non si legge (500)"),
+        ("robots", "robots.txt ora vieta l'API di WordPress", ""),
+    ],
+)
 def test_wordpress_raccogli_risposte_non_valide_e_robots_che_vieta_sono_guasti(sito, risposta, prima, dopo):
     """T-10: JSON non valido, HTML e un errore del server sono guasti; robots.txt che vieta /wp-json/ anche."""
     rotte = {_api_wordpress("wp.it"): risposta}
@@ -352,13 +438,18 @@ def test_wordpress_raccogli_risposte_non_valide_e_robots_che_vieta_sono_guasti(s
 def test_rigenerazione_senza_strategie_tiene_il_profilo_vecchio(sito):
     """Decisione 21: il nuovo profilo sostituisce il vecchio solo se l'analisi trova almeno una strategia che funziona.
     Un feed aggiunto a mano non conta: viene copiato dal vecchio profilo, non trovato dall'analisi."""
+
     class Spento(sito):
         def risponde(self, request):
             self.richieste.append(str(request.url))
             raise httpx.ConnectError("il sito non risponde")
 
-    vecchio = Profilo(url="https://e3rehab.com/", perimetro="e3rehab.com", feed=["https://e3rehab.com/feed/"],
-                      strategie=["feed", "html"])
+    vecchio = Profilo(
+        url="https://e3rehab.com/",
+        perimetro="e3rehab.com",
+        feed=["https://e3rehab.com/feed/"],
+        strategie=["feed", "html"],
+    )
     vecchio.aggiungi_feed("https://e3rehab.com/feed-a-mano/")
     for s in (Spento({}), sito({})):  # rete assente; sito che risponde solo 404
         assert s.esegui(rigenera, vecchio) is None
@@ -368,17 +459,32 @@ def test_rigenerazione_senza_strategie_tiene_il_profilo_vecchio(sito):
 def test_feed_scarta_le_voci_di_altri_domini(sito):
     """Decisione 18 (WEB-08): si tengono le voci del sito, quelle sull'host del feed (Substack, feedburner) e quelle
     dei siti collegati attivati; le altre sono fuori."""
-    voci = "".join(f"<item><title>{u}</title><link>{u}</link><pubDate>Thu, 05 Nov 2026 08:00:00 GMT</pubDate></item>"
-                   for u in ("https://3blue1brown.substack.com/p/sul-substack", "https://www.3blue1brown.com/lessons/sul-sito",
-                             "https://blog.3blue1brown.com/sul-sottodominio", "https://attivo.example/collegato-attivo",
-                             "https://spento.example/collegato-spento", "https://altro.example/terzo-dominio"))
+    voci = "".join(
+        f"<item><title>{u}</title><link>{u}</link><pubDate>Thu, 05 Nov 2026 08:00:00 GMT</pubDate></item>"
+        for u in (
+            "https://3blue1brown.substack.com/p/sul-substack",
+            "https://www.3blue1brown.com/lessons/sul-sito",
+            "https://blog.3blue1brown.com/sul-sottodominio",
+            "https://attivo.example/collegato-attivo",
+            "https://spento.example/collegato-spento",
+            "https://altro.example/terzo-dominio",
+        )
+    )
     s = sito({"https://3blue1brown.substack.com/feed": f"<rss version='2.0'><channel>{voci}</channel></rss>"})
-    profilo = Profilo(url="https://www.3blue1brown.com/", perimetro="3blue1brown.com", strategie=["feed"],
-                      feed=["https://3blue1brown.substack.com/feed"],
-                      siti_collegati={"attivo.example": True, "spento.example": False})
+    profilo = Profilo(
+        url="https://www.3blue1brown.com/",
+        perimetro="3blue1brown.com",
+        strategie=["feed"],
+        feed=["https://3blue1brown.substack.com/feed"],
+        siti_collegati={"attivo.example": True, "spento.example": False},
+    )
     esito = s.esegui(raccogli, profilo, DAL)
     assert sorted(c.titolo.rsplit("/", 1)[1] for c in esito.candidate) == [
-        "collegato-attivo", "sul-sito", "sul-sottodominio", "sul-substack"]
+        "collegato-attivo",
+        "sul-sito",
+        "sul-sottodominio",
+        "sul-substack",
+    ]
 
 
 def test_traduzioni_proposte_come_escluse_all_analisi(sito):
@@ -391,9 +497,16 @@ def test_traduzioni_proposte_come_escluse_all_analisi(sito):
       <link rel="alternate" hreflang="de" href="https://sito.de/">
       <link rel="alternate" type="application/rss+xml" href="https://www.sito.it/feed/">
     </head><body><p>Notizie</p></body></html>"""
-    voci = "".join(f"<item><title>{u}</title><link>{u}</link><pubDate>Thu, 05 Nov 2026 08:00:00 GMT</pubDate></item>"
-                   for u in ("https://www.sito.it/post/in-italiano-oggi", "https://www.sito.it/en/post/in-inglese-oggi"))
-    s = sito({"https://www.sito.it/": home, "https://www.sito.it/feed/": f"<rss version='2.0'><channel>{voci}</channel></rss>"})
+    voci = "".join(
+        f"<item><title>{u}</title><link>{u}</link><pubDate>Thu, 05 Nov 2026 08:00:00 GMT</pubDate></item>"
+        for u in ("https://www.sito.it/post/in-italiano-oggi", "https://www.sito.it/en/post/in-inglese-oggi")
+    )
+    s = sito(
+        {
+            "https://www.sito.it/": home,
+            "https://www.sito.it/feed/": f"<rss version='2.0'><channel>{voci}</channel></rss>",
+        }
+    )
     profilo = s.esegui(analizza, "https://www.sito.it/")
     assert profilo.esclusi == ["https://www.sito.it/en/", "https://fr.sito.it/"]  # sito.de è fuori dal perimetro
     assert "esclusi" not in profilo.modificati  # proposta dell'analisi: la rigenerazione la può rifare
@@ -410,19 +523,32 @@ def test_togliere_un_esclusione_e_una_modifica_manuale(sito):
     assert profilo.modificati == ["esclusi"]
 
 
-@pytest.mark.parametrize(("ultima_del_feed", "fermo"), [("Tue, 03 Nov 2026 08:00:00 +0000", False),
-                                                         ("Tue, 20 Oct 2026 08:00:00 +0000", True)])
-def test_il_feed_fermo_si_giudica_sulla_finestra_intera_anche_con_la_raccolta_incrementale(sito, ultima_del_feed, fermo):
+@pytest.mark.parametrize(
+    ("ultima_del_feed", "fermo"),
+    [("Tue, 03 Nov 2026 08:00:00 +0000", False), ("Tue, 20 Oct 2026 08:00:00 +0000", True)],
+)
+def test_il_feed_fermo_si_giudica_sulla_finestra_intera_anche_con_la_raccolta_incrementale(
+    sito, ultima_del_feed, fermo
+):
     """ADR 0011 e WEB-24: un blog che pubblica poco non ha voci nuove dall'ultima raccolta, mentre la sitemap data con
     `lastmod` una pagina modificata ieri. Il feed è "fermo" solo se non ha voci in tutta la finestra, come prima."""
-    feed = (f"<rss version='2.0'><channel><item><title>Ultimo</title><link>https://blog.it/blog/ultimo-articolo-uscito</link>"
-            f"<pubDate>{ultima_del_feed}</pubDate></item></channel></rss>")
-    mappa = ("<urlset xmlns='http://www.sitemaps.org/schemas/sitemap/0.9'><url>"
-             "<loc>https://blog.it/blog/come-configurare-il-firewall-di-casa</loc><lastmod>2026-11-05T15:00:00Z</lastmod>"
-             "</url></urlset>")
+    feed = (
+        f"<rss version='2.0'><channel><item><title>Ultimo</title><link>https://blog.it/blog/ultimo-articolo-uscito</link>"
+        f"<pubDate>{ultima_del_feed}</pubDate></item></channel></rss>"
+    )
+    mappa = (
+        "<urlset xmlns='http://www.sitemaps.org/schemas/sitemap/0.9'><url>"
+        "<loc>https://blog.it/blog/come-configurare-il-firewall-di-casa</loc><lastmod>2026-11-05T15:00:00Z</lastmod>"
+        "</url></urlset>"
+    )
     s = sito({"https://blog.it/feed": feed, "https://blog.it/sitemap.xml": mappa})
-    profilo = Profilo(url="https://blog.it/", perimetro="blog.it", feed=["https://blog.it/feed"],
-                      sitemap=["https://blog.it/sitemap.xml"], strategie=["feed", "sitemap"])
+    profilo = Profilo(
+        url="https://blog.it/",
+        perimetro="blog.it",
+        feed=["https://blog.it/feed"],
+        sitemap=["https://blog.it/sitemap.xml"],
+        strategie=["feed", "sitemap"],
+    )
     esito = s.esegui(raccogli, profilo, datetime(2026, 11, 4), DAL)  # da "coperto fino a", finestra da DAL
     assert [c.url for c in esito.candidate] == ["https://blog.it/blog/come-configurare-il-firewall-di-casa"]
     assert esito.guasto is fermo and ("forse è fermo" in esito.dettaglio) is fermo

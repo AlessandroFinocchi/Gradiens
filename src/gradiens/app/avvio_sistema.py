@@ -110,6 +110,7 @@ def _esegui(comando: list[str]) -> subprocess.CompletedProcess:
 
 # Linux: servizio utente di systemd (ADR 0007).
 
+
 def _file_servizio() -> Path:
     base = os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config"
     return Path(base) / "systemd" / "user" / SERVIZIO
@@ -181,16 +182,23 @@ def _stato_linux(radice: Path) -> StatoAvvio:
         return StatoAvvio(False)
     rifai = "spegni e riaccendi l'interruttore"
     if file.read_text(encoding="utf-8") != unita_systemd(radice, sys.executable, _claude()):
-        return StatoAvvio(True, f"Il servizio punta a un'altra cartella, a un altro Python o a un altro Claude Code: {rifai}.")
+        return StatoAvvio(
+            True, f"Il servizio punta a un'altra cartella, a un altro Python o a un altro Claude Code: {rifai}."
+        )
     if _systemctl("is-enabled", SERVIZIO).stdout.strip() != "enabled":
         return StatoAvvio(True, f"Il servizio non è abilitato: {rifai}.")
     if not _linger():
-        return StatoAvvio(True, "Gradiens partirà solo dopo l'accesso al sistema: per farlo partire all'accensione "
-                                "serve il comando qui sotto.", f"sudo loginctl enable-linger {getpass.getuser()}")
+        return StatoAvvio(
+            True,
+            "Gradiens partirà solo dopo l'accesso al sistema: per farlo partire all'accensione "
+            "serve il comando qui sotto.",
+            f"sudo loginctl enable-linger {getpass.getuser()}",
+        )
     return StatoAvvio(True)
 
 
 # Windows: attività pianificata con l'utente del PC, senza password salvata (ADR 0005).
+
 
 def _utente_windows() -> str:
     return f"{os.environ.get('USERDOMAIN', '')}\\{os.environ.get('USERNAME', getpass.getuser())}".lstrip("\\")
@@ -203,18 +211,24 @@ def _ps(valore: str) -> str:
 def script_windows(radice: Path, python: str, utente: str) -> str:
     """Script PowerShell che registra l'attività: si lancia come amministratore, oppure lo incolla l'utente.
     L'utente si legge prima dell'elevazione: con un account standard il PowerShell elevato è dell'amministratore."""
-    return "\n".join([
-        f"$a = New-ScheduledTaskAction -Execute {_ps(python)} -Argument {_ps(' '.join(ARGOMENTI))} -WorkingDirectory {_ps(str(radice))}",
-        "$t = New-ScheduledTaskTrigger -AtStartup",
-        f"$p = New-ScheduledTaskPrincipal -UserId {_ps(utente)} -LogonType S4U -RunLevel Limited",
-        "$s = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries "
-        "-ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)",
-        f"Register-ScheduledTask -TaskName {_ps(NOME)} -Action $a -Trigger $t -Principal $p -Settings $s -Force | Out-Null",
-    ])
+    return "\n".join(
+        [
+            f"$a = New-ScheduledTaskAction -Execute {_ps(python)} -Argument {_ps(' '.join(ARGOMENTI))} "
+            f"-WorkingDirectory {_ps(str(radice))}",
+            "$t = New-ScheduledTaskTrigger -AtStartup",
+            f"$p = New-ScheduledTaskPrincipal -UserId {_ps(utente)} -LogonType S4U -RunLevel Limited",
+            "$s = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries "
+            "-ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)",
+            f"Register-ScheduledTask -TaskName {_ps(NOME)} -Action $a -Trigger $t -Principal $p -Settings $s "
+            "-Force | Out-Null",
+        ]
+    )
 
 
 def _powershell() -> str:
-    return str(Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe")
+    return str(
+        Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
+    )
 
 
 def _sessione_senza_desktop() -> bool:
@@ -228,14 +242,21 @@ def _sessione_senza_desktop() -> bool:
 
 def _come_amministratore(script: str) -> None:
     if _sessione_senza_desktop():
-        raise ErroreAvvio("Gradiens è stato avviato all'accensione e gira senza desktop, quindi non può chiedere "
-                          "la conferma di amministratore.", script)
+        raise ErroreAvvio(
+            "Gradiens è stato avviato all'accensione e gira senza desktop, quindi non può chiedere "
+            "la conferma di amministratore.",
+            script,
+        )
     codificato = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
-    esterno = ("$p = Start-Process -FilePath powershell -Verb RunAs -Wait -PassThru -WindowStyle Hidden "
-               f"-ArgumentList '-NoProfile','-NonInteractive','-EncodedCommand','{codificato}'; exit $p.ExitCode")
+    esterno = (
+        "$p = Start-Process -FilePath powershell -Verb RunAs -Wait -PassThru -WindowStyle Hidden "
+        f"-ArgumentList '-NoProfile','-NonInteractive','-EncodedCommand','{codificato}'; exit $p.ExitCode"
+    )
     r = _esegui([_powershell(), "-NoProfile", "-NonInteractive", "-Command", esterno])
     if r.returncode != 0:
-        raise ErroreAvvio("La conferma di amministratore è stata negata oppure la registrazione non è riuscita.", script)
+        raise ErroreAvvio(
+            "La conferma di amministratore è stata negata oppure la registrazione non è riuscita.", script
+        )
 
 
 def stato_da_xml(xml: str, radice: Path, python: str) -> StatoAvvio:
@@ -244,10 +265,14 @@ def stato_da_xml(xml: str, radice: Path, python: str) -> StatoAvvio:
     radice_xml = ET.fromstring(re.sub(r"^\s*<\?xml[^>]*\?>", "", xml))
     valore = lambda percorso: (radice_xml.findtext(percorso, "", ns) or "").strip()  # noqa: E731
     stesso = lambda a, b: os.path.normcase(os.path.normpath(a)) == os.path.normcase(os.path.normpath(b))  # noqa: E731
-    if not (stesso(valore("t:Actions/t:Exec/t:Command").strip('"'), python)
-            and stesso(valore("t:Actions/t:Exec/t:WorkingDirectory"), str(radice))):
-        return StatoAvvio(True, "L'attività pianificata punta a un'altra cartella o a un altro Python: "
-                                "spegni e riaccendi l'interruttore.")
+    if not (
+        stesso(valore("t:Actions/t:Exec/t:Command").strip('"'), python)
+        and stesso(valore("t:Actions/t:Exec/t:WorkingDirectory"), str(radice))
+    ):
+        return StatoAvvio(
+            True,
+            "L'attività pianificata punta a un'altra cartella o a un altro Python: spegni e riaccendi l'interruttore.",
+        )
     if valore("t:Settings/t:Enabled").lower() == "false":
         return StatoAvvio(True, "L'attività pianificata è disabilitata nell'Utilità di pianificazione.")
     return StatoAvvio(True)
@@ -282,7 +307,9 @@ def icone_presenti() -> bool:
 
 def crea_icone(radice: Path) -> None:
     if os.name == "nt":
-        r = _esegui([_powershell(), "-NoProfile", "-NonInteractive", "-Command", script_icone_windows(radice, _pythonw())])
+        r = _esegui(
+            [_powershell(), "-NoProfile", "-NonInteractive", "-Command", script_icone_windows(radice, _pythonw())]
+        )
         if r.returncode != 0:
             raise ErroreAvvio(f"Icone non create: {r.stderr.strip()[:300]}")
         return
@@ -295,15 +322,23 @@ def crea_icone(radice: Path) -> None:
 
 def togli_icone() -> None:
     if os.name == "nt":
-        _esegui([_powershell(), "-NoProfile", "-NonInteractive", "-Command",
-                 "foreach ($c in 'Desktop', 'Programs') { Remove-Item -Force -ErrorAction SilentlyContinue "
-                 f"(Join-Path ([Environment]::GetFolderPath($c)) '{NOME_ICONA}.lnk') }}"])
+        _esegui(
+            [
+                _powershell(),
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                "foreach ($c in 'Desktop', 'Programs') { Remove-Item -Force -ErrorAction SilentlyContinue "
+                f"(Join-Path ([Environment]::GetFolderPath($c)) '{NOME_ICONA}.lnk') }}",
+            ]
+        )
         return
     for file in _file_icone():
         file.unlink(missing_ok=True)
 
 
 # Linux: file .desktop nel menu delle applicazioni e sul desktop.
+
 
 def _file_menu() -> Path:
     base = os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share"
@@ -331,37 +366,47 @@ def _argomento_desktop(valore: str) -> str:
 
 
 def voce_desktop(radice: Path, python: str) -> str:
-    return "\n".join([
-        "[Desktop Entry]",
-        "Type=Application",
-        f"Name={NOME_ICONA}",
-        "Comment=Accendi, spegni e guarda lo stato di Gradiens",
-        "Exec=" + " ".join(_argomento_desktop(a) for a in [python, "-m", "gradiens", "pannello"]),
-        f"Path={radice}",
-        f"Icon={ICONA.with_suffix('.png')}",
-        "Terminal=false",
-        "Categories=Utility;",
-    ]) + "\n"
+    return (
+        "\n".join(
+            [
+                "[Desktop Entry]",
+                "Type=Application",
+                f"Name={NOME_ICONA}",
+                "Comment=Accendi, spegni e guarda lo stato di Gradiens",
+                "Exec=" + " ".join(_argomento_desktop(a) for a in [python, "-m", "gradiens", "pannello"]),
+                f"Path={radice}",
+                f"Icon={ICONA.with_suffix('.png')}",
+                "Terminal=false",
+                "Categories=Utility;",
+            ]
+        )
+        + "\n"
+    )
 
 
 # Windows: collegamenti .lnk creati con WScript.Shell, che trova anche il desktop spostato su OneDrive.
 
+
 def script_icone_windows(radice: Path, pythonw: str) -> str:
-    return "\n".join([
-        "$shell = New-Object -ComObject WScript.Shell",
-        "foreach ($cartella in 'Desktop', 'Programs') {",
-        f"  $c = $shell.CreateShortcut((Join-Path ([Environment]::GetFolderPath($cartella)) {_ps(NOME_ICONA + '.lnk')}))",
-        f"  $c.TargetPath = {_ps(pythonw)}",
-        "  $c.Arguments = '-m gradiens pannello'",
-        f"  $c.WorkingDirectory = {_ps(str(radice))}",
-        f"  $c.IconLocation = {_ps(str(ICONA.with_suffix('.ico')))}",
-        "  $c.Description = 'Accendi, spegni e guarda lo stato di Gradiens'",
-        "  $c.Save()",
-        "}",
-    ])
+    return "\n".join(
+        [
+            "$shell = New-Object -ComObject WScript.Shell",
+            "foreach ($cartella in 'Desktop', 'Programs') {",
+            "  $c = $shell.CreateShortcut((Join-Path ([Environment]::GetFolderPath($cartella)) "
+            f"{_ps(NOME_ICONA + '.lnk')}))",
+            f"  $c.TargetPath = {_ps(pythonw)}",
+            "  $c.Arguments = '-m gradiens pannello'",
+            f"  $c.WorkingDirectory = {_ps(str(radice))}",
+            f"  $c.IconLocation = {_ps(str(ICONA.with_suffix('.ico')))}",
+            "  $c.Description = 'Accendi, spegni e guarda lo stato di Gradiens'",
+            "  $c.Save()",
+            "}",
+        ]
+    )
 
 
 # ---- Programmi esterni per l'aggiornamento (gradiens aggiorna) ----
+
 
 def eseguibile(nome: str) -> str | None:
     """`git` o `uv`: dal PATH, oppure da `~/.local/bin`, dove li mettono gli installer ufficiali su Windows e su

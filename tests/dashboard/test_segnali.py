@@ -28,7 +28,11 @@ def configura(s):
 def test_dati_obbligatori_mancanti(s):
     trovati = segnali.segnali(s)
     assert {k: v.tipo for k, v in trovati.items()} == {
-        "interessi": "avvertimento", "canali-youtube": "avvertimento", "siti": "avvertimento", "arxiv": "avvertimento"}
+        "interessi": "avvertimento",
+        "canali-youtube": "avvertimento",
+        "siti": "avvertimento",
+        "arxiv": "avvertimento",
+    }
     assert trovati["arxiv"].voci == {"categorie"}
     configura(s)
     assert segnali.segnali(s) == {} and segnali.globale({}) is None
@@ -38,7 +42,9 @@ def test_siti_errore_rigenerato_e_collegati_nuovi(s):
     buono = configura(s)
     rotto = dati_siti.aggiungi(s, "https://rotto.it/", {"url": "https://rotto.it/"})
     dati_siti.registra_esito(s, rotto.id, "accesso bloccato", "", True)
-    nuovo = dati_siti.aggiungi(s, "https://nuovo.it/", {"url": "https://nuovo.it/", "siti_collegati": {"blog.it": False}})
+    nuovo = dati_siti.aggiungi(
+        s, "https://nuovo.it/", {"url": "https://nuovo.it/", "siti_collegati": {"blog.it": False}}
+    )
     dati_siti.salva_rigenerato(s, buono.id, {"url": "https://buono.it/"})
     siti = segnali.segnali(s)["siti"]
     assert siti.tipo == "avvertimento" and siti.motivi == ["https://rotto.it/: accesso bloccato"]  # prevale
@@ -52,9 +58,22 @@ def test_siti_errore_rigenerato_e_collegati_nuovi(s):
 def test_canale_irraggiungibile_senza_segnali_per_tetto_e_pausa(s):
     configura(s)
     e = esecuzioni.inizia(s, "programmazione")
-    esecuzioni.termina(s, e.id, "completata", {"fonti": {
-        "arxiv": {"oltre_tetto": 4},
-        "youtube": {"stati": [{"fonte": "Lab", "stato": "non raggiungibile"}, {"fonte": "Tolto", "stato": "non raggiungibile"}]}}})
+    esecuzioni.termina(
+        s,
+        e.id,
+        "completata",
+        {
+            "fonti": {
+                "arxiv": {"oltre_tetto": 4},
+                "youtube": {
+                    "stati": [
+                        {"fonte": "Lab", "stato": "non raggiungibile"},
+                        {"fonte": "Tolto", "stato": "non raggiungibile"},
+                    ]
+                },
+            }
+        },
+    )
     esecuzioni.inizia(s, "cli")  # in corso: conta l'ultima conclusa
     impostazioni.salva_esecuzione(s, 60, 7, in_pausa=True)
     trovati = segnali.segnali(s)

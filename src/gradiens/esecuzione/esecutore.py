@@ -44,7 +44,8 @@ class GiaInCorso(Exception):
     """ESE-02: un'altra esecuzione è in corso."""
 
 
-# Secondi: all'accensione del PC la rete arriva di solito dopo pochi secondi, ma è arrivata anche dopo 5-10 minuti (I-4).
+# Secondi: all'accensione del PC la rete arriva di solito dopo pochi secondi,
+# ma è arrivata anche dopo 5-10 minuti (I-4).
 ATTESA_RETE, PAUSA_RETE = 900, 5
 HOST_DI_PROVA = ("one.one.one.one", 443)  # un nome che si risolve in ogni rete collegata a internet
 
@@ -111,7 +112,10 @@ class Esecutore:
             raise
         except Exception as errore:  # l'esecuzione fallisce, ma va sempre chiusa con il suo motivo (ESE-13)
             log.exception("Esecuzione %s fallita", id)
-            stato, motivo = "fallita", "; ".join(dict.fromkeys(str(e) or type(e).__name__ for e in foglie(errore)))  # S-07
+            stato, motivo = (
+                "fallita",
+                "; ".join(dict.fromkeys(str(e) or type(e).__name__ for e in foglie(errore))),
+            )  # S-07
         finally:
             if coperture:  # a fine esecuzione, anche interrotta o fallita: le notizie senza esito trattengono il sito
                 try:
@@ -172,7 +176,9 @@ class Esecutore:
             versioni.append((provider, modello, await provider.pronto()))  # ACC-15: es. Claude Code non collegato
         await self._attendi_rete()
         if con_versione := next((v for v in versioni if v[2]), None):
-            await self._prova_se_cambiato(s, m, *con_versione, prompt.sistema_prefiltro(elenco_interessi, imp.escludi_sponsorizzati))
+            await self._prova_se_cambiato(
+                s, m, *con_versione, prompt.sistema_prefiltro(elenco_interessi, imp.escludi_sponsorizzati)
+            )
         dal = notizie.adesso() - timedelta(days=imp.finestra_giorni)
         m.token["prefiltro"].update(provider=imp.provider_prefiltro, modello=imp.modello_prefiltro)
         m.token["elaborazione"].update(provider=imp.provider_elaborazione, modello=imp.modello_elaborazione)
@@ -192,8 +198,15 @@ class Esecutore:
                     stato["nuove"] = per_fonte[(nome, stato["fonte"])]
 
             passate, non_prefiltrati = await prefiltra(
-                s, nuove, prefiltro, prompt.sistema_prefiltro(elenco_interessi, imp.escludi_sponsorizzati),
-                imp.modello_prefiltro, imp.tetto_arxiv, m, self.avanzamento)
+                s,
+                nuove,
+                prefiltro,
+                prompt.sistema_prefiltro(elenco_interessi, imp.escludi_sponsorizzati),
+                imp.modello_prefiltro,
+                imp.tetto_arxiv,
+                m,
+                self.avanzamento,
+            )
             passate = applica_tetto(s, passate, non_prefiltrati, imp.tetto_arxiv, m)
 
             # Contenuto e valutazione completa (ESE-05): ogni notizia si salva appena valutata.
@@ -209,15 +222,22 @@ class Esecutore:
                         s.commit()
                         m.escludi(c, "a pagamento")
                         return
-                    risposta = await chiedi(elaborazione, sistema=sistema, messaggio=prompt.messaggio_valutazione(c),
-                                            schema=prompt.SCHEMA_VALUTAZIONE, modello=imp.modello_elaborazione)
+                    risposta = await chiedi(
+                        elaborazione,
+                        sistema=sistema,
+                        messaggio=prompt.messaggio_valutazione(c),
+                        schema=prompt.SCHEMA_VALUTAZIONE,
+                        modello=imp.modello_elaborazione,
+                    )
                 except ErroreBloccante:
                     raise
                 except ContenutoAssente as stato:  # YT-05: non diventa notizia, compare nel resoconto
                     notizie.segna_viste(s, [c.url])
                     s.commit()
                     m.di(c.tipo).senza_contenuto += 1
-                    m.di(c.tipo).problemi.append({"fonte": c.fonte, "titolo": c.titolo, "url": c.url, "stato": str(stato)})
+                    m.di(c.tipo).problemi.append(
+                        {"fonte": c.fonte, "titolo": c.titolo, "url": c.url, "stato": str(stato)}
+                    )
                     return
                 except NonAncoraDisponibile:  # YT-04: si riprende alla prossima esecuzione
                     return
@@ -234,28 +254,40 @@ class Esecutore:
             await self._argomenti(s, elaborazione, imp.modello_elaborazione, m)
             await self._proposte(s, elaborazione, imp.modello_elaborazione, imp.soglia, m)
 
-    async def _prova_se_cambiato(self, s: Session, m: Metriche, provider: Provider, modello: str, versione: str,
-                                 sistema: str) -> None:
+    async def _prova_se_cambiato(
+        self, s: Session, m: Metriche, provider: Provider, modello: str, versione: str, sistema: str
+    ) -> None:
         """Decisione 45: se la versione del provider (es. Claude Code, che si aggiorna da solo) non è quella già
         provata, una chiamata breve con lo schema del pre-filtro prima di usarlo. Se fallisce l'esecuzione si
         ferma, e la prova si ripete alla prossima."""
         precedente = esecuzioni.versione_provata(s, provider.nome)
-        m.versione_llm = {"provider": provider.nome, "versione": versione,
-                          "precedente": precedente if versione != precedente else None, "provata": versione == precedente}
+        m.versione_llm = {
+            "provider": provider.nome,
+            "versione": versione,
+            "precedente": precedente if versione != precedente else None,
+            "provata": versione == precedente,
+        }
         if versione == precedente:
             return
         log.info("%s passato da %s a %s: prova di funzionamento", provider.nome, precedente, versione)
         self._fase(f"prova di {nome_provider(provider.nome)}", 0)
         try:
-            risposta = await chiedi(provider, sistema=sistema, messaggio=prompt.messaggio_prefiltro([]),
-                                    schema=prompt.SCHEMA_PREFILTRO, modello=modello)
+            risposta = await chiedi(
+                provider,
+                sistema=sistema,
+                messaggio=prompt.messaggio_prefiltro([]),
+                schema=prompt.SCHEMA_PREFILTRO,
+                modello=modello,
+            )
             if risposta.token_ingresso <= 0:
                 raise ErroreLLM("la risposta non dice quanti token ha usato.")
         except QuotaEsaurita:
             raise
         except ErroreLLM as errore:
-            raise ErroreBloccante(f"{nome_provider(provider.nome)} {versione}: la prova di funzionamento non è riuscita, "
-                                  f"esecuzione fermata. {errore}") from errore
+            raise ErroreBloccante(
+                f"{nome_provider(provider.nome)} {versione}: la prova di funzionamento non è riuscita, "
+                f"esecuzione fermata. {errore}"
+            ) from errore
         m.conta_token("prefiltro", risposta)
         m.versione_llm["provata"] = True
 
@@ -263,14 +295,18 @@ class Esecutore:
         """ESE-08, ADR 0008: le notizie mostrate dall'esecuzione, a blocchi in fila, così ogni blocco
         vede gli argomenti creati dal precedente. Se Claude non risponde restano senza argomento."""
         mostrate = list(s.scalars(select(Notizia).where(Notizia.esecuzione_id == self.avanzamento.esecuzione_id)))
-        blocchi = [mostrate[i:i + BLOCCO_ARGOMENTI] for i in range(0, len(mostrate), BLOCCO_ARGOMENTI)]
+        blocchi = [mostrate[i : i + BLOCCO_ARGOMENTI] for i in range(0, len(mostrate), BLOCCO_ARGOMENTI)]
         self._fase("argomenti", len(blocchi))
         for blocco in blocchi:
             esistenti = argomenti.per_prompt(s)
             try:
                 risposta = await chiedi(
-                    elaborazione, sistema=prompt.sistema_argomenti(esistenti), messaggio=prompt.messaggio_argomenti(blocco),
-                    schema=prompt.SCHEMA_ARGOMENTI, modello=modello)
+                    elaborazione,
+                    sistema=prompt.sistema_argomenti(esistenti),
+                    messaggio=prompt.messaggio_argomenti(blocco),
+                    schema=prompt.SCHEMA_ARGOMENTI,
+                    modello=modello,
+                )
             except ErroreBloccante:
                 raise
             except Exception as errore:  # un argomento mancante non fa fallire l'esecuzione (ADR 0008)
@@ -286,25 +322,42 @@ class Esecutore:
                 if voce.get("argomento") in validi:
                     blocco[i].argomento_id = voce["argomento"]
                 elif isinstance(voce.get("nuovo"), str) and (nome := voce["nuovo"].strip()):
-                    blocco[i].argomento = nuovi.get(nome.casefold()) or nuovi.setdefault(nome.casefold(), argomenti.crea(s, nome))
+                    blocco[i].argomento = nuovi.get(nome.casefold()) or nuovi.setdefault(
+                        nome.casefold(), argomenti.crea(s, nome)
+                    )
             s.commit()
             self.avanzamento.fatti += 1
 
     async def _proposte(self, s: Session, elaborazione: Provider, modello: str, soglia: int, m: Metriche) -> None:
         """INT-04, INT-06: proposte dai cuori nuovi. Se Claude non risponde si riprova alla prossima esecuzione."""
-        compiti = [(prompt.sistema_raffinamento(i), prompt.messaggio_proposta(notizie_[:proposte.MASSIMO_NOTIZIE]),
-                    prompt.SCHEMA_RAFFINAMENTO,
-                    lambda dati, i=i, n=len(notizie_): proposte.registra_raffinamento(s, i, str(dati.get("raffinamento", "")), n))  # noqa: B008 (valori fissati alla creazione della lambda)
-                   for i, notizie_ in proposte.da_raffinare(s, soglia)]
+        compiti = [
+            (
+                prompt.sistema_raffinamento(i),
+                prompt.messaggio_proposta(notizie_[: proposte.MASSIMO_NOTIZIE]),
+                prompt.SCHEMA_RAFFINAMENTO,
+                lambda dati, i=i, n=len(notizie_): proposte.registra_raffinamento(  # noqa: B008 (valori fissati alla creazione della lambda)
+                    s, i, str(dati.get("raffinamento", "")), n
+                ),
+            )
+            for i, notizie_ in proposte.da_raffinare(s, soglia)
+        ]
         if cuori := proposte.per_interesse_nuovo(s):
-            compiti.append((prompt.sistema_nuovo_interesse(interessi.elenca(s)),
-                            prompt.messaggio_nuovo_interesse(cuori[:proposte.MASSIMO_NOTIZIE]), prompt.SCHEMA_NUOVO_INTERESSE,
-                            lambda dati, n=len(cuori): proposte.registra_interesse(  # noqa: B008 (valore fissato alla creazione della lambda)
-                                s, str(dati.get("nome", "")), str(dati.get("descrizione", "")), n)))
+            compiti.append(
+                (
+                    prompt.sistema_nuovo_interesse(interessi.elenca(s)),
+                    prompt.messaggio_nuovo_interesse(cuori[: proposte.MASSIMO_NOTIZIE]),
+                    prompt.SCHEMA_NUOVO_INTERESSE,
+                    lambda dati, n=len(cuori): proposte.registra_interesse(  # noqa: B008 (valore fissato alla creazione della lambda)
+                        s, str(dati.get("nome", "")), str(dati.get("descrizione", "")), n
+                    ),
+                )
+            )
         self._fase("proposte", len(compiti))
         for sistema, messaggio, schema, registra in compiti:
             try:
-                risposta = await chiedi(elaborazione, sistema=sistema, schema=schema, modello=modello, messaggio=messaggio)
+                risposta = await chiedi(
+                    elaborazione, sistema=sistema, schema=schema, modello=modello, messaggio=messaggio
+                )
                 registra(risposta.dati)
             except ErroreBloccante:
                 raise
@@ -327,8 +380,9 @@ class Esecutore:
         self.avanzamento.inizia_fase(fase, totale)
 
     @staticmethod
-    def _salva(s: Session, c: Candidata, dati: dict, ids_validi: set[int], soglia: int, m: Metriche,
-               esecuzione_id: int) -> None:
+    def _salva(
+        s: Session, c: Candidata, dati: dict, ids_validi: set[int], soglia: int, m: Metriche, esecuzione_id: int
+    ) -> None:
         # La risposta dell'LLM è dato esterno: si tengono solo interessi esistenti e punteggi 0-100.
         punteggi: dict[int, int] = {}
         for p in dati.get("punteggi", []):
@@ -343,13 +397,22 @@ class Esecutore:
         titolo_it = (dati.get("titolo_it") or "").strip()
         if not titolo_it.strip("\"'“”«» "):  # l'LLM a volte scrive la stringa vuota come '""'
             titolo_it = ""
-        s.add(Notizia(
-            tipo=c.tipo, url=c.url, fonte=c.fonte, titolo=c.titolo,
-            titolo_it=titolo_it if titolo_it and titolo_it != c.titolo else None,
-            sommario=c.sommario, riassunto=str(dati.get("riassunto", "")).strip(),
-            pubblicata_il=c.pubblicata_il, data_incerta=c.data_incerta, scoperta_il=notizie.adesso(), stato=c.stato,
-            esecuzione_id=esecuzione_id,
-            pertinenze=[Pertinenza(interesse_id=i, punteggio=v) for i, v in punteggi.items() if v > 0],
-        ))
+        s.add(
+            Notizia(
+                tipo=c.tipo,
+                url=c.url,
+                fonte=c.fonte,
+                titolo=c.titolo,
+                titolo_it=titolo_it if titolo_it and titolo_it != c.titolo else None,
+                sommario=c.sommario,
+                riassunto=str(dati.get("riassunto", "")).strip(),
+                pubblicata_il=c.pubblicata_il,
+                data_incerta=c.data_incerta,
+                scoperta_il=notizie.adesso(),
+                stato=c.stato,
+                esecuzione_id=esecuzione_id,
+                pertinenze=[Pertinenza(interesse_id=i, punteggio=v) for i, v in punteggi.items() if v > 0],
+            )
+        )
         s.commit()
         m.di(c.tipo).mostrate += 1

@@ -32,19 +32,26 @@ def aiuto(request: Request, s: Sessione):
 
 # ---------- Home (UI-02) e resoconto di un'esecuzione (UI-03) ----------
 
+
 @router.get("/", response_class=HTMLResponse)
 def home(request: Request, s: Sessione):
     ultima = esecuzioni.ultima(s)
     riepilogo = ultima and esecuzioni.riepilogo(ultima)
     prossima = request.app.state.programmatore.prossima()
     return pagina(
-        request, s, "home", "home",
+        request,
+        s,
+        "home",
+        "home",
         prossima=prossima and prossima.astimezone(UTC).replace(tzinfo=None),  # i filtri delle date vogliono UTC
         avanzamento=request.app.state.esecutore.avanzamento,
-        ultima=ultima, riepilogo=riepilogo,
+        ultima=ultima,
+        riepilogo=riepilogo,
         evidenza=notizie.in_evidenza(s, impostazioni.leggi(s).soglia),
         nomi_categorie=impostazioni.nomi_categorie(s),
-        siti_in_errore=dati_siti.in_errore(s), proposte=proposte.pendenti(s), avviso_login=claude_code.avviso_login(),
+        siti_in_errore=dati_siti.in_errore(s),
+        proposte=proposte.pendenti(s),
+        avviso_login=claude_code.avviso_login(),
         avviso_versione=riepilogo and cambio_versione(riepilogo),
         argomenti_nuovi=[r for r in argomenti.timeline(s, ultima and ultima.id) if r.nuove],  # UI-02, avvisi
         storico=[(e, esecuzioni.riepilogo(e)) for e in esecuzioni.storico(s)],
@@ -61,6 +68,7 @@ def resoconto(request: Request, s: Sessione, id: int):
 
 # ---------- Timeline e argomenti (UI-09, ESE-08) ----------
 
+
 def _ultima_id(s) -> int | None:
     ultima = esecuzioni.ultima(s)
     return ultima.id if ultima else None
@@ -68,7 +76,9 @@ def _ultima_id(s) -> int | None:
 
 @router.get("/timeline", response_class=HTMLResponse)
 def timeline(request: Request, s: Sessione):
-    return pagina(request, s, "timeline", "timeline", elenco=argomenti.timeline(s, _ultima_id(s)), tutti=argomenti.tutti(s))
+    return pagina(
+        request, s, "timeline", "timeline", elenco=argomenti.timeline(s, _ultima_id(s)), tutti=argomenti.tutti(s)
+    )
 
 
 @router.get("/argomenti/{id}", response_class=HTMLResponse)
@@ -76,8 +86,16 @@ def pagina_argomento(request: Request, s: Sessione, id: int):
     r = argomenti.riassunto(s, id, _ultima_id(s))
     if r is None:
         raise HTTPException(404, "Argomento inesistente o senza notizie")
-    return pagina(request, s, "argomento", "timeline", r=r, tutti=argomenti.tutti(s), ultima_id=_ultima_id(s),
-                  nomi_categorie=impostazioni.nomi_categorie(s))
+    return pagina(
+        request,
+        s,
+        "argomento",
+        "timeline",
+        r=r,
+        tutti=argomenti.tutti(s),
+        ultima_id=_ultima_id(s),
+        nomi_categorie=impostazioni.nomi_categorie(s),
+    )
 
 
 def _dopo(indirizzo: str | None = None) -> Response:
@@ -116,6 +134,7 @@ def elimina_argomento(request: Request, s: Sessione, id: int):
 
 # ---------- Notizie e Archivio (UI-04..UI-08) ----------
 
+
 def _intero(valore: str | None) -> int | None:
     try:
         return int(valore) if valore else None
@@ -148,12 +167,26 @@ def _elenco(request: Request, s: Sessione, archivio: bool) -> HTMLResponse:
     soglia = impostazioni.leggi(s).soglia
     nome = "archivio" if archivio else "notizie"
     return pagina(
-        request, s, "notizie", nome,
-        archivio=archivio, filtri=filtri, soglia=soglia,
+        request,
+        s,
+        "notizie",
+        nome,
+        archivio=archivio,
+        filtri=filtri,
+        soglia=soglia,
         notizie=notizie.elenca(s, filtri, soglia),
-        filtrata=bool(request.query_params.get("tipo") or filtri.interesse_id or filtri.fonte or filtri.giorni or filtri.solo_cuore
-                      or filtri.testo),
-        interessi=interessi.elenca(s), fonti=fonti, nomi_categorie=nomi_categorie, ultima=esecuzioni.ultima(s),
+        filtrata=bool(
+            request.query_params.get("tipo")
+            or filtri.interesse_id
+            or filtri.fonte
+            or filtri.giorni
+            or filtri.solo_cuore
+            or filtri.testo
+        ),
+        interessi=interessi.elenca(s),
+        fonti=fonti,
+        nomi_categorie=nomi_categorie,
+        ultima=esecuzioni.ultima(s),
         avanzamento=request.app.state.esecutore.avanzamento,
     )
 
@@ -173,8 +206,15 @@ def notizia_specifica(request: Request, s: Sessione, id: int):
     notizia = notizie.dettaglio(s, id)
     if notizia is None:
         raise HTTPException(404, "Notizia inesistente o cancellata")
-    return pagina(request, s, "notizia", "archivio" if notizia.cuore else "notizie",
-                  n=notizia, numero_interessi=len(interessi.elenca(s)), nomi_categorie=impostazioni.nomi_categorie(s))
+    return pagina(
+        request,
+        s,
+        "notizia",
+        "archivio" if notizia.cuore else "notizie",
+        n=notizia,
+        numero_interessi=len(interessi.elenca(s)),
+        nomi_categorie=impostazioni.nomi_categorie(s),
+    )
 
 
 @router.post("/notizie/{id}/cuore", response_class=HTMLResponse)
@@ -192,6 +232,7 @@ def cuore(request: Request, s: Sessione, id: int):
 
 # ---------- Esecuzione dalla dashboard (ESE-01) ----------
 
+
 @router.post("/esecuzione", response_class=HTMLResponse)
 async def avvia_esecuzione(request: Request):
     try:
@@ -204,7 +245,9 @@ async def avvia_esecuzione(request: Request):
 @router.get("/esecuzione/avanzamento", response_class=HTMLResponse)
 def avanzamento(request: Request, s: Sessione):
     attuale = request.app.state.esecutore.avanzamento
-    risposta = frammento(request, "avanzamento", avanzamento=attuale, ultima=esecuzioni.ultima(s), mostra_esito=attuale is None)
+    risposta = frammento(
+        request, "avanzamento", avanzamento=attuale, ultima=esecuzioni.ultima(s), mostra_esito=attuale is None
+    )
     if attuale is None:  # finita: la pagina ricarica l'elenco
         risposta.headers["HX-Trigger"] = json.dumps({"esecuzione-finita": True})
     return risposta

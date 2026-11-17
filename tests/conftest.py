@@ -33,8 +33,13 @@ def senza_avvio_registrato(monkeypatch, tmp_path):
 def conf(tmp_path) -> Configurazione:
     # _env_file=None: i test non leggono mai il .env vero con le chiavi.
     porta, porta_remota = porte_libere(2)
-    return Configurazione(_env_file=None, cartella_dati=tmp_path / ".gradiens", porta=porta, porta_remota=porta_remota,
-                          file_env=tmp_path / ".env")
+    return Configurazione(
+        _env_file=None,
+        cartella_dati=tmp_path / ".gradiens",
+        porta=porta,
+        porta_remota=porta_remota,
+        file_env=tmp_path / ".env",
+    )
 
 
 @pytest.fixture
@@ -52,4 +57,3 @@ def client(client_nuovo) -> TestClient:
         impostazioni.leggi(s).configurazione_completata = True
         s.commit()
     return client_nuovo
-

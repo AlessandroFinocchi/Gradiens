@@ -30,7 +30,10 @@ def da_fuori(app) -> TestClient:
     """Il telefono nella rete Tailscale, con l'accesso attivato dal PC: Serve inoltra sulla seconda porta,
     con il nome Tailscale come Host e l'identità di chi chiede."""
     dal_pc = cliente(app, "127.0.0.1", app.state.conf.porta, **HTMX)
-    assert dal_pc.post("/impostazioni/accesso", data={"attivo": "true", "indirizzo": f"https://{NOME}/"}).status_code == 200
+    assert (
+        dal_pc.post("/impostazioni/accesso", data={"attivo": "true", "indirizzo": f"https://{NOME}/"}).status_code
+        == 200
+    )
     return cliente(app, NOME, app.state.conf.porta_remota, **HTMX, **IDENTITA)
 
 
@@ -47,8 +50,16 @@ def fonti(client):
         impostazioni.aggiungi_categoria(s, "cs.CR")
         impostazioni.aggiungi_canale(s, "UC" + "x" * 22, "Canale")
         sito = dati_siti.aggiungi(s, "https://hwupgrade.it/", siti.Profilo(url="https://hwupgrade.it/").come_dict())
-        notizia = Notizia(tipo="sito", url="https://hwupgrade.it/a", fonte="hwupgrade.it", titolo="Con il cuore",
-                          riassunto="Riassunto.", pubblicata_il=adesso(), scoperta_il=adesso(), cuore=True)
+        notizia = Notizia(
+            tipo="sito",
+            url="https://hwupgrade.it/a",
+            fonte="hwupgrade.it",
+            titolo="Con il cuore",
+            riassunto="Riassunto.",
+            pubblicata_il=adesso(),
+            scoperta_il=adesso(),
+            cuore=True,
+        )
         s.add(notizia)
         s.commit()
         return {"interesse": interesse.id, "sito": sito.id, "notizia": notizia.id}
@@ -107,16 +118,25 @@ def test_da_fuori_casa_il_cuore_si_mette_ma_non_si_toglie(client, remoto, fonti)
         s.commit()
     assert remoto.post(f"/notizie/{fonti['notizia']}/cuore").status_code == 200
     pagina = remoto.get(f"/notizie/{fonti['notizia']}").text
-    assert 'aria-pressed="true"' in pagina and "disabled" in pagina.split('aria-pressed="true"')[0].rsplit("<button", 1)[1]
-    assert "disabled" not in client.get(f"/notizie/{fonti['notizia']}").text.split('aria-pressed="true"')[0].rsplit("<button", 1)[1]
+    assert (
+        'aria-pressed="true"' in pagina and "disabled" in pagina.split('aria-pressed="true"')[0].rsplit("<button", 1)[1]
+    )
+    assert (
+        "disabled"
+        not in client.get(f"/notizie/{fonti['notizia']}").text.split('aria-pressed="true"')[0].rsplit("<button", 1)[1]
+    )
 
 
 def test_da_fuori_casa_i_tetti_si_abbassano_ma_non_si_alzano(client, remoto, fonti):
     id = fonti["sito"]
     assert ALZARE_SOLO_DAL_PC in remoto.post("/impostazioni/arxiv/tetto", data={"tetto": 31}).text
     remoto.post("/impostazioni/arxiv/tetto", data={"tetto": 10})
-    assert ALZARE_SOLO_DAL_PC in remoto.post(f"/impostazioni/siti/{id}/tetti", data={"pagine": 41, "articoli": 100}).text
-    assert ALZARE_SOLO_DAL_PC in remoto.post(f"/impostazioni/siti/{id}/tetti", data={"pagine": 40, "articoli": 101}).text
+    assert (
+        ALZARE_SOLO_DAL_PC in remoto.post(f"/impostazioni/siti/{id}/tetti", data={"pagine": 41, "articoli": 100}).text
+    )
+    assert (
+        ALZARE_SOLO_DAL_PC in remoto.post(f"/impostazioni/siti/{id}/tetti", data={"pagine": 40, "articoli": 101}).text
+    )
     remoto.post(f"/impostazioni/siti/{id}/tetti", data={"pagine": 20, "articoli": 50})
     with client.app.state.sessioni() as s:
         impostazioni.leggi(s).finestra_giorni = 3
@@ -141,7 +161,10 @@ def test_da_fuori_casa_i_comandi_solo_dal_pc_sono_disattivati(client, remoto, fo
         imp.telegram_chat_id, imp.telegram_chat_nome, imp.telegram_bot = 4242, "Io", "mio_bot"
         s.commit()
     for sezione in ("avvio", "telegram", "interessi", "canali-youtube", "siti", "arxiv", "accesso"):
-        da_fuori, dal_pc = remoto.get(f"/impostazioni/{sezione}").text, client.get(f"/impostazioni/{sezione}", headers=HTMX).text
+        da_fuori, dal_pc = (
+            remoto.get(f"/impostazioni/{sezione}").text,
+            client.get(f"/impostazioni/{sezione}", headers=HTMX).text,
+        )
         assert SOLO_DAL_PC in da_fuori and " disabled" in da_fuori, sezione
         assert SOLO_DAL_PC not in dal_pc, sezione
 
@@ -166,11 +189,18 @@ def test_da_fuori_casa_l_icona_non_si_crea_alla_fine_della_configurazione(client
 def test_feed_e_siti_della_rete_di_casa_non_si_aggiungono(client, fonti):
     # ADR 0013: con Serve chi è nella rete Tailscale farebbe leggere al PC i servizi della rete di casa.
     id = fonti["sito"]
-    for indirizzo in ("http://192.168.1.1/feed", "http://127.1:8765/api/stato", "http://100.101.102.103/",
-                      "http://localhost/feed"):
+    for indirizzo in (
+        "http://192.168.1.1/feed",
+        "http://127.1:8765/api/stato",
+        "http://100.101.102.103/",
+        "http://localhost/feed",
+    ):
         finestra = client.post(f"/impostazioni/siti/{id}/feed", data={"indirizzo": indirizzo}, headers=HTMX).text
         assert "rete di casa" in finestra, indirizzo
-        assert "Indirizzo non valido" in client.post("/impostazioni/siti", data={"indirizzo": indirizzo}, headers=HTMX).text
+        assert (
+            "Indirizzo non valido"
+            in client.post("/impostazioni/siti", data={"indirizzo": indirizzo}, headers=HTMX).text
+        )
     with client.app.state.sessioni() as s:
         assert json.loads(s.get(Sito, id).profilo)["feed"] == []
 
@@ -203,15 +233,22 @@ def test_sezione_accesso_da_fuori_casa(client):
     porta = client.app.state.conf.porta_remota
     pagina = client.get("/impostazioni/accesso", headers=HTMX).text
     assert "Accesso da fuori casa" in pagina and f"tailscale serve --bg {porta}" in pagina and "Spento" in pagina
-    for sbagliato in ("*.tail1234.ts.net", "https://esempio.it", "pc.ts.net", f"https://{NOME}:8443",
-                      f"https://{NOME}.esempio.it", "ftp://pc.tail1234.ts.net"):
+    for sbagliato in (
+        "*.tail1234.ts.net",
+        "https://esempio.it",
+        "pc.ts.net",
+        f"https://{NOME}:8443",
+        f"https://{NOME}.esempio.it",
+        "ftp://pc.tail1234.ts.net",
+    ):
         risposta = client.post("/impostazioni/accesso", data={"attivo": "true", "indirizzo": sbagliato}, headers=HTMX)
         assert "non è un indirizzo Tailscale" in risposta.text, sbagliato
     assert "Per attivare" in client.post("/impostazioni/accesso", data={"attivo": "true"}, headers=HTMX).text
     with client.app.state.sessioni() as s:
         assert not impostazioni.leggi(s).accesso_remoto and client.app.state.accesso_remoto is None
-    attivo = client.post("/impostazioni/accesso", data={"attivo": "true", "indirizzo": " HTTPS://PC.Tail1234.ts.net/ "},
-                         headers=HTMX).text
+    attivo = client.post(
+        "/impostazioni/accesso", data={"attivo": "true", "indirizzo": " HTTPS://PC.Tail1234.ts.net/ "}, headers=HTMX
+    ).text
     assert f'href="https://{NOME}/"' in attivo
     with client.app.state.sessioni() as s:
         assert (impostazioni.leggi(s).accesso_remoto, impostazioni.leggi(s).indirizzo_remoto) == (True, NOME)

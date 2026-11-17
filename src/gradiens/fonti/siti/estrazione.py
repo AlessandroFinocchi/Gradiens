@@ -16,7 +16,9 @@ from gradiens.fonti.siti.indirizzi import titolo_da_url
 from gradiens.fonti.siti.rete import VIETATA, Navigatore, Pagina
 
 # Marcature standard dei contenuti a pagamento: schema.org (usata anche da Google) e Open Graph.
-PAYWALL = re.compile(r"\"isAccessibleForFree\"\s*:\s*\"?false|article:content_tier\"[^>]*content=\"(locked|metered)", re.I)
+PAYWALL = re.compile(
+    r"\"isAccessibleForFree\"\s*:\s*\"?false|article:content_tier\"[^>]*content=\"(locked|metered)", re.I
+)
 DATE = {"outputformat": "%Y-%m-%dT%H:%M:%S%z", "original_date": True, "extensive_search": False}
 
 
@@ -29,8 +31,9 @@ class Estratto:
 
 
 def con_trafilatura(pagina: Pagina) -> Estratto | None:
-    doc = trafilatura.bare_extraction(pagina.testo, url=pagina.url, with_metadata=True, include_comments=False,
-                                      date_extraction_params=DATE)
+    doc = trafilatura.bare_extraction(
+        pagina.testo, url=pagina.url, with_metadata=True, include_comments=False, date_extraction_params=DATE
+    )
     if doc is None:
         return None
     return Estratto(doc.text or "", doc.title or "", doc.description or "", da_iso(doc.date))

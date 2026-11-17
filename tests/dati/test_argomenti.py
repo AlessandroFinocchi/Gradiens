@@ -20,9 +20,19 @@ def s(tmp_path):
 def notizia(s, url, argomento, giorni_fa=1, cuore=False, esecuzione_id=None):
     a = interessi.elenca(s)[0] if interessi.elenca(s) else interessi.aggiungi(s, "A", "a")
     quando = adesso() - timedelta(days=giorni_fa)
-    n = Notizia(tipo="sito", url=url, fonte="e.org", titolo=url, riassunto="r", pubblicata_il=quando, scoperta_il=quando,
-                cuore=cuore, argomento=argomento, esecuzione_id=esecuzione_id,
-                pertinenze=[Pertinenza(interesse_id=a.id, punteggio=80)])
+    n = Notizia(
+        tipo="sito",
+        url=url,
+        fonte="e.org",
+        titolo=url,
+        riassunto="r",
+        pubblicata_il=quando,
+        scoperta_il=quando,
+        cuore=cuore,
+        argomento=argomento,
+        esecuzione_id=esecuzione_id,
+        pertinenze=[Pertinenza(interesse_id=a.id, punteggio=80)],
+    )
     s.add(n)
     s.commit()
     return n

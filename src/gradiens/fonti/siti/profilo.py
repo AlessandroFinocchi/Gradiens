@@ -22,12 +22,18 @@ class Profilo:
     url: str  # indirizzo inserito dall'utente: home o sezione
     perimetro: str = ""  # "dominio.it" (home: sottodomini compresi) o "dominio.it/sezione" (solo la sezione), WEB-06/09
     piattaforma: str = ""  # es. "wordpress", "substack", "hexo"; vuota se non riconosciuta
-    feed: list[str] = field(default_factory=list)  # feed usati, anche su altri domini; delle voci valgono solo quelle del sito (WEB-08)
+    feed: list[str] = field(
+        default_factory=list
+    )  # feed usati, anche su altri domini; delle voci valgono solo quelle del sito (WEB-08)
     sitemap: list[str] = field(default_factory=list)
     sezioni: list[str] = field(default_factory=list)  # pagine elenco da esplorare oltre a `url`
-    esclusi: list[str] = field(default_factory=list)  # prefissi di indirizzo esclusi: sezioni, percorsi o feed (WEB-03/21)
+    esclusi: list[str] = field(
+        default_factory=list
+    )  # prefissi di indirizzo esclusi: sezioni, percorsi o feed (WEB-03/21)
     siti_collegati: dict[str, bool] = field(default_factory=dict)  # dominio esterno -> attivo (WEB-07)
-    strategie: list[str] = field(default_factory=list)  # strategie attive; la cascata le prova nell'ordine di `strategie.STRATEGIE`
+    strategie: list[str] = field(
+        default_factory=list
+    )  # strategie attive; la cascata le prova nell'ordine di `strategie.STRATEGIE`
     data_da: str = ""  # dove si trova la data degli articoli
     diagnosi: str = ""  # stato WEB-26 quando nessuna strategia funziona, es. "accesso bloccato"
     pagine_massime: int = 40  # per esecuzione (WEB-19)

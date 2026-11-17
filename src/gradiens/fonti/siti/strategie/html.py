@@ -36,12 +36,23 @@ def articoli(pagina: Pagina, profilo, ora: datetime) -> list[Candidata]:
         if not (vicino or testuale or sembra_articolo(url)):
             continue  # né data né indirizzo da articolo: è un'altra pagina del sito
         data = vicino or da_url(url) or testuale
-        titoli = [spazi(a.xpath("string(.//*[self::h1 or self::h2 or self::h3 or self::h4])") or a.text_content())
-                  or a.get("title", "") for a in gruppo]
-        trovate.append(Candidata(
-            tipo="sito", url=url, fonte=profilo.dominio, titolo=max(titoli, key=len)[:300] or titolo_da_url(url),
-            sommario="", contenuto="", pubblicata_il=data or ora, data_incerta=data is None,
-        ))
+        titoli = [
+            spazi(a.xpath("string(.//*[self::h1 or self::h2 or self::h3 or self::h4])") or a.text_content())
+            or a.get("title", "")
+            for a in gruppo
+        ]
+        trovate.append(
+            Candidata(
+                tipo="sito",
+                url=url,
+                fonte=profilo.dominio,
+                titolo=max(titoli, key=len)[:300] or titolo_da_url(url),
+                sommario="",
+                contenuto="",
+                pubblicata_il=data or ora,
+                data_incerta=data is None,
+            )
+        )
     return trovate
 
 
@@ -79,7 +90,7 @@ def _numero(url: str) -> tuple[str, int]:
     """(indirizzo senza il numero di pagina, numero): /page/3, ?page=3 o /sezione/3/; 1 se manca."""
     for schema in (NUMERO_PAGINA, PAGINA_IN_FONDO):
         if m := schema.search(url):
-            return (url[:m.start()] + url[m.end():]).rstrip("/"), int(m[2])
+            return (url[: m.start()] + url[m.end() :]).rstrip("/"), int(m[2])
     return url.rstrip("/"), 1
 
 

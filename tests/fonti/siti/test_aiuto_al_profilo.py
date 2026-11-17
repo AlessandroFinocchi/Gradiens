@@ -5,9 +5,12 @@ import httpx
 from gradiens.fonti.siti import Profilo
 from gradiens.fonti.siti.aiuto import Gruppo, convalida, leggi_albero
 
-REDHOTCYBER = Profilo(url="https://www.redhotcyber.com/", perimetro="redhotcyber.com",
-                      sezioni=["https://www.redhotcyber.com/categoria/cybercrime/"],
-                      esclusi=["https://www.redhotcyber.com/offerte/"])
+REDHOTCYBER = Profilo(
+    url="https://www.redhotcyber.com/",
+    perimetro="redhotcyber.com",
+    sezioni=["https://www.redhotcyber.com/categoria/cybercrime/"],
+    esclusi=["https://www.redhotcyber.com/offerte/"],
+)
 CYBERCRIME = "https://www.redhotcyber.com/categoria/cybercrime/"
 VULNERABILITA = "https://www.redhotcyber.com/categoria/vulnerabilita/"
 
@@ -31,21 +34,34 @@ def test_albero_dei_link_raggruppati_per_forma_dell_indirizzo(sito):
 
 def test_albero_con_file_sottodomini_e_slug_in_cima_al_percorso(sito):
     profilo = Profilo(url="https://www.hwupgrade.it/", perimetro="hwupgrade.it")
-    home = sito.fixture("hwupgrade_home.html").replace(b"</body>", (
-        b'<a href="https://blog.hwupgrade.it/un-articolo-con-un-titolo-lungo/">Blog</a>'
-        b'<a href="/primo-articolo-senza-sezione/">Uno</a><a href="/secondo-articolo-senza-sezione/">Due</a>'
-        b'<a href="/allegato.pdf">PDF</a></body>'))
+    home = sito.fixture("hwupgrade_home.html").replace(
+        b"</body>",
+        (
+            b'<a href="https://blog.hwupgrade.it/un-articolo-con-un-titolo-lungo/">Blog</a>'
+            b'<a href="/primo-articolo-senza-sezione/">Uno</a><a href="/secondo-articolo-senza-sezione/">Due</a>'
+            b'<a href="/allegato.pdf">PDF</a></body>'
+        ),
+    )
     s = sito({profilo.url: httpx.Response(200, content=home, headers={"content-type": "text/html"})})
     gruppi = s.esegui(leggi_albero, profilo)
     # Prima i gruppi con link del menu, poi gli altri dal più numeroso; il feed e il PDF sono file, non pagine.
     assert [(g.forma, len(g.link), g.nel_menu) for g in gruppi] == [
-        ("/news", 1, 1), ("/offerte", 1, 1), ("/*", 2, 0), ("/news/*/*", 1, 0), ("blog.hwupgrade.it/*", 1, 0)]
+        ("/news", 1, 1),
+        ("/offerte", 1, 1),
+        ("/*", 2, 0),
+        ("/news/*/*", 1, 0),
+        ("blog.hwupgrade.it/*", 1, 0),
+    ]
 
 
 def test_albero_di_una_home_che_fa_un_redirect(sito):
     profilo = Profilo(url="https://redhotcyber.com/", perimetro="redhotcyber.com")  # come l'ha scritto l'utente
-    s = sito({"https://redhotcyber.com/": sito.redirect("https://www.redhotcyber.com/"),
-              "https://www.redhotcyber.com/": sito.fixture("wordpress_home.html")})
+    s = sito(
+        {
+            "https://redhotcyber.com/": sito.redirect("https://www.redhotcyber.com/"),
+            "https://www.redhotcyber.com/": sito.fixture("wordpress_home.html"),
+        }
+    )
     gruppi = s.esegui(leggi_albero, profilo)
     assert gruppi and gruppi[0].forma == "/categoria/*"
 
@@ -56,18 +72,28 @@ def test_albero_di_una_pagina_che_non_risponde(sito):
 
 def test_convalida_tiene_solo_indirizzi_dell_albero_e_del_perimetro(sito):
     gruppi, _ = _albero(sito)
-    proposta = convalida({
-        "sezioni": [VULNERABILITA.rstrip("/"),  # senza la barra finale: è comunque un link dell'albero
-                    "https://www.redhotcyber.com/categoria/inventata/",  # non è nell'albero
-                    "https://academy.redhotcyber-partner.org/",  # fuori dal perimetro
-                    "javascript:alert(1)", 42, None],
-        "esclusi": ["https://www.redhotcyber.com/post/",  # copre dei link dell'albero
-                    "https://www.redhotcyber.com/offerte/",  # già escluso
-                    "https://www.redhotcyber.com/",  # escluderebbe tutto il sito
-                    "https://www.redhotcyber.com/eventi/",  # nessun link dell'albero
-                    "https://altro.example/post/"],
-        "nota": "  Le categorie   elencano articoli.  ",
-    }, gruppi, REDHOTCYBER)
+    proposta = convalida(
+        {
+            "sezioni": [
+                VULNERABILITA.rstrip("/"),  # senza la barra finale: è comunque un link dell'albero
+                "https://www.redhotcyber.com/categoria/inventata/",  # non è nell'albero
+                "https://academy.redhotcyber-partner.org/",  # fuori dal perimetro
+                "javascript:alert(1)",
+                42,
+                None,
+            ],
+            "esclusi": [
+                "https://www.redhotcyber.com/post/",  # copre dei link dell'albero
+                "https://www.redhotcyber.com/offerte/",  # già escluso
+                "https://www.redhotcyber.com/",  # escluderebbe tutto il sito
+                "https://www.redhotcyber.com/eventi/",  # nessun link dell'albero
+                "https://altro.example/post/",
+            ],
+            "nota": "  Le categorie   elencano articoli.  ",
+        },
+        gruppi,
+        REDHOTCYBER,
+    )
     assert proposta.sezioni_aggiunte == [VULNERABILITA]
     assert proposta.sezioni_tolte == [CYBERCRIME]  # l'LLM non l'ha tenuta
     assert proposta.esclusi_nuovi == ["https://www.redhotcyber.com/post/"]

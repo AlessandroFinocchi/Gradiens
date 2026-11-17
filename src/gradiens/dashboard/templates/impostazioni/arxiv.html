@@ -25,7 +25,7 @@
   </div>
   <div class="controllo">
     <button type="button" class="bottone secondario piccolo" hx-post="/impostazioni/arxiv/categorie/rimuovi"
-            hx-vals='{{ {"codice": c.codice}|tojson }}' hx-target="#impostazioni">Rimuovi</button>
+            hx-vals='{{ {"codice": c.codice}|tojson }}' hx-target="#impostazioni"{{ disattiva_fuori(request) }}>Rimuovi</button>
   </div>
 </div>
 {% else %}

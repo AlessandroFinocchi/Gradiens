@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from gradiens.app import avvio_sistema
 from gradiens.app.configurazione import RADICE
-from gradiens.dashboard.comune import Sessione, modelli
+from gradiens.dashboard.comune import Sessione, dal_pc, modelli
 from gradiens.dashboard.rotte_impostazioni import dati_sezione
 from gradiens.dati import impostazioni, interessi
 from gradiens.dati import siti as dati_siti
@@ -82,6 +82,9 @@ def completa(request: Request, s: Sessione, icone: Annotated[bool, Form()] = Fal
     fatti, _ = _fatti(request, s, con_claude=True)
     if mancanti := [MANCA[p] for p, fatto in fatti.items() if not fatto]:
         return passo(request, s, "telegram", errore=" ".join(mancanti))
+    if icone and not dal_pc(request):  # ADR 0013: le icone riguardano il PC
+        return passo(request, s, "telegram", errore="L'icona si crea stando al PC su cui gira Gradiens. "
+                                                    "Togli la spunta per continuare senza icona.")
     if icone:  # AMB-05: l'icona del pannello di controllo, proposta alla fine (ADR 0009)
         try:
             avvio_sistema.crea_icone(RADICE)

@@ -2,6 +2,7 @@
 
 import re
 from datetime import time
+from urllib.parse import urlsplit
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -10,6 +11,9 @@ from gradiens.dati.modelli import TEMI, CanaleYoutube, CategoriaArxiv, Impostazi
 
 # Codici arXiv: archivio e, facoltativa, sottocategoria (cs.CR, math.PR, hep-th, astro-ph.GA).
 FORMATO_CATEGORIA = re.compile(r"^[a-z][a-z-]*(\.[A-Za-z-]+)?$")
+# Nome completo di una macchina nella rete Tailscale: <macchina>.<rete>.ts.net, mai con l'asterisco (ADR 0013).
+NOME_TAILSCALE = re.compile(r"[a-z0-9-]+\.[a-z0-9-]+\.ts\.net")
+ESEMPIO_TAILSCALE = "https://nome-pc.tail1234.ts.net"
 
 
 class ImpostazioneNonValida(ValueError):
@@ -50,6 +54,30 @@ def salva_esecuzione(sessione: Session, soglia: int, finestra_giorni: int,
 def imposta_pausa(sessione: Session, in_pausa: bool) -> None:
     """TG-10: /pausa e /riprendi."""
     leggi(sessione).programmazione_in_pausa = in_pausa
+    sessione.commit()
+
+
+def nome_remoto(imp: Impostazioni) -> str | None:
+    """Nome Tailscale con cui si apre la dashboard da fuori casa, o None se l'accesso è spento (ADR 0013)."""
+    return imp.indirizzo_remoto if imp.accesso_remoto else None
+
+
+def salva_accesso_remoto(sessione: Session, attivo: bool, indirizzo: str) -> None:
+    """Si incolla l'indirizzo che mostra Tailscale; si tiene solo il nome della macchina, completo."""
+    testo, nome = indirizzo.strip(), None
+    if testo:
+        try:
+            parti = urlsplit(testo if "://" in testo else "https://" + testo)
+            valido = parti.scheme.lower() in ("http", "https") and parti.port in (None, 443)
+        except ValueError:  # porta non valida
+            valido = False
+        nome = (parti.hostname or "") if valido else ""
+        if not NOME_TAILSCALE.fullmatch(nome):
+            raise ImpostazioneNonValida(f"«{testo}» non è un indirizzo Tailscale di questo PC: è del tipo {ESEMPIO_TAILSCALE}")
+    if attivo and nome is None:
+        raise ImpostazioneNonValida(f"Per attivare l'accesso incolla l'indirizzo Tailscale di questo PC, del tipo {ESEMPIO_TAILSCALE}")
+    imp = leggi(sessione)
+    imp.accesso_remoto, imp.indirizzo_remoto = attivo, nome
     sessione.commit()
 
 

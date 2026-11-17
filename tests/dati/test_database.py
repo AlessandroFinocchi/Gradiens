@@ -165,7 +165,7 @@ def test_la_migrazione_dei_siti_non_perde_dati_e_si_ripete_senza_errori(tmp_path
     migra(motore)
     assert stato_dei_dati() == prima and prima[0]["siti"] == 13
     with motore.connect() as c:
-        assert c.exec_driver_sql("SELECT version_num FROM alembic_version").scalar() == "0013"
+        assert c.exec_driver_sql("SELECT version_num FROM alembic_version").scalar() >= "0013"
         colonne = [r[1] for r in c.exec_driver_sql("PRAGMA table_info(siti)")]
         assert {"coperto_fino_a", "coperto_con"} <= set(colonne)
         assert c.exec_driver_sql("SELECT COUNT(*) FROM siti WHERE coperto_fino_a IS NOT NULL"
@@ -176,3 +176,24 @@ def test_la_migrazione_dei_siti_non_perde_dati_e_si_ripete_senza_errori(tmp_path
     migra(motore)  # già aggiornato: niente errori e nessuna copia in più
     assert stato_dei_dati() == prima
     assert len(list((tmp_path / "backup").glob("gradiens-*-migrazione.db"))) == 1
+
+
+def test_la_migrazione_dell_accesso_da_fuori_casa_lo_lascia_spento_e_non_tocca_il_resto(tmp_path):
+    """0014 (ADR 0013): due colonne nuove in `impostazioni`, con `ADD COLUMN`, su un database alla 0013 con dati."""
+    motore = crea_motore(tmp_path / "gradiens.db")
+    config = Config()
+    config.set_main_option("script_location", str(CARTELLA_MIGRAZIONI))
+    with motore.begin() as c:
+        config.attributes["connection"] = c
+        command.upgrade(config, "0013")
+        c.exec_driver_sql("UPDATE impostazioni SET tema = 'dark', soglia = 75, telegram_chat_id = 4242,"
+                          " configurazione_completata = 1")
+        c.exec_driver_sql("INSERT INTO interessi (id, nome, descrizione) VALUES (1, 'Sicurezza', 'attacchi')")
+    migra(motore)
+    migra(motore)  # una seconda volta non fa niente
+    with fabbrica_sessioni(motore)() as s:
+        imp = impostazioni.leggi(s)
+        assert (imp.tema, imp.soglia, imp.telegram_chat_id, imp.configurazione_completata) == ("dark", 75, 4242, True)
+        assert (imp.accesso_remoto, imp.indirizzo_remoto) == (False, None)
+    with motore.connect() as c:
+        assert c.exec_driver_sql("SELECT COUNT(*) FROM interessi").scalar() == 1

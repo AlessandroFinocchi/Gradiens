@@ -11,7 +11,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 ## 2. Ambiente
 
 - `AMB-01` L'applicazione gira su un computer dell'utente, con Windows 11 o con Linux, con le stesse funzioni. L'installazione usata ogni giorno è oggi un portatile Linux (Debian 13); il PC di casa con Windows 11 e RTX 3070 8 GB resta supportato. Da fuori casa si raggiunge tramite Tailscale. Vedi [ADR 0001](../adr/0001-esecuzione-sul-pc-di-casa.md) e [ADR 0013](../adr/0013-dashboard-da-fuori-casa-con-tailscale-serve.md). *(Aggiornato il 15 novembre 2026.)*
-- `AMB-02` L'applicazione non è esposta su internet: è raggiungibile solo dalla rete locale e da Tailscale.
+- `AMB-02` L'applicazione non è esposta su internet. La dashboard ascolta solo sul PC (`127.0.0.1`). Da fuori casa, se l'accesso è attivo nelle Impostazioni, la raggiungono solo i dispositivi della rete Tailscale dell'utente, tramite Tailscale Serve sullo stesso PC, con HTTPS; le richieste senza l'identità di Tailscale (per esempio quelle di Tailscale Funnel) si rifiutano. Serve entra da una seconda porta locale, e vale "dal PC" solo una richiesta arrivata sulla porta principale. Si fanno solo dal PC: spegnere Gradiens, cambiare l'avvio all'accensione, creare o togliere le icone, cambiare il bot o la chat Telegram, togliere i cuori, eliminare interessi e fonti, alzare i tetti (paper arXiv, pagine e articoli dei siti, finestra di raccolta). Da fuori casa si legge, si mette il cuore, si avvia un'esecuzione, si aggiungono fonti e interessi. Vedi [ADR 0013](../adr/0013-dashboard-da-fuori-casa-con-tailscale-serve.md). *(Aggiornato il 17 novembre 2026.)*
 - `AMB-03` Il codice funziona su Windows e su Linux e non usa dipendenze specifiche di un sistema operativo, così si può spostare su un server. Fa eccezione solo la registrazione dell'avvio all'accensione (`AMB-04`), che ha un ramo per ciascun sistema. I test automatici girano su entrambi.
 - `AMB-04` Nelle Impostazioni un interruttore decide come si avvia Gradiens:
   - **all'accensione del PC**: parte da solo, senza bisogno di accedere al sistema né di accendere il monitor. Basta accendere il PC e lanciare l'esecuzione dal bot Telegram;
@@ -224,7 +224,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
   - per ogni tipo di fonte (arXiv, YouTube, siti web), le 3 notizie con la pertinenza più alta, ciascuna con titolo in italiano, fonte, interesse con il suo punteggio, una o due frasi di riassunto e link;
   - una riga di metriche: esaminate, mostrate, durata, errori, costo (o token, per Claude Code e i modelli locali).
 
-  Il messaggio non contiene link alla dashboard: da Telegram si usano solo i comandi, e la dashboard resta raggiungibile solo dal PC su cui gira Gradiens.
+  Se l'accesso da fuori casa è attivo (`AMB-02`), in fondo al messaggio c'è il link al resoconto dell'esecuzione nella dashboard; il link si apre solo dai dispositivi della rete Tailscale. Altrimenti il messaggio non contiene link alla dashboard. *(Aggiornato il 17 novembre 2026, ADR 0013.)*
 - `TG-04` Se un tipo di fonte ha meno di 3 notizie si mostrano quelle presenti. Se non ne ha nessuna, il messaggio dice "nessuna notizia nuova".
 - `TG-05` Al comando `/aggiorna` il bot risponde "esecuzione avviata" oppure "esecuzione già in corso".
 - `TG-06` Il comando `/help` elenca tutti i comandi del bot e spiega cosa fa ciascuno.

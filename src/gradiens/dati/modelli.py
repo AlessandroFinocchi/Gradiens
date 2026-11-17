@@ -42,6 +42,9 @@ class Impostazioni(Base):
     telegram_chat_nome: Mapped[str | None] = mapped_column(String(200))
     ultima_proposta_interesse_il: Mapped[datetime | None]  # INT-06: contano i cuori messi dopo questa data
     configurazione_completata: Mapped[bool] = mapped_column(default=False)  # UI-11: la procedura guidata non torna
+    # ADR 0013: dashboard da fuori casa con Tailscale Serve. Il nome resta salvato anche ad accesso spento.
+    accesso_remoto: Mapped[bool] = mapped_column(default=False)
+    indirizzo_remoto: Mapped[str | None] = mapped_column(String(253))  # solo il nome, es. "pc.tail1234.ts.net"
 
 
 class Interesse(Base):

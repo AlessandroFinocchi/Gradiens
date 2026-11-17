@@ -14,13 +14,14 @@ from sqlalchemy.orm import Session
 from gradiens.app import avvio_sistema
 from gradiens.app.configurazione import RADICE, salva_segreto
 from gradiens.dashboard import segnali
-from gradiens.dashboard.comune import Sessione, frammento
+from gradiens.dashboard.comune import Sessione, SoloDalPc, dal_pc, frammento
 from gradiens.dati import impostazioni, interessi, proposte
 from gradiens.dati import siti as dati_siti
 from gradiens.dati.impostazioni import ImpostazioneNonValida
 from gradiens.dati.modelli import Sito
 from gradiens.fonti import siti, youtube
 from gradiens.fonti.siti import Profilo
+from gradiens.fonti.siti.indirizzi import indirizzo_pubblico
 from gradiens.telegram import bot as telegram
 from gradiens.telegram.messaggi import COMANDI
 
@@ -33,6 +34,7 @@ SEZIONI = {
     "esecuzione": ("Funzionamento", "Esecuzione", "esecuzione"),
     "avvio": ("Funzionamento", "Avvio", "accensione"),
     "telegram": ("Funzionamento", "Telegram", "telegram"),
+    "accesso": ("Funzionamento", "Accesso da fuori casa", "esterno"),
     "aspetto": ("Interfaccia", "Aspetto", "aspetto"),
 }
 router = APIRouter(prefix="/impostazioni")
@@ -71,6 +73,8 @@ def dati_sezione(request: Request, s: Session, sezione: str) -> dict:
     if sezione == "avvio":
         return {"avvio": avvio_sistema.stato_avvio(RADICE), "windows": avvio_sistema.su_windows(),
                 "icone": avvio_sistema.icone_presenti()}
+    if sezione == "accesso":
+        return {"conf": request.app.state.conf, "porta_remota_aperta": request.app.state.porta_remota_aperta}
     return {}
 
 
@@ -87,6 +91,13 @@ def _esegui(request: Request, s: Session, sezione: str, azione: Callable[[], obj
 
 Testo = Annotated[str, Form()]
 Numero = Annotated[int, Form()]
+ALZARE_SOLO_DAL_PC = "Da fuori casa i tetti si possono solo abbassare: per alzarli bisogna stare al PC su cui gira Gradiens."
+
+
+def _non_alzare(request: Request, nuovo: int, attuale: int) -> None:
+    """Decisione 56: alzare un tetto moltiplica il consumo di quota, quindi da fuori casa no."""
+    if nuovo > attuale and not dal_pc(request):
+        raise ImpostazioneNonValida(ALZARE_SOLO_DAL_PC)
 
 
 @router.get("/{sezione}", response_class=HTMLResponse)
@@ -112,7 +123,7 @@ def modifica_interesse(request: Request, s: Sessione, id: int, nome: Testo, desc
     return _esegui(request, s, "interessi", lambda: interessi.modifica(s, id, nome, descrizione, raffinamento))
 
 
-@router.post("/interessi/{id}/elimina", response_class=HTMLResponse)
+@router.post("/interessi/{id}/elimina", response_class=HTMLResponse, dependencies=[SoloDalPc])
 def elimina_interesse(request: Request, s: Sessione, id: int):
     return _esegui(request, s, "interessi", lambda: interessi.elimina(s, id))
 
@@ -139,7 +150,7 @@ async def aggiungi_canale(request: Request, s: Sessione, indirizzo: Testo):
     return _esegui(request, s, "canali-youtube", lambda: impostazioni.aggiungi_canale(s, canale.id, canale.nome))
 
 
-@router.post("/youtube/rimuovi", response_class=HTMLResponse)
+@router.post("/youtube/rimuovi", response_class=HTMLResponse, dependencies=[SoloDalPc])
 def rimuovi_canale(request: Request, s: Sessione, id: Testo):
     return _esegui(request, s, "canali-youtube", lambda: impostazioni.rimuovi_canale(s, id))
 
@@ -151,6 +162,8 @@ def _indirizzo_web(testo: str) -> str:
     parti = urlparse(testo)
     if parti.scheme not in ("http", "https") or not parti.netloc:
         raise ImpostazioneNonValida("Serve un indirizzo completo che inizi con https://")
+    if not indirizzo_pubblico(parti.hostname or ""):  # ADR 0013: da fuori casa sarebbe una porta verso la rete di casa
+        raise ImpostazioneNonValida("È un indirizzo della rete di casa o del PC: Gradiens legge solo siti pubblici.")
     return testo
 
 
@@ -175,7 +188,7 @@ async def aggiungi_sito(request: Request, s: Sessione, indirizzo: Testo):
     return _esegui(request, s, "siti", lambda: dati_siti.aggiungi(s, profilo.url, profilo.come_dict(), profilo.diagnosi or None))
 
 
-@router.post("/siti/{id}/rimuovi", response_class=HTMLResponse)
+@router.post("/siti/{id}/rimuovi", response_class=HTMLResponse, dependencies=[SoloDalPc])
 def rimuovi_sito(request: Request, s: Sessione, id: int):
     return _esegui(request, s, "siti", lambda: dati_siti.rimuovi(s, id))
 
@@ -214,6 +227,8 @@ def tetti_sito(request: Request, s: Sessione, id: int, pagine: Numero, articoli:
     def cambia(p: Profilo) -> None:
         if not (1 <= pagine <= 500 and 1 <= articoli <= 1000):
             raise ImpostazioneNonValida("Le pagine vanno da 1 a 500, gli articoli da 1 a 1000.")
+        _non_alzare(request, pagine, p.pagine_massime)
+        _non_alzare(request, articoli, p.articoli_massimi)
         p.pagine_massime, p.articoli_massimi = pagine, articoli
         p.modificati += [c for c in ("pagine_massime", "articoli_massimi") if c not in p.modificati]
     return _modifica_profilo(request, s, id, cambia)
@@ -236,14 +251,17 @@ def aggiungi_categoria(request: Request, s: Sessione, codice: Testo, nome: Annot
     return _esegui(request, s, "arxiv", lambda: impostazioni.aggiungi_categoria(s, codice, nome))
 
 
-@router.post("/arxiv/categorie/rimuovi", response_class=HTMLResponse)
+@router.post("/arxiv/categorie/rimuovi", response_class=HTMLResponse, dependencies=[SoloDalPc])
 def rimuovi_categoria(request: Request, s: Sessione, codice: Testo):
     return _esegui(request, s, "arxiv", lambda: impostazioni.rimuovi_categoria(s, codice))
 
 
 @router.post("/arxiv/tetto", response_class=HTMLResponse)
 def tetto_arxiv(request: Request, s: Sessione, tetto: Numero):
-    return _esegui(request, s, "arxiv", lambda: impostazioni.salva_tetto_arxiv(s, tetto))
+    def azione():
+        _non_alzare(request, tetto, impostazioni.leggi(s).tetto_arxiv)
+        impostazioni.salva_tetto_arxiv(s, tetto)
+    return _esegui(request, s, "arxiv", azione)
 
 
 @router.post("/esecuzione", response_class=HTMLResponse)
@@ -252,13 +270,17 @@ def esecuzione(request: Request, s: Sessione, soglia: Numero, finestra_giorni: N
                orario: Annotated[str | None, Form()] = None, automatica: Annotated[bool, Form()] = False):
     # Una casella non spuntata non viene inviata: per questo il valore di base qui è False.
     # "Programmazione automatica" è il contrario della pausa di /pausa e /riprendi (TG-10).
-    return _esegui(request, s, "esecuzione", lambda: impostazioni.salva_esecuzione(
-        s, soglia, finestra_giorni, escludi_sponsorizzati, escludi_pagamento, orario, not automatica))
+    def azione():
+        _non_alzare(request, finestra_giorni, impostazioni.leggi(s).finestra_giorni)
+        impostazioni.salva_esecuzione(s, soglia, finestra_giorni, escludi_sponsorizzati, escludi_pagamento, orario,
+                                      not automatica)
+    return _esegui(request, s, "esecuzione", azione)
 
 
 # ---------- Telegram (TG-01): tutorial, prova, cambio di chat ----------
+# Cambiare bot o chat solo dal PC: da fuori casa sarebbe il furto del canale di comando (ADR 0013).
 
-@router.post("/telegram/token", response_class=HTMLResponse)
+@router.post("/telegram/token", response_class=HTMLResponse, dependencies=[SoloDalPc])
 async def telegram_token(request: Request, s: Sessione, token: Testo):
     token = token.strip()
     try:
@@ -287,7 +309,7 @@ async def telegram_cerca(request: Request, s: Sessione):
     return finestra(request, s, "telegram", chat_trovata=trovata)
 
 
-@router.post("/telegram/conferma", response_class=HTMLResponse)
+@router.post("/telegram/conferma", response_class=HTMLResponse, dependencies=[SoloDalPc])
 async def telegram_conferma(request: Request, s: Sessione, chat_id: Numero, nome: Testo):
     token = request.app.state.conf.telegram_token
     if token is None:
@@ -312,7 +334,7 @@ async def telegram_prova(request: Request, s: Sessione):
     return finestra(request, s, "telegram", esito="Messaggio di prova inviato: controlla Telegram.")
 
 
-@router.post("/telegram/cambia-chat", response_class=HTMLResponse)
+@router.post("/telegram/cambia-chat", response_class=HTMLResponse, dependencies=[SoloDalPc])
 async def telegram_cambia_chat(request: Request, s: Sessione):
     await request.app.state.bot.ferma()
     imp = impostazioni.leggi(s)
@@ -322,7 +344,7 @@ async def telegram_cambia_chat(request: Request, s: Sessione):
 
 
 
-@router.post("/avvio", response_class=HTMLResponse)
+@router.post("/avvio", response_class=HTMLResponse, dependencies=[SoloDalPc])
 def avvio(request: Request, s: Sessione, attivo: Annotated[bool, Form()] = False):
     """AMB-04. Funzione sincrona: FastAPI la esegue in un thread, così l'attesa della conferma
     di amministratore (Windows) non blocca la dashboard."""
@@ -337,7 +359,7 @@ def avvio(request: Request, s: Sessione, attivo: Annotated[bool, Form()] = False
     return finestra(request, s, "avvio", esito=esito)
 
 
-@router.post("/avvio/icone", response_class=HTMLResponse)
+@router.post("/avvio/icone", response_class=HTMLResponse, dependencies=[SoloDalPc])
 def icone(request: Request, s: Sessione, attivo: Annotated[bool, Form()] = False):
     """AMB-05: l'icona che apre il pannello di controllo, sul desktop e nel menu."""
     try:
@@ -349,3 +371,13 @@ def icone(request: Request, s: Sessione, attivo: Annotated[bool, Form()] = False
         return finestra(request, s, "avvio", errore=str(errore))
     esito = "Icona Gradiens creata sul desktop e nel menu." if attivo else "Icona Gradiens tolta dal desktop e dal menu."
     return finestra(request, s, "avvio", esito=esito)
+
+
+@router.post("/accesso", response_class=HTMLResponse, dependencies=[SoloDalPc])
+def accesso(request: Request, s: Sessione, indirizzo: Annotated[str, Form()] = "",
+            attivo: Annotated[bool, Form()] = False):
+    """ADR 0013: dashboard da fuori casa con Tailscale Serve. Il nome vale subito, senza riavvio."""
+    def azione():
+        impostazioni.salva_accesso_remoto(s, attivo, indirizzo)
+        request.app.state.accesso_remoto = impostazioni.nome_remoto(impostazioni.leggi(s))
+    return _esegui(request, s, "accesso", azione)

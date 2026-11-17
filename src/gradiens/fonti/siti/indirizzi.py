@@ -14,6 +14,9 @@ SERVIZIO = {
 }
 TASSONOMIE = {"category", "categoria", "categorie", "categories", "topic", "topics", "archive", "archivio"}  # sezioni, non articoli
 DATA_NEL_PERCORSO = re.compile(r"/(20\d\d)[/-](0[1-9]|1[0-2])[/-](0[1-9]|[12]\d|3[01])(?:/|-|$)")
+# Nome che finisce con una parte di sole cifre o esadecimale: è un indirizzo IP in forma non canonica (127.1,
+# 2130706433, 0x7f000001, 0177.0.0.1), che il sistema accetta come tale. Nessun dominio vero finisce così.
+FORMA_IP = re.compile(r"\d+|0x[0-9a-f]*")
 
 
 def indirizzo_pubblico(host: str) -> bool:
@@ -25,7 +28,7 @@ def indirizzo_pubblico(host: str) -> bool:
     try:
         return ipaddress.ip_address(host).is_global
     except ValueError:
-        return True  # un nome di dominio
+        return not FORMA_IP.fullmatch(host.rsplit(".", 1)[-1])  # un nome di dominio
 
 
 def normalizza(href: str, base: str = "") -> str | None:

@@ -6,9 +6,10 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, Request
+from fastapi import Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from markupsafe import Markup
 from sqlalchemy.orm import Session
 
 from gradiens.app import avvio_sistema
@@ -115,6 +116,33 @@ modelli.env.filters.update(data_breve=data_breve, data_breve_giorno=data_breve_g
                            durata=durata, migliaia=migliaia, token_brevi=token_brevi)
 modelli.env.globals.update(statico=statico, TIPI=TIPI, FONTI=FONTI, AVVIATA_DA=AVVIATA_DA, STATI_BUONI=STATI_BUONI, nome_fonte=nome_fonte,
                            evidenzia=evidenzia)
+
+
+INDIRIZZI_LOCALI = {"127.0.0.1", "::1"}
+SOLO_DAL_PC = "Si fa stando al PC su cui gira Gradiens."
+
+
+def dal_pc(request: Request) -> bool:
+    """La richiesta arriva dal PC su cui gira Gradiens (ADR 0013). Tailscale Serve inoltra da 127.0.0.1 e l'Host lo
+    scrive il cliente, quindi non bastano: conta la porta, perché Serve entra solo dalla seconda (`porta_remota`)."""
+    server, cliente = request.scope.get("server"), request.client
+    return (server is not None and server[1] == request.app.state.conf.porta
+            and cliente is not None and cliente.host in INDIRIZZI_LOCALI)
+
+
+def solo_dal_pc(request: Request) -> None:
+    """Dipendenza delle rotte che da fuori casa non si usano (decisione 56)."""
+    if not dal_pc(request):
+        raise HTTPException(403, SOLO_DAL_PC)
+
+
+def disattiva_fuori(request: Request) -> Markup:
+    """Attributi di un comando solo dal PC: da fuori casa è disattivato e dice perché."""
+    return Markup() if dal_pc(request) else Markup(' disabled title="{}"').format(SOLO_DAL_PC)
+
+
+SoloDalPc = Depends(solo_dal_pc)
+modelli.env.globals.update(dal_pc=dal_pc, disattiva_fuori=disattiva_fuori)
 
 
 def sessione(request: Request) -> Iterator[Session]:

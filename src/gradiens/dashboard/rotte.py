@@ -11,7 +11,7 @@ from sqlalchemy.exc import NoResultFound
 from starlette.datastructures import QueryParams
 
 from gradiens.dashboard import rotte_configurazione, rotte_impostazioni
-from gradiens.dashboard.comune import CARTELLA, TIPI, Sessione, cambio_versione, frammento, pagina
+from gradiens.dashboard.comune import CARTELLA, SOLO_DAL_PC, TIPI, Sessione, cambio_versione, dal_pc, frammento, pagina
 from gradiens.dati import argomenti, esecuzioni, impostazioni, interessi, notizie, proposte
 from gradiens.dati import siti as dati_siti
 from gradiens.dati.impostazioni import ImpostazioneNonValida
@@ -26,8 +26,8 @@ router = APIRouter()
 
 @router.get("/aiuto", response_class=HTMLResponse)
 def aiuto(request: Request, s: Sessione):
-    """UI-12: pagina statica; i comandi Telegram sono quelli del bot."""
-    return pagina(request, s, "aiuto", "aiuto", COMANDI=COMANDI)
+    """UI-12: pagina statica; i comandi Telegram sono quelli del bot, le porte quelle della configurazione."""
+    return pagina(request, s, "aiuto", "aiuto", COMANDI=COMANDI, conf=request.app.state.conf)
 
 
 # ---------- Home (UI-02) e resoconto di un'esecuzione (UI-03) ----------
@@ -179,10 +179,13 @@ def notizia_specifica(request: Request, s: Sessione, id: int):
 
 @router.post("/notizie/{id}/cuore", response_class=HTMLResponse)
 def cuore(request: Request, s: Sessione, id: int):
-    """UI-05: mette o toglie il cuore e restituisce il bottone aggiornato."""
+    """UI-05: mette o toglie il cuore e restituisce il bottone aggiornato. Toglierlo fa cancellare la notizia
+    alla pulizia: da fuori casa no (decisione 56)."""
     attuale = s.get(Notizia, id)
     if attuale is None:
         raise HTTPException(404, "Notizia inesistente o cancellata")
+    if attuale.cuore and not dal_pc(request):
+        raise HTTPException(403, SOLO_DAL_PC)
     n = notizie.imposta_cuore(s, id, not attuale.cuore)
     return frammento(request, "cuore", n=n, con_testo=request.query_params.get("testo") == "1")
 

@@ -1,5 +1,6 @@
 {# Sezione Avvio: avvio all'accensione (AMB-04) e icona del pannello di controllo (AMB-05, ADR 0009). #}
 <h2>Avvio</h2>
+{% if not dal_pc(request) %}<p class="nota">Da fuori casa questa sezione si può solo guardare: si cambia stando al PC su cui gira Gradiens.</p>{% endif %}
 {% if esito %}<div class="esito ok" role="status">{{ esito }}</div>{% endif %}
 <form hx-post="/impostazioni/avvio" hx-trigger="change" hx-target="#impostazioni" hx-disabled-elt="find input">
   <div class="riga">
@@ -10,7 +11,7 @@
         {% else %}Parte senza bisogno di accedere al sistema né di accendere il monitor, come servizio utente di systemd. Vale dal prossimo avvio del PC.{% endif %}
       </div>
     </div>
-    <div class="controllo"><input type="checkbox" role="switch" class="interruttore" name="attivo" value="true"{% if avvio.attivo %} checked{% endif %} aria-label="Avvio all'accensione"></div>
+    <div class="controllo"><input type="checkbox" role="switch" class="interruttore" name="attivo" value="true"{% if avvio.attivo %} checked{% endif %}{{ disattiva_fuori(request) }} aria-label="Avvio all'accensione"></div>
   </div>
 </form>
 <div class="riga{% if 'stato' in voci %} evidenziata{% endif %}">
@@ -36,6 +37,6 @@
       <div class="titolo">Icona Gradiens sul desktop e nel menu</div>
       <div class="descrizione">Apre una piccola finestra per accendere e spegnere Gradiens e vedere se è acceso, senza terminale. Si apre anche con <code>gradiens pannello</code>.</div>
     </div>
-    <div class="controllo"><input type="checkbox" role="switch" class="interruttore" name="attivo" value="true"{% if icone %} checked{% endif %} aria-label="Icona del pannello di controllo"></div>
+    <div class="controllo"><input type="checkbox" role="switch" class="interruttore" name="attivo" value="true"{% if icone %} checked{% endif %}{{ disattiva_fuori(request) }} aria-label="Icona del pannello di controllo"></div>
   </div>
 </form>

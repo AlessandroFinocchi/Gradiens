@@ -7,8 +7,9 @@ stanno invece nel database (tabella `impostazioni`).
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Self
 
-from pydantic import SecretStr
+from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # src/gradiens/app/configurazione.py -> radice della repository.
@@ -24,10 +25,20 @@ class Configurazione(BaseSettings):
     cartella_dati: Path = RADICE / ".gradiens"
     host: str = "127.0.0.1"
     porta: int = 8765
+    # Seconda porta, sempre su 127.0.0.1, usata solo da Tailscale Serve per l'accesso da fuori casa (ADR 0013):
+    # una richiesta vale "dal PC" solo se arriva sulla porta principale.
+    porta_remota: int = 8766
     # Nomi con cui si può raggiungere la dashboard (difesa dal DNS rebinding).
     host_consentiti: list[str] = ["127.0.0.1", "localhost"]
     file_env: Path = RADICE / ".env"  # dove `salva_segreto` scrive i segreti inseriti dalla dashboard
     telegram_token: SecretStr | None = None  # TG-01; SecretStr non compare in repr e log (PER-04)
+
+    @model_validator(mode="after")
+    def _porte_diverse(self) -> Self:
+        # Con la stessa porta anche il PC conterebbe come fuori casa: CLI e pannello verrebbero rifiutati.
+        if self.porta_remota == self.porta:
+            raise ValueError("GRADIENS_PORTA_REMOTA deve essere diversa da GRADIENS_PORTA (ADR 0013)")
+        return self
 
     @property
     def percorso_database(self) -> Path:

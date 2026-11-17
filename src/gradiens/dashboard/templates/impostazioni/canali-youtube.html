@@ -12,7 +12,7 @@
   </div>
   <div class="controllo">
     <button type="button" class="bottone secondario piccolo" hx-post="/impostazioni/youtube/rimuovi" hx-vals='{"id": "{{ c.id }}"}'
-            hx-target="#impostazioni" hx-confirm="Smettere di seguire «{{ c.nome }}»?">Rimuovi</button>
+            hx-target="#impostazioni" hx-confirm="Smettere di seguire «{{ c.nome }}»?"{{ disattiva_fuori(request) }}>Rimuovi</button>
   </div>
 </div>
 {% else %}

@@ -1,0 +1,49 @@
+{# Sezione Accesso da fuori casa (ADR 0013): Tailscale Serve verso la seconda porta, solo dai dispositivi della rete Tailscale. #}
+<h2>Accesso da fuori casa</h2>
+{% set nome = imp.indirizzo_remoto %}
+{% if not dal_pc(request) %}<p class="nota">Da fuori casa questa sezione si può solo guardare: si cambia stando al PC su cui gira Gradiens.</p>{% endif %}
+<p class="intro">Apri la dashboard dal telefono o dal portatile quando sei fuori casa, solo dai dispositivi collegati alla tua rete Tailscale. Gradiens resta in ascolto solo su questo PC: chi non è nella tua rete non vede niente.</p>
+<form hx-post="/impostazioni/accesso" hx-target="#impostazioni" hx-disabled-elt="find button">
+  <div class="riga">
+    <div class="testo">
+      <div class="titolo">Apri la dashboard dai miei dispositivi Tailscale</div>
+      <div class="descrizione">Da fuori casa si legge, si mette il cuore, si avvia un'esecuzione e si aggiungono fonti e interessi. Solo stando al PC: spegnere Gradiens, avvio all'accensione e icone, bot e chat di Telegram, togliere i cuori, eliminare interessi e fonti, alzare i tetti.</div>
+    </div>
+    <div class="controllo"><input type="checkbox" role="switch" class="interruttore" name="attivo" value="true"{% if imp.accesso_remoto %} checked{% endif %}{{ disattiva_fuori(request) }}
+         hx-post="/impostazioni/accesso" hx-include="closest form" hx-target="#impostazioni" aria-label="Accesso da fuori casa"></div>
+  </div>
+  <div class="riga">
+    <div class="testo">
+      <label class="titolo" for="indirizzo-remoto">Indirizzo Tailscale di questo PC</label>
+      <div class="descrizione">Del tipo <code>https://nome-pc.tail1234.ts.net</code>: lo stampa il comando di Serve qui sotto, o <code>tailscale serve status</code>.</div>
+      <div class="campo-riga" style="margin-top: 8px">
+        <input class="campo" id="indirizzo-remoto" name="indirizzo" value="{{ 'https://' ~ nome if nome else '' }}" placeholder="https://nome-pc.tail1234.ts.net" autocomplete="off"{{ disattiva_fuori(request) }}>
+        <button class="bottone secondario"{{ disattiva_fuori(request) }}>Salva</button>
+      </div>
+    </div>
+  </div>
+</form>
+<div class="riga">
+  <div class="testo">
+    <div class="titolo">Stato</div>
+    <div class="descrizione">
+      {% if not porta_remota_aperta %}<span class="stato errore">da sistemare</span> La porta {{ conf.porta_remota }} è occupata da un altro programma. Scegline un'altra con <code>GRADIENS_PORTA_REMOTA</code> nel file <code>.env</code>, riavvia Gradiens e rifai il comando di Serve con la porta nuova.
+      {% elif imp.accesso_remoto %}<span class="stato ok">attivo</span> · <a href="https://{{ nome }}/" target="_blank" rel="noopener">https://{{ nome }}</a>. Stando al PC usa <code>http://127.0.0.1:{{ conf.porta }}</code>: dall'indirizzo Tailscale anche il PC conta come fuori casa.
+      {% else %}Spento: la dashboard si apre solo da questo PC.{% endif %}
+    </div>
+  </div>
+</div>
+<h3>Come si attiva, una volta</h3>
+<ol>
+  <li>Nella console web di Tailscale controlla che il nome di questo PC non contenga dati personali, perché finisce in un registro pubblico dei certificati; poi, nella pagina DNS, premi "Enable HTTPS".</li>
+  <li>Su questo PC fai entrare Serve dalla porta {{ conf.porta_remota }} (resta attivo anche dopo un riavvio):
+    <ul>
+      <li><strong>Linux</strong>, in un terminale: <pre class="comando">sudo tailscale serve --bg {{ conf.porta_remota }}</pre></li>
+      <li><strong>Windows</strong>, in PowerShell: <pre class="comando">tailscale serve --bg {{ conf.porta_remota }}</pre> poi, dall'icona di Tailscale, attiva "Run unattended", così Tailscale è collegato anche prima di accedere a Windows.</li>
+    </ul>
+  </li>
+  <li>Incolla qui sopra l'indirizzo che stampa il comando e accendi l'interruttore.</li>
+  <li><strong>Telefono</strong>: installa l'app Tailscale, accedi con lo stesso account e apri l'indirizzo. Tieni attivo il blocco dello schermo: chi ha in mano il telefono sbloccato apre la dashboard.</li>
+  <li>Prova: dal telefono, in questa sezione, l'interruttore deve risultare disattivato.</li>
+</ol>
+<p class="nota">Non usare mai <code>tailscale funnel</code>: renderebbe la dashboard pubblica. Gradiens rifiuta comunque le richieste che arrivano da internet. Altri dettagli nell'<a href="/aiuto#fuori-casa">Aiuto</a>.</p>

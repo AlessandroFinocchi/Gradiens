@@ -247,8 +247,26 @@ def test_messaggio_di_prova_prova_prima_a_ricollegare(monkeypatch):
     inviati = []
     monkeypatch.setattr(bot, "_avvia", avvia)
     monkeypatch.setattr(bot, "_chat", lambda: CHAT)
+    monkeypatch.setattr(bot, "_dashboard", lambda: None)
     asyncio.run(bot.invia_prova())
     assert inviati and "funziona" in inviati[0]
+
+
+def test_link_al_resoconto_solo_con_l_accesso_da_fuori_casa_attivo(ambiente):
+    # ADR 0013, TG-03: il link si apre solo dai dispositivi della rete Tailscale; ad accesso spento non c'è.
+    client, id = ambiente
+    with client.app.state.sessioni() as s:
+        impostazioni.salva_accesso_remoto(s, False, "https://pc.tail1234.ts.net")  # nome salvato, accesso spento
+    b, inviati = bot_di(client)
+    asyncio.run(b.invia_esecuzione(id))
+    asyncio.run(b.invia_prova())
+    assert "pc.tail1234" not in inviati[0][1] + inviati[1][1]
+    with client.app.state.sessioni() as s:
+        impostazioni.salva_accesso_remoto(s, True, "https://pc.tail1234.ts.net")
+    asyncio.run(b.invia_esecuzione(id))
+    asyncio.run(b.invia_prova())
+    assert inviati[2][1].endswith(f'\n<a href="https://pc.tail1234.ts.net/esecuzioni/{id}">Apri il resoconto nella dashboard</a>')
+    assert inviati[3][1].endswith("https://pc.tail1234.ts.net/")
 
 
 def test_avviso_del_login_in_fondo_al_messaggio_di_fine_esecuzione(ambiente, monkeypatch):

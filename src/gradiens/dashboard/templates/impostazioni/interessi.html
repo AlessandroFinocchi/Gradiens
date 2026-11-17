@@ -52,7 +52,7 @@
       <button class="bottone piccolo">Salva</button>
       <button type="button" class="bottone secondario piccolo" hx-post="/impostazioni/interessi/{{ i.id }}/elimina" hx-target="#impostazioni"
               hx-confirm="Eliminare l'interesse «{{ i.nome }}»? I suoi punteggi vengono cancellati."
-              aria-label="Elimina l'interesse {{ i.nome }}">{{ icona("cestino") }}Elimina</button>
+              aria-label="Elimina l'interesse {{ i.nome }}"{{ disattiva_fuori(request) }}>{{ icona("cestino") }}Elimina</button>
     </div>
   </form>
 </details>

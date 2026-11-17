@@ -160,6 +160,8 @@ class Navigatore:
 
     async def _scarica(self, url: str) -> Pagina:
         """Una richiesta con pausa per dominio e un nuovo tentativo. I redirect li seguono a mano `leggi` e `_scarica_robots`."""
+        if not indirizzo_pubblico(urlsplit(url).hostname or ""):
+            return Pagina(url, ERRORE_RETE)  # ADR 0013: mai la rete di casa, nemmeno da un feed aggiunto a mano
         in_cache = _cache.get(url)
         intestazioni = {"User-Agent": USER_AGENT, **(in_cache[0] if in_cache else {})}
         pagina = Pagina(url, ERRORE_RETE)

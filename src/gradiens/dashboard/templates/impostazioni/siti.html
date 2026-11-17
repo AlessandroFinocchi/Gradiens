@@ -21,7 +21,7 @@
       <button type="button" class="bottone secondario piccolo" hx-post="/impostazioni/siti/{{ sito.id }}/rigenera" hx-target="#impostazioni"
               hx-disabled-elt="this" hx-indicator="#analisi-sito">Rigenera profilo</button>
       <button type="button" class="bottone-icona" hx-post="/impostazioni/siti/{{ sito.id }}/rimuovi" hx-target="#impostazioni"
-              hx-confirm="Smettere di seguire {{ sito.url }}?" aria-label="Rimuovi {{ sito.url }}" title="Rimuovi">{{ icona("cestino") }}</button>
+              hx-confirm="Smettere di seguire {{ sito.url }}?" aria-label="Rimuovi {{ sito.url }}"{% if dal_pc(request) %} title="Rimuovi"{% else %}{{ disattiva_fuori(request) }}{% endif %}>{{ icona("cestino") }}</button>
     </div>
   </div>
   {# Riga compatta: stato, dettagli e profilo stanno qui; lo sfondo della riga segnala un problema o una novità. #}

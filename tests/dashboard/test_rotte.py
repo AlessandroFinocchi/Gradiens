@@ -384,8 +384,10 @@ def test_segnale_dell_avvio_da_rifare(client, monkeypatch):
 
 def test_aiuto(client):
     pagina = client.get("/aiuto").text
-    for sezione in ("esecuzione", "fonti", "siti", "interessi", "cuore", "argomenti", "stati", "avvio", "cli", "telegram"):
+    for sezione in ("esecuzione", "fonti", "siti", "interessi", "cuore", "argomenti", "stati", "avvio", "fuori-casa", "cli",
+                    "telegram"):
         assert f'id="{sezione}"' in pagina and f'href="#{sezione}"' in pagina  # UI-12, con l'indice
+    assert f"tailscale serve --bg {client.app.state.conf.porta_remota}" in pagina  # ADR 0013, con la porta vera
     assert "<code>/riprendi</code>" in pagina and "Windows" in pagina and "Linux" in pagina
     assert 'aria-current="page"' in pagina.split("Aiuto</span>")[0].rsplit("<a", 1)[1]  # voce attiva nella sidebar
 

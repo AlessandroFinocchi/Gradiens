@@ -101,6 +101,12 @@ class BotGradiens:
         with self._sessioni() as s:
             return impostazioni.leggi(s).telegram_chat_id
 
+    def _dashboard(self) -> str | None:
+        """Indirizzo della dashboard da fuori casa, solo con l'accesso attivo (ADR 0013, TG-03)."""
+        with self._sessioni() as s:
+            nome = impostazioni.nome_remoto(impostazioni.leggi(s))
+        return nome and f"https://{nome}"
+
     def problema(self) -> str | None:
         """Motivo del segnale sulla sezione Telegram, oppure None se il bot è a posto."""
         if self._conf.telegram_token is None or self._chat() is None:
@@ -174,7 +180,7 @@ class BotGradiens:
         e = s.get_one(Esecuzione, id)
         gruppi = notizie.in_evidenza(s, impostazioni.leggi(s).soglia, esecuzione_id=id)
         testo, numerate = messaggi.fine_esecuzione(e, esecuzioni.riepilogo(e), gruppi, impostazioni.nomi_categorie(s),
-                                                   claude_code.avviso_login())
+                                                   claude_code.avviso_login(), self._dashboard())
         return testo, _tastiera(numerate)
 
     async def invia_esecuzione(self, id: int) -> None:
@@ -194,8 +200,11 @@ class BotGradiens:
         await self._riprova()  # chi preme "Messaggio di prova" non deve aspettare il prossimo tentativo
         if self._app is None:
             raise ErroreTelegram(self.problema() or "Il bot non è in funzione.")
+        testo = "Messaggio di prova da Gradiens: il collegamento funziona."
+        if dashboard := self._dashboard():  # dal telefono si prova anche il link
+            testo += f"\nDashboard da fuori casa: {dashboard}/"
         try:
-            await self._app.bot.send_message(self._chat(), "Messaggio di prova da Gradiens: il collegamento funziona.")
+            await self._app.bot.send_message(self._chat(), testo)
         except TelegramError as errore:
             raise _errore(errore) from None
 

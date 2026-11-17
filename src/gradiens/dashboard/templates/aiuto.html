@@ -14,6 +14,7 @@
     <a href="#stati">Stati</a>
     <a href="#impostazioni">Impostazioni e segnali</a>
     <a href="#avvio">Avvio all'accensione</a>
+    <a href="#fuori-casa">Da fuori casa</a>
     <a href="#cli">Comandi da terminale</a>
     <a href="#telegram">Comandi Telegram</a>
   </nav>
@@ -107,6 +108,25 @@
     </ul>
     <p>Se sposti la cartella di Gradiens, spegni e riaccendi l'opzione.</p>
     <p>Nella stessa sezione puoi creare l'<strong>icona Gradiens</strong> sul desktop e nel menu. Apre il pannello di controllo, una piccola finestra con lo stato (spento, acceso, esecuzione in corso) e quattro bottoni: Accendi, Spegni, Apri la dashboard, Aggiorna. Chiudere il pannello non spegne Gradiens.</p>
+
+    <h2 id="fuori-casa">Dashboard da fuori casa</h2>
+    <p>Puoi aprire la dashboard dal telefono o dal portatile quando sei fuori casa, solo dai tuoi dispositivi collegati alla tua rete <strong>Tailscale</strong>. Gradiens resta in ascolto solo sul PC; Tailscale Serve, sullo stesso PC, gli porta le richieste dei tuoi dispositivi con HTTPS. Non c'è una password: entra solo chi è nella tua rete Tailscale. Si accende e si spegne dalle Impostazioni, sezione Accesso da fuori casa.</p>
+    <p>Da fuori casa puoi leggere, mettere il cuore, avviare un'esecuzione e aggiungere fonti e interessi. Solo stando al PC puoi spegnere Gradiens, cambiare l'avvio all'accensione e le icone, cambiare il bot o la chat di Telegram, togliere i cuori, eliminare interessi e fonti e alzare i tetti (paper arXiv, pagine e articoli dei siti, finestra di raccolta): da fuori casa quei comandi sono disattivati.</p>
+    <p>Si prepara una volta:</p>
+    <ol>
+      <li><strong>Console web di Tailscale</strong>: controlla che il nome del PC non contenga dati personali, perché finisce in un registro pubblico dei certificati (se serve, cambialo nella pagina Machines); poi, nella pagina DNS, premi "Enable HTTPS".</li>
+      <li><strong>Sul PC di Gradiens</strong> fai entrare Serve dalla porta {{ conf.porta_remota }}, riservata a lui. Resta attivo anche dopo un riavvio.
+        <ul>
+          <li><strong>Linux</strong>, in un terminale: <code>sudo tailscale serve --bg {{ conf.porta_remota }}</code>. Se non vuoi usare <code>sudo</code> ogni volta, prima lancia una volta <code>sudo tailscale set --operator=$USER</code>.</li>
+          <li><strong>Windows</strong>, in PowerShell: <code>tailscale serve --bg {{ conf.porta_remota }}</code>. Poi, dall'icona di Tailscale, attiva "Run unattended": senza, all'accensione Tailscale resta scollegato finché non accedi a Windows.</li>
+        </ul>
+      </li>
+      <li><strong>In Gradiens</strong>: Impostazioni, sezione Accesso da fuori casa. Incolla l'indirizzo che stampa il comando, del tipo <code>https://nome-pc.tail1234.ts.net</code>, e accendi l'interruttore.</li>
+      <li><strong>Telefono</strong> (Android o iPhone): installa l'app Tailscale, accedi con lo stesso account e apri l'indirizzo. Tieni attivo il blocco dello schermo: chi ha in mano il telefono sbloccato apre la dashboard.</li>
+      <li><strong>Prova</strong>: dal telefono apri le Impostazioni, sezione Avvio. L'interruttore deve risultare disattivato.</li>
+    </ol>
+    <p>Con l'accesso attivo, il messaggio Telegram di fine esecuzione ha in fondo il link al resoconto, che si apre solo dai tuoi dispositivi Tailscale. Stando al PC usa <code>http://127.0.0.1:{{ conf.porta }}</code>: dall'indirizzo Tailscale anche il PC conta come fuori casa. Se Gradiens è spento, il telefono mostra un errore di Tailscale e da lì non si riaccende.</p>
+    <p><strong>Non usare mai</strong> <code>tailscale funnel</code>: renderebbe la dashboard pubblica su internet. Gradiens rifiuta comunque le richieste che non portano l'identità di Tailscale. Se perdi il telefono, toglilo dalla tua rete nella console di Tailscale, pagina Machines. La chiave del PC in Tailscale scade dopo 180 giorni: allora l'accesso da fuori casa si ferma finché non rifai l'accesso a Tailscale sul PC. Per togliere Serve, rilancia il suo comando con <code>off</code> in fondo.</p>
 
     <h2 id="cli">Comandi da terminale</h2>
     <p>Si lanciano dalla cartella di Gradiens, con <code>uv run</code> davanti (per esempio <code>uv run gradiens stato</code>), sia su Windows sia su Linux.</p>

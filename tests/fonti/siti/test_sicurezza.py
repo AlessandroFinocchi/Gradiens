@@ -3,7 +3,7 @@ import asyncio
 import httpx
 
 from gradiens.fonti.siti import rete
-from gradiens.fonti.siti.indirizzi import normalizza
+from gradiens.fonti.siti.indirizzi import indirizzo_pubblico, normalizza
 from gradiens.fonti.siti.rete import ERRORE_RETE, Navigatore
 
 
@@ -12,6 +12,25 @@ def test_indirizzi_della_rete_di_casa_rifiutati():
                 "http://[::1]/x", "http://100.101.102.103/", "http://169.254.169.254/latest"]:
         assert normalizza(url) is None, url
     assert normalizza("https://www.redhotcyber.com/post/x?utm_source=a") == "https://www.redhotcyber.com/post/x"
+
+
+def test_forme_non_canoniche_di_un_indirizzo_ip_rifiutate():
+    # ADR 0013: il sistema le legge come indirizzi IP (127.1 è 127.0.0.1), il filtro le prendeva per nomi di dominio.
+    for url in ["http://127.1/", "http://2130706433/", "http://0x7f000001/", "http://0177.0.0.1/", "http://0x7f.1/",
+                "http://10.1/feed", "http://0/", "http://127.0.0.1./x"]:
+        assert normalizza(url) is None, url
+    assert indirizzo_pubblico("8.8.8.8") and indirizzo_pubblico("esempio.it") and indirizzo_pubblico("www.1password.com")
+
+
+def test_una_pagina_della_rete_di_casa_non_si_legge_nemmeno_robots_txt(sito):
+    # Un feed salvato prima di questo controllo, o arrivato da un'altra strada: nessuna richiesta parte.
+    s = sito({"http://192.168.1.1/feed": "<rss/>", "http://192.168.1.1/robots.txt": "User-agent: *\n"})
+
+    pagine = s.esegui(lambda client: asyncio.gather(*(Navigatore(client).leggi(u) for u in
+                                                     ("http://192.168.1.1/feed", "http://127.1/feed"))))
+
+    assert [p.codice for p in pagine] == [ERRORE_RETE, ERRORE_RETE]
+    assert s.richieste == []
 
 
 def test_redirect_verso_la_rete_di_casa_rifiutato():

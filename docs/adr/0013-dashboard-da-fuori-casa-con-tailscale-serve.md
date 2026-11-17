@@ -1,8 +1,16 @@
 # La dashboard si apre da fuori casa solo dalla rete Tailscale dell'utente, tramite Tailscale Serve
 
-**Stato**: accettato, da implementare (decisioni dell'utente del 15 novembre 2026, n. 50-57 di
-[decisioni.md](../miglioramenti/decisioni.md)). Il codice, il PRD e `struttura.md` descrivono ancora il
-comportamento precedente: si aggiornano insieme al codice.
+**Stato**: accettato (decisioni dell'utente del 15 novembre 2026, n. 50-57 di
+[decisioni.md](../miglioramenti/decisioni.md)); **implementato il 17 novembre 2026** nella versione completa, con
+`AMB-02`, `TG-03` e `struttura.md` aggiornati. Da fare a mano dall'utente: i passi di Tailscale (pagina Aiuto,
+"Dashboard da fuori casa") e la verifica dal telefono. Non ancora verificati dal vero: Serve e il ramo Windows.
+
+**Come è stato fatto**: Gradiens apre due prese su `127.0.0.1`, la porta principale (`GRADIENS_PORTA`, 8765) e
+quella per Serve (`GRADIENS_PORTA_REMOTA`, 8766); se la seconda è occupata parte lo stesso e la sezione lo dice.
+Vale "dal PC" solo una richiesta arrivata sulla porta principale da `127.0.0.1` o `::1` (`dashboard/comune.dal_pc`).
+Sulla porta per Serve si accettano solo richieste con l'accesso attivo, con il nome Tailscale salvato e con
+l'intestazione `Tailscale-User-Login` (`app/servizio.ControlloHost`). Interruttore e nome stanno nel database
+(migrazione 0014). Il comando di Serve diventa quindi `tailscale serve --bg 8766`, non `8765`.
 
 Oggi la dashboard ascolta solo su `127.0.0.1` e non ha autenticazione. L'utente vuole aprirla da fuori casa,
 solo lui e solo dai suoi dispositivi; non ha un dominio e usa già Tailscale su questa macchina. L'analisi è in
@@ -62,8 +70,11 @@ fonti**; **alzare i tetti** (paper arXiv, pagine e articoli dei siti, finestra d
   rete privata.
 - Rischio che resta: chi ha in mano un dispositivo della rete privata (un telefono rubato) può leggere tutto
   e avviare esecuzioni, consumando quota. Non può più cancellare l'Archivio né alzare i tetti.
-- Se un giorno si attivasse Funnel per errore, tutta la dashboard diventerebbe pubblica senza autenticazione:
-  Gradiens non distingue Serve da Funnel. Va valutato un rifiuto esplicito del traffico di Funnel.
+- Se un giorno si attivasse Funnel per errore, tutta la dashboard diventerebbe pubblica senza autenticazione.
+  **Deciso dall'utente il 17 novembre 2026**: la porta per Serve rifiuta le richieste senza `Tailscale-User-Login`,
+  che Serve aggiunge per i dispositivi della rete Tailscale e che manca nel traffico di Funnel (pagina ufficiale di
+  Serve). Rischio: se una versione di Serve non la mandasse più, l'accesso da fuori casa si fermerebbe; la prova dal
+  telefono lo mostrerebbe subito.
 - Non verificato: il comportamento di Serve dal vero e tutto il ramo Windows (lì Tailscale deve restare
   attivo senza accesso dell'utente). Un tunnel pubblico richiederà un ADR nuovo.
 - Il codice specifico di un sistema operativo resta solo in `app/avvio_sistema.py`

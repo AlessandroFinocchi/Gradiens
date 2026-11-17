@@ -41,9 +41,10 @@ def riga_metriche(r: dict) -> str:
     return f"{t['esaminate']} esaminate · {t['mostrate']} mostrate · {durata(r['durata_s'])} · {errori} · {token_brevi(t['token'])} token"
 
 
-def fine_esecuzione(e: Esecuzione, r: dict, gruppi: dict[str, list[Notizia]],
-                    nomi_categorie: dict[str, str], avviso: str | None = None) -> tuple[str, list[Notizia]]:
-    """TG-03, TG-04, ESE-13: testo del messaggio e notizie numerate, nell'ordine dei bottoni ❤️."""
+def fine_esecuzione(e: Esecuzione, r: dict, gruppi: dict[str, list[Notizia]], nomi_categorie: dict[str, str],
+                    avviso: str | None = None, dashboard: str | None = None) -> tuple[str, list[Notizia]]:
+    """TG-03, TG-04, ESE-13: testo del messaggio e notizie numerate, nell'ordine dei bottoni ❤️. `dashboard` è
+    l'indirizzo da fuori casa, solo con l'accesso attivo (ADR 0013)."""
     righe = [f"<b>Esecuzione {escape(e.stato)}</b> · {_quando(e)} · avviata da: {AVVIATA_DA.get(e.avviata_da, e.avviata_da)}"]
     if e.motivo:
         righe.append(f"Motivo: {escape(e.motivo)}")
@@ -69,6 +70,8 @@ def fine_esecuzione(e: Esecuzione, r: dict, gruppi: dict[str, list[Notizia]],
         righe.append(f"\nℹ️ {escape(versione)}")
     if avviso:  # es. il login di Claude Code che scade: lo si legge ogni giorno, senza aprire la dashboard
         righe.append(f"\n⚠️ {escape(avviso)}")
+    if dashboard:  # si apre solo dai dispositivi della rete Tailscale
+        righe.append(f'\n<a href="{escape(dashboard)}/esecuzioni/{e.id}">Apri il resoconto nella dashboard</a>')
     return "\n".join(righe), numerate
 
 

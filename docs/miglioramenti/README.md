@@ -2,7 +2,7 @@
 
 Dal 12 al 15 novembre 2026 un'analisi in sei fasi ha prodotto solo documenti (proposte, piani, ADR); dal 15 al 17
 novembre le parti decise sono state implementate, un pezzo per conversazione. Le scelte dell'utente sono in
-[decisioni.md](decisioni.md) (1-62). Nel codice "decisione N" rimanda a quel registro; quelle dell'intervista sui
+[decisioni.md](decisioni.md) (1-63). Nel codice "decisione N" rimanda a quel registro; quelle dell'intervista sui
 requisiti si scrivono "decisione N dei requisiti".
 
 Questa pagina dice cosa è fatto, cosa resta aperto e dove trovare i dettagli. Aggiornata il 17 novembre 2026.
@@ -45,7 +45,8 @@ non vanno spostati né rinominati. I dati delle prove vere stanno in [dati/](dat
 | Refactoring R-01: `Avanzamento`, `Contatori`, `Metriche` in `esecuzione/metriche.py`; test T-30 e T-24 | 28 | `aecc6d0` |
 | Refactoring R-03: pre-filtro e tetto in `esecuzione/prefiltro.py`, `chiedi` in `esecuzione/chiamata.py`, `in_parallelo` e `foglie` in `esecuzione/parallelo.py` | 28 | `cd292fe` |
 | Refactoring R-04: raccolta e politica dei siti in `esecuzione/raccolta.py`; test T-51 | 28 | `140681b` |
-| Refactoring R-02b: `STATI_BUONI` nel modello della sezione Siti | 28 | da committare |
+| Refactoring R-02b: `STATI_BUONI` nel modello della sezione Siti | 28 | `bbee3fd` |
+| "copertura parziale" non è un problema: entra in `STATI_BUONI`, test T-08 (`WEB-26`) | 63 | da committare |
 
 Prove vere fatte, con il permesso dell'utente: la prova di funzionamento di Claude Code 2.1.316 (1.764 token, 17
 nov) e l'aiuto al profilo di redhotcyber (6.983 token, con un'uscita di 2.658 token contro i 700 stimati:
@@ -56,9 +57,6 @@ nov) e l'aiuto al profilo di redhotcyber (6.983 token, con un'uscita di 2.658 to
 - **Dopo il refactoring** (decisione 28, cinque passi fatti il 17 novembre 2026, dopo ADR 0010 e 0011 invece che
   prima: `esecuzione/esecutore.py` è sceso da 604 a 355 righe):
   - il formatter, che aspettava il refactoring (decisione 47), si può introdurre;
-  - lo stato "copertura parziale" compare come problema (riga rossa in Impostazioni > Siti, Telegram, CLI, segnali)
-    perché non è in `STATI_BUONI`, mentre per il PRD (`WEB-26`) e la pagina Aiuto non è un guasto; T-08 non lo
-    elenca. Da decidere, poi si aggiunge a `STATI_BUONI` e a T-08;
   - non scritti, come da decisione 30: T-12, T-13 e T-14 (la rigenerazione fallita resta senza test);
   - testi superati: in ADR 0010 "La modifica sta tutta nell'esecutore" e, nella scheda 6b-2, la "costante
     dell'esecutore" (ora `BLOCCO_PREFILTRO` sta in `esecuzione/prefiltro.py`);

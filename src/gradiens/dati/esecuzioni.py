@@ -49,7 +49,8 @@ def avviate_dal(sessione: Session, quando: datetime) -> bool:
     ).first() is not None
 
 
-STATI_BUONI = ("ok", "nessun articolo nuovo")
+# Stati di un sito o di una fonte che non sono problemi: "copertura parziale" non è un guasto (WEB-26, decisione 63).
+STATI_BUONI = ("ok", "nessun articolo nuovo", "copertura parziale")
 CONTATORI = ("esaminate", "scartate_prefiltro", "scartate_valutazione", "escluse", "senza_contenuto",
              "oltre_tetto", "mostrate", "errori")
 

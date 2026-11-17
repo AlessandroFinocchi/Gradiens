@@ -277,3 +277,14 @@ qui nella rilettura finale del 17 novembre 2026, senza cambiarle.
 62. **Identità di Tailscale obbligatoria**: la porta per Tailscale Serve rifiuta le richieste senza
     `Tailscale-User-Login`, che manca nel traffico di Funnel. *Rischio*: se una versione di Serve non la mandasse
     più, l'accesso da fuori casa si fermerebbe ([ADR 0013](../adr/0013-dashboard-da-fuori-casa-con-tailscale-serve.md)).
+
+## Decisioni dopo il refactoring (17 novembre 2026)
+
+63. **"copertura parziale" non è un problema** (17 nov 2026, l'utente ha lasciato la scelta a Claude): lo stato
+    entra in `STATI_BUONI` (`dati/esecuzioni.py`). Non dà segnali nelle Impostazioni e non compare tra i problemi in
+    Telegram e nella CLI; in Impostazioni > Siti è grigio e la riga non è evidenziata; nel resoconto è verde, come
+    "nessun articolo nuovo". *Perché*: per `WEB-26` e l'ADR 0011 non è un guasto, e il caso analogo del tetto arXiv
+    raggiunto non si segnala. L'alternativa scartata ("visibile ma non rosso", come "profilo rigenerato") toccava
+    più punti e avrebbe mostrato una "novità" che non lo è. *Rischio accettato*: un sito che raggiunge spesso il
+    tetto si nota solo guardando la sezione Siti o il resoconto (la pagina Aiuto suggerisce di alzare i tetti).
+    Test: T-08 (`tests/dashboard/test_stati_dei_siti.py`).

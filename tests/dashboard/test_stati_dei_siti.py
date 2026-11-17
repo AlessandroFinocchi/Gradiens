@@ -1,6 +1,6 @@
 """T-08 (docs/miglioramenti/02-test-e-copertura.md, decisione 26): per ogni stato di un sito, dove compare come
-problema. L'ADR 0011 aggiunge lo stato "copertura parziale": chi lo aggiunge deve decidere qui, in modo consapevole,
-se è un problema. `STATI_BUONI` è definito una volta sola, in `dati/esecuzioni.py`: i modelli Jinja lo ricevono
+problema. Uno stato nuovo si aggiunge qui, decidendo in modo consapevole se è un problema: "copertura parziale"
+(ADR 0011) non lo è, come il tetto arXiv raggiunto (decisione 63). `STATI_BUONI` è definito una volta sola, in `dati/esecuzioni.py`: i modelli Jinja lo ricevono
 come globale da `dashboard/comune.py`."""
 
 import re
@@ -21,6 +21,7 @@ from gradiens.telegram import messaggi
 ATTESI = {
     "ok": (None, False, "ok", "ok"),
     "nessun articolo nuovo": (None, False, "", "ok"),
+    "copertura parziale": (None, False, "", "ok"),  # WEB-26: non è un guasto
     "profilo rigenerato": ("novita", True, "", ""),
     "accesso bloccato": ("avvertimento", True, "errore", "errore"),
     "richiede JavaScript": ("avvertimento", True, "errore", "errore"),
@@ -36,7 +37,7 @@ def classi(pagina: str, stato: str) -> set[str]:
 
 
 @pytest.mark.parametrize("stato", ATTESI)
-def test_gli_stati_dei_siti_diversi_da_ok_e_nessun_articolo_nuovo_sono_problemi_ovunque(client, stato):
+def test_dove_ogni_stato_di_un_sito_compare_come_problema(client, stato):
     segnale, problema, classe_impostazioni, classe_resoconto = ATTESI[stato]
     with client.app.state.sessioni() as s:
         sito = dati_siti.aggiungi(s, "https://sito.it/", Profilo(url="https://sito.it/").come_dict())

@@ -46,10 +46,10 @@ non vanno spostati né rinominati. I dati delle prove vere stanno in [dati/](dat
 | Refactoring R-03: pre-filtro e tetto in `esecuzione/prefiltro.py`, `chiedi` in `esecuzione/chiamata.py`, `in_parallelo` e `foglie` in `esecuzione/parallelo.py` | 28 | `cd292fe` |
 | Refactoring R-04: raccolta e politica dei siti in `esecuzione/raccolta.py`; test T-51 | 28 | `140681b` |
 | Refactoring R-02b: `STATI_BUONI` nel modello della sezione Siti | 28 | `bbee3fd` |
-| "copertura parziale" non è un problema: entra in `STATI_BUONI`, test T-08 (`WEB-26`) | 63 | da committare |
-| Ruff come formatter, una cartella per commit; E501 nel linter; `ruff format --check` in CI | 47, 64, 65 | da committare |
+| "copertura parziale" non è un problema: entra in `STATI_BUONI`, test T-08 (`WEB-26`) | 63 | `a0c42fd` |
+| Ruff come formatter su `src` e `tests`; E501 nel linter; `ruff format --check` in CI | 47, 64, 65 | `27ad33e` |
 
-I commit di sola formattazione sono elencati in `.git-blame-ignore-revs`. Perché `git blame` li salti, su ogni clone
+Il commit della formattazione è elencato in `.git-blame-ignore-revs`. Perché `git blame` li salti, su ogni clone
 (Windows e Linux) una volta: `git config blame.ignoreRevsFile .git-blame-ignore-revs`.
 
 Prove vere fatte, con il permesso dell'utente: la prova di funzionamento di Claude Code 2.1.316 (1.764 token, 17

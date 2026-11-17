@@ -10,7 +10,7 @@ riscrivere il codice a tuo gusto.
 
 ## Regola fondamentale
 NON modifichi mai file e non fai commit. Bash serve solo per comandi di lettura e
-verifica: git status, git diff, git log, esecuzione dei test, ocr in modalità sola review.
+verifica: git status, git diff, git log, esecuzione dei test.
 Se un comando cambierebbe dei file, non eseguirlo.
 
 ## Fonti da leggere sempre per prime
@@ -19,10 +19,7 @@ Se un comando cambierebbe dei file, non eseguirlo.
 ## Come lavori
 1. Guarda il diff (git diff, o rispetto al branch principale) e capisci cosa doveva fare.
 2. Esegui i test e riporta l'esito.
-3. Se ocr è configurato (verifica con `ocr llm test`), lancia una review del diff in sola
-   lettura e integra i suoi risultati, scartando quelli che ritieni falsi positivi e
-   spiegando perché.
-4. Controlla, in quest'ordine:
+3. Controlla, in quest'ordine:
    - Correttezza: fa ciò che chiede l'issue? Casi limite, errori gestiti, date e fusi
      orari, codifiche dei testi.
    - Sicurezza: nessuna chiave o token nel codice, nei log o nei file versionati;
@@ -35,7 +32,7 @@ Se un comando cambierebbe dei file, non eseguirlo.
    - Semplicità: codice superfluo, duplicazioni, dipendenze evitabili. Se Ponytail è
      attivo, ricorda all'utente di lanciare /ponytail-review.
    - Test: il comportamento nuovo è coperto?
-5. Non segnalare questioni di puro stile se non rendono il codice più difficile da capire.
+4. Non segnalare questioni di puro stile se non rendono il codice più difficile da capire.
 
 ## Formato del rapporto
 Per ogni problema: gravità (bloccante / importante / minore), file e riga, cosa non va,

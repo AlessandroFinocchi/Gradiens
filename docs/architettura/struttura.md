@@ -54,7 +54,8 @@ Regole fissate nella fetta 1 che le fette successive rispettano senza cambiarle.
 - le date sono in UTC senza fuso orario; con la data incerta si usa quella di scoperta e `data_incerta=True` (`WEB-15`);
 - `sommario` serve al pre-filtro e viene accorciato a 1.500 caratteri; `contenuto` serve alla valutazione: testo pulito, senza HTML, vuoto finché `completa` non lo riempie;
 - `tipo` è uno di `arxiv`, `sito`, `video`, `short` (`dati/modelli.TIPI_NOTIZIA`); la fonte di ogni tipo sta una volta sola in `dati/modelli.FONTE_DI_TIPO`, usata dall'esecutore e da `notizie.in_evidenza`; `stato` contiene stati come "contenuto parziale";
-- le richieste usano `fonti.USER_AGENT`, generico e senza dati personali (`WEB-18`).
+- le richieste usano `fonti.USER_AGENT`, generico e senza dati personali (`WEB-18`);
+- per i siti `dal` è il punto da cui ripartire (raccolta incrementale, ADR 0011), e `raccogli` riceve anche `inizio_finestra`, l'inizio della finestra di raccolta, su cui si giudica il feed fermo (`WEB-24`): l'esecutore lo calcola con `dati/siti.partenza` da "coperto fino a" (`Sito.coperto_fino_a`), dentro la finestra, e a fine esecuzione, anche interrotta o fallita, lo fa avanzare con `dati/siti.salva_coperture` fino all'ora della raccolta, ma non oltre la notizia più vecchia del sito rimasta fuori dal registro delle viste. `Sito.coperto_con` è l'impronta di finestra e profilo: se cambiano, o dopo un guasto, si riparte dalla finestra intera. Lo stato del sito si salva invece subito dopo la raccolta; un tetto raggiunto dà lo stato "copertura parziale" (`WEB-26`).
 
 **Provider LLM** (`llm/base.py`). Un provider ha `nome` e `async def chiedi(*, sistema, messaggio, schema, modello) -> Risposta`:
 - `sistema` è la parte fissa dell'esecuzione (va in cache), `messaggio` la parte variabile;

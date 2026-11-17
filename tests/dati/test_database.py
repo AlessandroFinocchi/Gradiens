@@ -118,34 +118,14 @@ def test_copie_giornaliere_una_al_giorno_e_al_massimo_sette(tmp_path):
     assert len(rimaste) == 7 and rimaste[0] == "gradiens-20261004-070000-giornaliera.db"  # via le più vecchie
 
 
-MIGRAZIONE_0013_FINTA = '''"""Migrazione finta per T-01: come farà l'ADR 0011, una colonna nuova in `siti`, con la tabella ricreata."""
-
-import sqlalchemy as sa
-from alembic import op
-
-revision = "0013"
-down_revision = "0012"
-branch_labels = None
-depends_on = None
-
-
-def upgrade() -> None:
-    with op.batch_alter_table("siti", recreate="always") as t:  # ricreare la tabella è il caso più rischioso
-        t.add_column(sa.Column("coperto_fino_a", sa.DateTime, nullable=True))
-'''
-
 TABELLE = ("interessi", "siti", "esecuzioni", "argomenti", "notizie", "pertinenze", "proposte", "notizie_viste",
            "canali_youtube", "categorie_arxiv")
 
 
-def test_la_migrazione_dei_siti_non_perde_dati_e_si_ripete_senza_errori(tmp_path, monkeypatch):
-    """T-01 (doc. 02, decisione 26): prima della migrazione vera della tabella `siti` (ADR 0011) si prova una 0013
-    finta su un database alla 0011 con dati in tutte le tabelle. Quando la 0013 vera esiste, si passa alla vera.
-    (La 0012 è quella del tetto arXiv, ADR 0010.)"""
+def test_la_migrazione_dei_siti_non_perde_dati_e_si_ripete_senza_errori(tmp_path):
+    """T-01 (doc. 02, decisione 26): la 0013 (ADR 0011, "coperto fino a" in `siti`) su un database alla 0012 con
+    dati in tutte le tabelle: non perde niente, i siti partono senza copertura e una seconda volta non fa niente."""
     import json
-    import shutil
-
-    from gradiens.dati import database
 
     motore = crea_motore(tmp_path / "gradiens.db")
     config = Config()
@@ -154,7 +134,7 @@ def test_la_migrazione_dei_siti_non_perde_dati_e_si_ripete_senza_errori(tmp_path
                            "note": "profilo con àccenti"}, ensure_ascii=False) for i in range(13)]
     with motore.begin() as c:
         config.attributes["connection"] = c
-        command.upgrade(config, "0011")
+        command.upgrade(config, "0012")
         sql = c.exec_driver_sql
         sql("INSERT INTO interessi (id, nome, descrizione) VALUES (1, 'Sicurezza', 'attacchi'), (2, 'Corsa', 'gare')")
         for i, profilo in enumerate(profili, start=1):
@@ -182,16 +162,14 @@ def test_la_migrazione_dei_siti_non_perde_dati_e_si_ripete_senza_errori(tmp_path
                                       " FROM siti ORDER BY id").all())
 
     prima = stato_dei_dati()
-    cartella = tmp_path / "migrazioni"
-    shutil.copytree(CARTELLA_MIGRAZIONI, cartella, ignore=shutil.ignore_patterns("__pycache__"))
-    (cartella / "versions" / "0013_finta.py").write_text(MIGRAZIONE_0013_FINTA, encoding="utf-8")
-    monkeypatch.setattr(database, "CARTELLA_MIGRAZIONI", cartella)
-
     migra(motore)
     assert stato_dei_dati() == prima and prima[0]["siti"] == 13
     with motore.connect() as c:
         assert c.exec_driver_sql("SELECT version_num FROM alembic_version").scalar() == "0013"
-        assert "coperto_fino_a" in [r[1] for r in c.exec_driver_sql("PRAGMA table_info(siti)")]
+        colonne = [r[1] for r in c.exec_driver_sql("PRAGMA table_info(siti)")]
+        assert {"coperto_fino_a", "coperto_con"} <= set(colonne)
+        assert c.exec_driver_sql("SELECT COUNT(*) FROM siti WHERE coperto_fino_a IS NOT NULL"
+                                 " OR coperto_con IS NOT NULL").scalar() == 0  # prima raccolta: finestra intera
         assert c.exec_driver_sql("PRAGMA foreign_key_check").all() == []
     assert len(list((tmp_path / "backup").glob("gradiens-*-migrazione.db"))) == 1
 

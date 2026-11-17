@@ -136,7 +136,8 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
   - "accesso bloccato";
   - "richiede JavaScript";
   - "profilo rigenerato";
-  - "nessuna strategia funzionante".
+  - "nessuna strategia funzionante";
+  - "copertura parziale": il sito ha raggiunto il tetto di pagine o di articoli (`WEB-19`) prima di coprire il periodo da cercare, quindi qualche articolo può mancare. Non è un guasto (`WEB-24`). Il periodo da cercare va dalla raccolta precedente a oggi, sempre dentro la finestra di raccolta (`ESE-03`): ogni sito ricorda fino a quando è stato coperto e riparte dalla finestra intera alla prima raccolta, dopo un guasto e dopo un cambio della finestra o del profilo (ADR 0011, decisioni 17, 34 e 37 di `docs/miglioramenti/decisioni.md`).
 
   Ogni notizia ha uno stato visibile, per esempio "ok", "data incerta", "contenuto parziale (paywall)", "errore di estrazione".
 

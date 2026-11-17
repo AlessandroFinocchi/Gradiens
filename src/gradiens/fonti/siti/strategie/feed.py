@@ -99,6 +99,8 @@ async def raccogli(nav: Navigatore, profilo, dal) -> Raccolta:
         for c in candidate(f, letta.url, profilo.dominio):  # le voci possono non essere in ordine di data (ACN)
             if not _del_sito(c.url, profilo, {host(url), host(letta.url)}):
                 continue
+            if not c.data_incerta and not profilo.escluso(c.url):
+                r.piu_recente = max(r.piu_recente or c.pubblicata_il, c.pubblicata_il)
             if c.data_incerta or nella_finestra(c.pubblicata_il, dal):
                 r.candidate.append(c)
             else:

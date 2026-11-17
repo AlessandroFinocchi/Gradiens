@@ -1,8 +1,32 @@
 # La raccolta dai siti diventa incrementale
 
-**Stato**: accettato, da implementare (decisione dell'utente del 13 novembre 2026, n. 17 di
-[decisioni.md](../miglioramenti/decisioni.md)). Il codice e il PRD descrivono ancora il comportamento
-precedente: si aggiornano insieme.
+**Stato**: accettato (decisione dell'utente del 13 novembre 2026, n. 17 di
+[decisioni.md](../miglioramenti/decisioni.md)); implementato il 17 novembre 2026, con la regola di
+"Quando avanza 'coperto fino a'" e senza margine di rilettura. Codice: `dati/siti.py` (`partenza`,
+`salva_coperture`), `esecuzione/esecutore.py` (`_raccogli_sito` e la fine di `_esegui`), stato "copertura
+parziale" in `fonti/siti/__init__.py`; migrazione `0013`, provata su una copia del database vero. PRD
+aggiornato (`WEB-26`). Rispetto al testo sotto:
+- la migrazione aggiunge solo `coperto_fino_a` e `coperto_con`, l'impronta della finestra di raccolta e del
+  profilo con cui il sito è stato coperto. Le colonne per le statistiche di raccolta non ci sono: nessun
+  codice le leggerebbe ancora (scelta dell'utente del 17 novembre 2026);
+- i casi in cui si riparte dalla finestra intera sono: prima raccolta, guasto del sito (`WEB-24`), finestra
+  di raccolta cambiata, profilo cambiato per qualunque motivo (a mano o per una rigenerazione). Gli ultimi
+  due si riconoscono dall'impronta, anche se il cambio avviene durante un'esecuzione;
+- "copertura parziale" vuol dire che il sito ha raggiunto il tetto di articoli o di pagine (`WEB-19`). Non è
+  un guasto e "coperto fino a" avanza con la stessa regola: gli articoli rimasti fuori dal tetto si perdono,
+  come prima, ma ora lo stato lo dice;
+- per i siti `dal` è il punto da cui ripartire, e `fonti/siti.raccogli` riceve anche, facoltativo,
+  `inizio_finestra`: il guasto "feed fermo" (`WEB-24`) si giudica sulla finestra intera, come prima. Con il
+  solo `dal` un sito che pubblica meno di una volta tra due esecuzioni sembrava fermo ogni volta che la
+  sitemap datava con `lastmod` una pagina modificata: avvisi falsi e finestra intera a esecuzioni alterne
+  (trovato nella review del 17 novembre 2026). Il registro delle notizie viste dentro la fonte (proposta
+  6a-3) resta da fare;
+- un sito che pubblica poco, nelle esecuzioni senza articoli nuovi, legge anche la strategia dopo il feed
+  (di solito la sitemap), perché la cascata si ferma al feed solo se il feed ha trovato articoli: una
+  richiesta in più per sito ed esecuzione, nessuna quota LLM. **Va lasciato così**: fermarsi al feed quando
+  ha voci nella finestra farebbe perdere in silenzio gli articoli di un feed in ritardo più dell'intervallo
+  tra due esecuzioni, che oggi arrivano dalla sitemap ([04-debugging.md](../miglioramenti/04-debugging.md),
+  scheda 2 ed "Esito della rilettura"). Compromesso accettato dall'utente il 17 novembre 2026.
 
 Oggi a ogni esecuzione ogni sito rifà la ricerca su tutta la finestra di raccolta, con tetti fissi di 40
 pagine e 100 articoli. Per un sito ad alto volume come hwupgrade non basta: i feed coprono circa 10 ore,

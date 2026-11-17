@@ -213,6 +213,18 @@ def test_tetto_di_articoli(sito):
     esito = s.esegui(raccogli, profilo, DAL)
     assert [c.titolo for c in esito.candidate] == ["N9", "N8", "N7"]
     assert "tetto" in esito.dettaglio
+    assert (esito.stato, esito.guasto) == ("copertura parziale", False)  # ADR 0011: non è un guasto (WEB-24)
+
+
+def test_tetto_di_pagine_da_copertura_parziale(sito):
+    """ADR 0011, WEB-26: le pagine finite prima di coprire il periodo da cercare si vedono nello stato del sito."""
+    voci = "".join(f"<item><title>N{i}</title><link>https://sito.it/n-{i}</link></item>" for i in range(3))  # senza date
+    s = sito({"https://sito.it/feed": f"<rss version='2.0'><channel>{voci}</channel></rss>"})
+    profilo = Profilo(url="https://sito.it/", perimetro="sito.it", feed=["https://sito.it/feed"], strategie=["feed"],
+                      pagine_massime=1)
+    esito = s.esegui(raccogli, profilo, DAL)
+    assert (esito.stato, esito.guasto) == ("copertura parziale", False)
+    assert "tetto di 1 pagine" in esito.dettaglio
 
 
 def test_profilo_json_e_rigenerazione_che_conserva_le_modifiche_manuali(sito):
@@ -396,3 +408,21 @@ def test_togliere_un_esclusione_e_una_modifica_manuale(sito):
     profilo.includi("https://www.sito.it/en/")
     assert profilo.esclusi == ["https://www.sito.it/offerte/"]
     assert profilo.modificati == ["esclusi"]
+
+
+@pytest.mark.parametrize(("ultima_del_feed", "fermo"), [("Tue, 03 Nov 2026 08:00:00 +0000", False),
+                                                         ("Tue, 20 Oct 2026 08:00:00 +0000", True)])
+def test_il_feed_fermo_si_giudica_sulla_finestra_intera_anche_con_la_raccolta_incrementale(sito, ultima_del_feed, fermo):
+    """ADR 0011 e WEB-24: un blog che pubblica poco non ha voci nuove dall'ultima raccolta, mentre la sitemap data con
+    `lastmod` una pagina modificata ieri. Il feed è "fermo" solo se non ha voci in tutta la finestra, come prima."""
+    feed = (f"<rss version='2.0'><channel><item><title>Ultimo</title><link>https://blog.it/blog/ultimo-articolo-uscito</link>"
+            f"<pubDate>{ultima_del_feed}</pubDate></item></channel></rss>")
+    mappa = ("<urlset xmlns='http://www.sitemaps.org/schemas/sitemap/0.9'><url>"
+             "<loc>https://blog.it/blog/come-configurare-il-firewall-di-casa</loc><lastmod>2026-11-05T15:00:00Z</lastmod>"
+             "</url></urlset>")
+    s = sito({"https://blog.it/feed": feed, "https://blog.it/sitemap.xml": mappa})
+    profilo = Profilo(url="https://blog.it/", perimetro="blog.it", feed=["https://blog.it/feed"],
+                      sitemap=["https://blog.it/sitemap.xml"], strategie=["feed", "sitemap"])
+    esito = s.esegui(raccogli, profilo, datetime(2026, 11, 4), DAL)  # da "coperto fino a", finestra da DAL
+    assert [c.url for c in esito.candidate] == ["https://blog.it/blog/come-configurare-il-firewall-di-casa"]
+    assert esito.guasto is fermo and ("forse è fermo" in esito.dettaglio) is fermo

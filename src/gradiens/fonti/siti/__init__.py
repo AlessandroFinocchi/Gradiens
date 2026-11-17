@@ -24,6 +24,7 @@ __all__ = ["PROFILO_TENUTO", "EsitoSito", "Profilo", "analizza", "completa", "ra
 
 PAGINE_ANALISI = 40
 OK, NESSUN_NUOVO = "ok", "nessun articolo nuovo"
+PARZIALE = "copertura parziale"  # ADR 0011: un tetto raggiunto prima di coprire il periodo da cercare; non è un guasto
 BLOCCATO, JAVASCRIPT, NESSUNA = "accesso bloccato", "richiede JavaScript", "nessuna strategia funzionante"
 SUGGERIMENTI = {
     BLOCCATO: "Il sito rifiuta le richieste automatiche e le protezioni non si aggirano. Se il sito ha un feed RSS "
@@ -86,8 +87,13 @@ async def rigenera(client: httpx.AsyncClient, vecchio: Profilo) -> Profilo | Non
     return nuovo
 
 
-async def raccogli(client: httpx.AsyncClient, profilo: Profilo, dal: datetime) -> EsitoSito:
-    """Articoli pubblicati da `dal` (UTC senza fuso): cascata di strategie che combina i risultati (WEB-10)."""
+async def raccogli(client: httpx.AsyncClient, profilo: Profilo, dal: datetime,
+                   inizio_finestra: datetime | None = None) -> EsitoSito:
+    """Articoli pubblicati da `dal` (UTC senza fuso): cascata di strategie che combina i risultati (WEB-10).
+
+    Con la raccolta incrementale (ADR 0011) `dal` è "coperto fino a" e `inizio_finestra` l'inizio della finestra di
+    raccolta: il feed fermo (WEB-24) si giudica sulla finestra intera, altrimenti un sito che pubblica poco
+    sembrerebbe fermo a ogni esecuzione."""
     if not profilo.strategie:
         stato = profilo.diagnosi or NESSUNA
         return EsitoSito([], stato, True, SUGGERIMENTI.get(stato, SUGGERIMENTI[NESSUNA]))
@@ -104,7 +110,8 @@ async def raccogli(client: httpx.AsyncClient, profilo: Profilo, dal: datetime) -
         riuscita |= r.riuscita
         bloccata |= r.bloccata
         nuove = [c for c in r.candidate if not profilo.escluso(c.url)]
-        if nome == "feed" and r.riuscita and not nuove:
+        recente = r.piu_recente is not None and nella_finestra(r.piu_recente, inizio_finestra or dal)
+        if nome == "feed" and r.riuscita and not nuove and not recente:
             feed_fermo = True  # da confermare: lo è se una strategia successiva trova articoli recenti
         elif feed_fermo and any(not c.data_incerta for c in nuove):
             guasti.append("il feed non ha articoli recenti mentre la sitemap o il sito ne mostrano: forse è fermo")
@@ -119,6 +126,7 @@ async def raccogli(client: httpx.AsyncClient, profilo: Profilo, dal: datetime) -
     candidate.sort(key=lambda c: c.data_incerta)
     oltre_il_tetto = len(candidate) > profilo.articoli_massimi
     candidate = await _date_incerte(nav, candidate[:profilo.articoli_massimi], dal)
+    pagine_finite = nav.letture >= profilo.pagine_massime
 
     note = []
     if candidate:
@@ -132,8 +140,11 @@ async def raccogli(client: httpx.AsyncClient, profilo: Profilo, dal: datetime) -
         note.append(SUGGERIMENTI[stato])
     if oltre_il_tetto:
         note.append(f"Raggiunto il tetto di {profilo.articoli_massimi} articoli: tenuti i più recenti.")
-    if nav.letture >= profilo.pagine_massime:
+    if pagine_finite:
         note.append(f"Raggiunto il tetto di {profilo.pagine_massime} pagine.")
+    if stato in (OK, NESSUN_NUOVO) and (oltre_il_tetto or pagine_finite):
+        stato = PARZIALE
+        note.append("Qualche articolo può mancare: se succede spesso, alza i tetti nel profilo del sito.")
     if guasti:
         note.append("Problemi: " + "; ".join(guasti) + ".")
     return EsitoSito(candidate, stato, bool(guasti) or not riuscita, " ".join(note))

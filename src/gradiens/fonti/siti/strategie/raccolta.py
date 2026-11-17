@@ -1,6 +1,7 @@
 """Il risultato di una strategia in una raccolta."""
 
 from dataclasses import dataclass, field
+from datetime import datetime
 
 from gradiens.fonti import Candidata
 from gradiens.fonti.siti.rete import TETTO, VIETATA, Pagina
@@ -13,6 +14,7 @@ class Raccolta:
     riuscita: bool = False  # almeno una risorsa ha risposto come previsto
     bloccata: bool = False  # il sito rifiuta i client automatici
     guasti: list[str] = field(default_factory=list)  # guasti veri (WEB-24), in frasi per l'utente
+    piu_recente: datetime | None = None  # feed: data della voce del sito più recente, anche se più vecchia di `dal`
 
     def errore(self, pagina: Pagina, cosa: str) -> None:
         if pagina.codice == TETTO:

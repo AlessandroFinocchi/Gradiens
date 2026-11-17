@@ -73,6 +73,9 @@ class Sito(Base):
     stato: Mapped[str | None] = mapped_column(String(40))
     dettaglio: Mapped[str | None] = mapped_column(Text)
     guasti_consecutivi: Mapped[int] = mapped_column(default=0)  # 3 di fila: si rigenera il profilo (WEB-24)
+    # ADR 0011: la raccolta successiva cerca da qui, se finestra e profilo sono quelli dell'impronta `coperto_con`.
+    coperto_fino_a: Mapped[datetime | None]
+    coperto_con: Mapped[str | None] = mapped_column(String(64))
 
 
 class CategoriaArxiv(Base):

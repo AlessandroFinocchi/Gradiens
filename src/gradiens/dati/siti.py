@@ -1,11 +1,15 @@
 """Siti seguiti e il loro profilo (PRD WEB-02, WEB-24..26). Il profilo è un JSON di `fonti.siti.Profilo`."""
 
+import hashlib
 import json
+from dataclasses import dataclass
+from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from gradiens.dati import notizie
 from gradiens.dati.impostazioni import ImpostazioneNonValida
 from gradiens.dati.modelli import Sito
 
@@ -63,4 +67,46 @@ def salva_rigenerato(sessione: Session, id: int, nuovo: dict) -> None:
     sito = sessione.get_one(Sito, id)
     sito.profilo_precedente, sito.profilo = sito.profilo, json.dumps(nuovo, ensure_ascii=False)
     sito.stato, sito.guasti_consecutivi = "profilo rigenerato", 0
+    sessione.commit()
+
+
+# Raccolta incrementale (ADR 0011). "coperto fino a" vale solo con la finestra di raccolta e il profilo di quando è
+# stato salvato: l'impronta li ricorda, così un cambio dell'una o dell'altro (anche durante un'esecuzione, anche per
+# una rigenerazione) fa ripartire dalla finestra intera senza che chi li cambia debba ricordarsene.
+
+
+def impronta(finestra_giorni: int, profilo: str) -> str:
+    return hashlib.sha256(f"{finestra_giorni}\n{profilo}".encode()).hexdigest()
+
+
+def partenza(sito: Sito, inizio_finestra: datetime, finestra_giorni: int) -> datetime:
+    """Da dove cercare gli articoli: da "coperto fino a", sempre dentro la finestra; la finestra intera alla prima
+    raccolta, dopo un guasto e dopo un cambio della finestra o del profilo."""
+    if sito.coperto_fino_a is None or sito.coperto_con != impronta(finestra_giorni, sito.profilo):
+        return inizio_finestra
+    return max(inizio_finestra, sito.coperto_fino_a)
+
+
+@dataclass
+class Copertura:
+    """La raccolta di un sito in un'esecuzione, per far avanzare "coperto fino a" a fine esecuzione."""
+
+    ora: datetime  # quando è iniziata la raccolta del sito (UTC senza fuso)
+    impronta: str | None  # None dopo un guasto: la raccolta successiva riparte dalla finestra intera
+    date: dict[str, datetime]  # indirizzo -> data di pubblicazione delle candidate del sito
+
+
+def salva_coperture(sessione: Session, coperture: dict[int, Copertura]) -> None:
+    """A fine esecuzione, anche interrotta o fallita (decisione 34): "coperto fino a" avanza fino all'ora della
+    raccolta, ma non oltre la notizia più vecchia del sito che non è nel registro delle viste (rimasta senza esito
+    per un errore o un'interruzione), così all'esecuzione dopo la si ritrova."""
+    viste = notizie.gia_viste(sessione, [url for c in coperture.values() for url in c.date])
+    for id, c in coperture.items():
+        if (sito := sessione.get(Sito, id)) is None:  # rimosso durante l'esecuzione
+            continue
+        if c.impronta is None:
+            sito.coperto_fino_a = sito.coperto_con = None
+        else:
+            sito.coperto_fino_a = min([c.ora, *(data for url, data in c.date.items() if url not in viste)])
+            sito.coperto_con = c.impronta
     sessione.commit()

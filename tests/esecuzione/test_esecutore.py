@@ -1,5 +1,6 @@
 import asyncio
 import json
+from dataclasses import replace
 from types import SimpleNamespace
 from datetime import timedelta
 
@@ -262,7 +263,7 @@ def test_siti_stato_guasti_e_rigenerazione_dopo_tre(sessioni):
 
     rigenerati = []
 
-    async def raccogli(client, profilo, dal):
+    async def raccogli(client, profilo, dal, inizio_finestra=None):
         if "bloccato" in profilo.url:
             return siti.EsitoSito([], "accesso bloccato", True, "Il sito rifiuta le richieste.")
         articolo = candidata("sicurezza-alta-articolo")
@@ -315,7 +316,7 @@ def test_sito_che_non_risponde_tiene_il_profilo_vecchio_e_riprova_ogni_tre_guast
 
     rigenerati = []
 
-    async def raccogli(client, profilo, dal):
+    async def raccogli(client, profilo, dal, inizio_finestra=None):
         return siti.EsitoSito([], "nessuna strategia funzionante", True, "Il feed non si legge (errore di rete).")
 
     async def rigenera(client, profilo):
@@ -381,7 +382,7 @@ def test_un_video_segnalato_come_sponsorizzato_si_valuta_comunque(sessioni):
     async def raccogli_yt(client, canale, dal):
         return [di_tipo("offerta-alta-video", "video", "https://www.youtube.com/watch?v=v1", "Lab di Sicurezza")]
 
-    async def raccogli_sito(client, profilo, dal):
+    async def raccogli_sito(client, profilo, dal, inizio_finestra=None):
         return siti.EsitoSito([di_tipo("offerta-alta-sconto", "sito", "https://buono.it/sconto", "buono.it")], "ok", False, "")
 
     fonti = {**raccolta(), "youtube": SimpleNamespace(raccogli=raccogli_yt), "siti": SimpleNamespace(raccogli=raccogli_sito)}
@@ -676,7 +677,7 @@ def test_siti_e_youtube_si_prefiltrano_tutti_e_non_si_mescolano_ai_paper(session
     async def raccogli_yt(client, canale, dal):
         return [video(i) for i in range(35)]
 
-    async def raccogli_sito(client, profilo, dal):
+    async def raccogli_sito(client, profilo, dal, inizio_finestra=None):
         return siti.EsitoSito([di_sito("sicurezza-alta-articolo", "https://buono.it/articolo")], "ok", False, "")
 
     paper = [candidata(f"sicurezza-alta-paper-{i}", ore_fa=i + 1) for i in range(5)]
@@ -801,7 +802,8 @@ def test_quota_esaurita_nel_prefiltro_interrompe_e_non_segna_viste_le_notizie(se
 
 @pytest.mark.parametrize("giorni", [1, 3])
 def test_l_esecutore_passa_a_ogni_fonte_la_finestra_di_raccolta(sessioni, giorni):
-    """T-06, ESE-03: `dal = adesso - finestra_giorni` arriva a arXiv, YouTube e siti. L'ADR 0011 cambierà i siti."""
+    """T-06, ESE-03: `dal = adesso - finestra_giorni` arriva a arXiv, YouTube e siti. Per i siti vale alla prima
+    raccolta: dopo parte da "coperto fino a" (ADR 0011, test più in basso)."""
     from gradiens.dati import siti as dati_siti
     from gradiens.fonti import siti
 
@@ -818,7 +820,7 @@ def test_l_esecutore_passa_a_ogni_fonte_la_finestra_di_raccolta(sessioni, giorni
         ricevuti["youtube"] = dal
         return []
 
-    async def da_sito(client, profilo, dal):
+    async def da_sito(client, profilo, dal, inizio_finestra=None):
         ricevuti["siti"] = dal
         return siti.EsitoSito([], "nessun articolo nuovo", False, "")
 
@@ -844,7 +846,7 @@ def test_lo_stato_del_sito_si_registra_alla_raccolta_anche_se_l_esecuzione_e_int
         dati_siti.aggiungi(s, "https://buono.it/", siti.Profilo(url="https://buono.it/").come_dict())
     articolo = di_sito("sicurezza-alta-articolo", "https://buono.it/articolo")
 
-    async def raccogli(client, profilo, dal):
+    async def raccogli(client, profilo, dal, inizio_finestra=None):
         return siti.EsitoSito([articolo], "ok", True, "Problemi: il feed non ha articoli recenti.")
 
     provider = guasto_su("sicurezza-alta-articolo", prompt.SCHEMA_VALUTAZIONE, QuotaEsaurita("Quota esaurita"))
@@ -856,3 +858,88 @@ def test_lo_stato_del_sito_si_registra_alla_raccolta_anche_se_l_esecuzione_e_int
         assert (sito.stato, sito.dettaglio, sito.guasti_consecutivi) == (
             "ok", "Problemi: il feed non ha articoli recenti.", 1)
         assert notizie.gia_viste(s, [articolo.url]) == set()
+
+
+# ADR 0011: raccolta incrementale dei siti. "coperto fino a" si salva a fine esecuzione e avanza fino alla notizia
+# più vecchia del sito rimasta senza esito (decisione 34); niente margine di rilettura (decisione 37).
+
+
+def sito_che_registra(*articoli: Candidata, guasto_alla_prima: bool = False):
+    """Fonte siti finta: restituisce sempre gli stessi articoli e ricorda il `dal` ricevuto a ogni raccolta
+    (l'inizio della finestra, che serve al controllo del feed fermo, in `finestre` della fonte)."""
+    from gradiens.fonti import siti
+
+    ricevuti, finestre = [], []
+
+    async def raccogli(client, profilo, dal, inizio_finestra=None):
+        ricevuti.append(dal)
+        finestre.append(inizio_finestra)
+        if guasto_alla_prima and len(ricevuti) == 1:
+            return siti.EsitoSito([], "accesso bloccato", True, "Il sito rifiuta le richieste.")
+        return siti.EsitoSito([replace(a) for a in articoli], "ok" if articoli else "nessun articolo nuovo", False, "")
+
+    return {"siti": SimpleNamespace(raccogli=raccogli, completa=completa_finta, finestre=finestre)}, ricevuti
+
+
+def con_un_sito(sessioni):
+    from gradiens.dati import siti as dati_siti
+    from gradiens.fonti import siti
+
+    with sessioni() as s:
+        s.query(CategoriaArxiv).delete()  # solo il sito
+        impostazioni.leggi(s).finestra_giorni = 3
+        s.commit()
+        return dati_siti.aggiungi(s, "https://buono.it/", siti.Profilo(url="https://buono.it/").come_dict()).id
+
+
+def test_la_seconda_esecuzione_cerca_nel_sito_solo_dopo_la_prima_raccolta(sessioni):
+    con_un_sito(sessioni)
+    fonti, ricevuti = sito_che_registra(di_sito("sicurezza-alta-articolo", "https://buono.it/articolo"))
+    prima = notizie.adesso()
+    esecuzioni_di_fila(sessioni, fonti, Finto(risponditore), volte=1)
+    dopo = notizie.adesso()
+    esecuzioni_di_fila(sessioni, fonti, Finto(risponditore), volte=1)
+
+    assert prima - timedelta(days=3) <= ricevuti[0] <= dopo - timedelta(days=3)  # prima raccolta: finestra intera
+    assert prima <= ricevuti[1] <= dopo  # poi da "coperto fino a": l'ora della prima raccolta
+    assert ricevuti[1] - timedelta(days=3) <= fonti["siti"].finestre[1] <= notizie.adesso() - timedelta(days=3)
+
+
+@pytest.mark.parametrize("errore", [ErroreLLM("timeout"), QuotaEsaurita("Quota esaurita")])
+def test_una_notizia_rimasta_senza_esito_trattiene_il_sito_alla_sua_data(sessioni, errore):
+    """Decisione 34: una valutazione fallita o un'esecuzione interrotta non fanno perdere la notizia."""
+    con_un_sito(sessioni)
+    rimasta = di_sito("sicurezza-alta-rotta", "https://buono.it/rotta")
+    rimasta.pubblicata_il = notizie.adesso() - timedelta(hours=20)
+    fonti, ricevuti = sito_che_registra(di_sito("sicurezza-alta-articolo", "https://buono.it/articolo"), rimasta)
+
+    (esecuzione, _), = esecuzioni_di_fila(sessioni, fonti, guasto_su("rotta", prompt.SCHEMA_VALUTAZIONE, errore), volte=1)
+    esecuzioni_di_fila(sessioni, fonti, Finto(risponditore), volte=1)
+
+    assert esecuzione.stato == ("interrotta" if isinstance(errore, QuotaEsaurita) else "completata")
+    assert ricevuti[1] == rimasta.pubblicata_il
+
+
+@pytest.mark.parametrize("cambio", ["guasto", "finestra", "profilo"])
+def test_dopo_un_guasto_o_un_cambio_si_riparte_dalla_finestra_intera(sessioni, cambio):
+    """ADR 0011: dopo un guasto del sito, un cambio della finestra di raccolta o del profilo si cerca da capo."""
+    from gradiens.dati import siti as dati_siti
+    from gradiens.fonti import siti
+
+    id = con_un_sito(sessioni)
+    fonti, ricevuti = sito_che_registra(guasto_alla_prima=cambio == "guasto")
+    esecuzioni_di_fila(sessioni, fonti, Finto(risponditore), volte=1)
+    with sessioni() as s:
+        if cambio == "finestra":
+            impostazioni.leggi(s).finestra_giorni = 7
+            s.commit()
+        elif cambio == "profilo":
+            profilo = siti.Profilo(url="https://buono.it/")
+            profilo.aggiungi_feed("https://buono.it/feed")
+            dati_siti.salva_profilo(s, id, profilo.come_dict())
+    prima = notizie.adesso()
+    esecuzioni_di_fila(sessioni, fonti, Finto(risponditore), volte=1)
+    dopo = notizie.adesso()
+
+    giorni = timedelta(days=7 if cambio == "finestra" else 3)
+    assert prima - giorni <= ricevuti[1] <= dopo - giorni

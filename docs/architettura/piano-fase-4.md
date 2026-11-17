@@ -1,6 +1,6 @@
 # Piano della fase 4 (codice)
 
-Deciso il 5 novembre 2026. Si costruisce per fette verticali: ogni fetta arriva fino a qualcosa che si vede e funziona, e si chiude con la definizione di "fatto" di CLAUDE.md (test verdi, `/ponytail-review`, review con ocr, commit).
+Deciso il 5 novembre 2026. Si costruisce per fette verticali: ogni fetta arriva fino a qualcosa che si vede e funziona, e si chiude con la definizione di "fatto" di CLAUDE.md (test verdi, `/ponytail-review`, commit).
 
 | # | Fetta | Contenuto | Requisiti principali | Stato |
 |---|---|---|---|---|

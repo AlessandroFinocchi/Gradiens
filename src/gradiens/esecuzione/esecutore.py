@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from gradiens.dati import argomenti, esecuzioni, impostazioni, interessi, notizie, proposte
 from gradiens.dati import siti as dati_siti
 from gradiens.dati.esecuzioni import SPENTO
-from gradiens.dati.modelli import FONTE_DI_TIPO, Notizia, Pertinenza
+from gradiens.dati.modelli import FONTE_DI_TIPO, Notizia, Pertinenza, Sito
 from gradiens.esecuzione import prompt
 from gradiens.fonti import Candidata, ContenutoAssente, NonAncoraDisponibile, arxiv, siti, youtube
 from gradiens.llm import crea_provider
@@ -139,10 +139,11 @@ class Esecutore:
     async def _esegui(self, id: int) -> None:
         inizio = time.monotonic()
         metriche = Metriche()
+        coperture: dict[int, dati_siti.Copertura] = {}  # per sito, riempite dalla raccolta (ADR 0011)
         stato, motivo = "completata", None
         try:
             with self._sessioni() as s:
-                await self._pipeline(s, metriche)
+                await self._pipeline(s, metriche, coperture)
         except QuotaEsaurita as errore:
             stato, motivo = "interrotta", str(errore)
         except asyncio.CancelledError:
@@ -152,6 +153,12 @@ class Esecutore:
             log.exception("Esecuzione %s fallita", id)
             stato, motivo = "fallita", str(errore) or type(errore).__name__
         finally:
+            if coperture:  # a fine esecuzione, anche interrotta o fallita: le notizie senza esito trattengono il sito
+                try:
+                    with self._sessioni() as s:
+                        dati_siti.salva_coperture(s, coperture)
+                except Exception:  # resta "coperto fino a" di prima: la prossima raccolta rilegge di più, non perde
+                    log.exception("Copertura dei siti non salvata")
             dati = {
                 "durata_s": round(time.monotonic() - inizio, 1),
                 "fonti": {nome: asdict(c) for nome, c in metriche.fonti.items()},
@@ -174,7 +181,8 @@ class Esecutore:
             self._fase("attesa della rete", 0)
             await asyncio.sleep(PAUSA_RETE)
 
-    async def _raccogli(self, client: httpx.AsyncClient, s: Session, dal, m: Metriche) -> list[Candidata]:
+    async def _raccogli(self, client: httpx.AsyncClient, s: Session, dal, finestra_giorni: int, m: Metriche,
+                        coperture: dict[int, dati_siti.Copertura]) -> list[Candidata]:
         """Tutte le fonti in parallelo: una fonte irraggiungibile non ferma le altre."""
         compiti = []  # (tipo, nome per il resoconto, coroutine)
         if categorie := impostazioni.categorie_arxiv(s):
@@ -183,7 +191,7 @@ class Esecutore:
             compiti.append(("video", canale.nome,
                             self._fonti["youtube"].raccogli(client, youtube.Canale(canale.id, canale.nome), dal)))
         for sito in dati_siti.elenca(s):
-            compiti.append(("sito", sito.url, self._raccogli_sito(client, s, sito.id, sito.profilo, dal, m)))
+            compiti.append(("sito", sito.url, self._raccogli_sito(client, s, sito, dal, finestra_giorni, m, coperture)))
         if not compiti:
             raise ValueError("Serve almeno una fonte: un sito, un canale YouTube o una categoria arXiv (Impostazioni).")
 
@@ -212,16 +220,20 @@ class Esecutore:
             raise RuntimeError("Nessuna fonte raggiungibile.")
         return trovate
 
-    async def _raccogli_sito(self, client: httpx.AsyncClient, s: Session, id: int, profilo_json: str, dal,
-                             m: Metriche) -> list[Candidata]:
-        """Un sito: raccolta, stato (WEB-26), guasti consecutivi e rigenerazione del profilo dopo 3 (WEB-24)."""
+    async def _raccogli_sito(self, client: httpx.AsyncClient, s: Session, sito: Sito, dal, finestra_giorni: int,
+                             m: Metriche, coperture: dict[int, dati_siti.Copertura]) -> list[Candidata]:
+        """Un sito: raccolta da "coperto fino a" (ADR 0011), stato (WEB-26), guasti consecutivi e rigenerazione
+        del profilo dopo 3 (WEB-24). Lo stato si salva subito; "coperto fino a" solo a fine esecuzione."""
         fonte = self._fonti["siti"]
-        profilo = siti.Profilo.da_dict(json.loads(profilo_json))
+        id, profilo = sito.id, siti.Profilo.da_dict(json.loads(sito.profilo))
+        ora, impronta = notizie.adesso(), dati_siti.impronta(finestra_giorni, sito.profilo)
         try:
-            esito = await fonte.raccogli(client, profilo, dal)
+            esito = await fonte.raccogli(client, profilo, dati_siti.partenza(sito, dal, finestra_giorni), inizio_finestra=dal)
         except Exception as errore:  # un sito con un errore imprevisto non ferma gli altri
             log.warning("Raccolta da %s fallita: %s", profilo.url, errore)
             esito = siti.EsitoSito([], "errore di lettura", True, str(errore))
+        coperture[id] = dati_siti.Copertura(ora, None if esito.guasto else impronta,
+                                            {c.url: c.pubblicata_il for c in esito.candidate})
         guasti = dati_siti.registra_esito(s, id, esito.stato, esito.dettaglio, esito.guasto)
         conta = m.di("sito")
         if esito.guasto:
@@ -243,7 +255,7 @@ class Esecutore:
                              dettaglio=f"{esito.dettaglio or esito.stato}. Dopo 3 guasti di fila il profilo è stato ricreato; le tue modifiche restano.")
         return esito.candidate
 
-    async def _pipeline(self, s: Session, m: Metriche) -> None:
+    async def _pipeline(self, s: Session, m: Metriche, coperture: dict[int, dati_siti.Copertura]) -> None:
         if cancellate := notizie.cancella_scadute(s):  # ESE-09: all'inizio di ogni esecuzione
             log.info("%s notizie più vecchie di 7 giorni cancellate", cancellate)
         imp = impostazioni.leggi(s)
@@ -261,7 +273,7 @@ class Esecutore:
 
         async with httpx.AsyncClient(follow_redirects=True) as client:
             # Raccolta (ESE-03): solo la finestra, senza le notizie già viste (ESE-07) né i doppioni.
-            trovate = await self._raccogli(client, s, dal, m)
+            trovate = await self._raccogli(client, s, dal, imp.finestra_giorni, m, coperture)
             viste = notizie.gia_viste(s, [c.url for c in trovate])
             nuove = list({c.url: c for c in trovate if c.url not in viste}.values())
             for c in nuove:

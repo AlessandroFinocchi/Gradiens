@@ -102,15 +102,13 @@ Gradiens si sviluppa sia su Windows sia su Linux: ogni modifica deve funzionare 
 
 ### Strumenti per Claude Code
 
-La definizione di "fatto" usa `/ponytail-review` e la review con `ocr`. Servono [Node.js](https://nodejs.org/) (LTS) e poi, con gli stessi comandi su Windows e su Linux:
+La definizione di "fatto" usa `/ponytail-review`. Servono [Node.js](https://nodejs.org/) (LTS) e poi, con gli stessi comandi su Windows e su Linux:
 
 ```
-npm i -g @alibaba-group/open-code-review
 npx skills add DietrichGebert/ponytail -g --agent claude-code -y
-npx skills add alibaba/open-code-review -g --agent claude-code -y
 npx skills add mattpocock/skills -g --agent claude-code -y
 ```
 
-Le skill finiscono nella cartella utente di Claude Code (`~/.claude/skills`, su Windows `%USERPROFILE%\.claude\skills`), non nella repository. `ocr` va poi collegato a un LLM (variabili `OCR_LLM_*` o `~/.opencodereview/config.json`) e si controlla con `ocr llm test`.
+Le skill finiscono nella cartella utente di Claude Code (`~/.claude/skills`, su Windows `%USERPROFILE%\.claude\skills`), non nella repository.
 
 Node.js si installa dal sito su Windows. Su Linux, senza permessi di amministratore, si può estrarre l'archivio ufficiale in `~/.local/opt/node`, collegare `node`, `npm` e `npx` in `~/.local/bin` e lanciare `npm config set prefix ~/.local`, così anche `npm i -g` scrive in `~/.local/bin`.

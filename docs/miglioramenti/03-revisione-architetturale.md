@@ -712,7 +712,7 @@ frontend-engineer; `docs/adr/`, `docs/architettura/` → architetto.
 
 Regole valide per ogni passo:
 - ogni passo è un commit con i test verdi prima e dopo, e chiude con la definizione di "fatto" di CLAUDE.md (test
-  verdi, `/ponytail-review`, review con ocr, commit fatto dall'utente);
+  verdi, `/ponytail-review`, commit fatto dall'utente);
 - **un refactoring non corregge bug**: se un passo incontra un sospetto S-nn lo preserva, il test che lo fissa resta
   verde con il commento "vedi S-nn" (decisione 24) e il passo lo segnala;
 - **dove fermarsi**: se per far tornare verde un test esistente serve cambiare un'asserzione (non solo un import o il

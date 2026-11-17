@@ -35,7 +35,7 @@ Gira su Windows e su Linux: niente codice specifico di un sistema fuori da `app/
 - Strategie di scoperta/estrazione dei siti come moduli intercambiabili.
 
 ## Definizione di "fatto"
-Test verdi, /ponytail-review eseguito, review con ocr senza problemi gravi, commit.
+Test verdi, /ponytail-review eseguito, commit. Niente review con ocr: l'utente non ha un'API per lanciarlo.
 
 ## Lavoro in team
 Ogni membro del team possiede cartelle diverse: mai due membri sullo stesso file.

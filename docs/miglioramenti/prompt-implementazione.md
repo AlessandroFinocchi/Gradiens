@@ -185,7 +185,7 @@ causa. Se non la sai, dimmelo invece di tirare a indovinare.
 ```text
 Chiudiamo il pezzo:
 1. lancia tutti i test e dimmi il risultato;
-2. esegui /ponytail-review e la review con ocr, e dimmi cosa hanno trovato;
+2. esegui /ponytail-review e dimmi cosa ha trovato;
 3. aggiorna i documenti che il pezzo tocca e lo stato della proposta in
    docs/miglioramenti/README.md;
 4. dimmi con parole semplici: cosa è cambiato, come lo verifico io a mano, e cosa non hai

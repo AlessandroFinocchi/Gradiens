@@ -74,7 +74,7 @@ Cancellando la cartella si cancella tutto. Un clone nuovo parte senza configuraz
 
 ## Aggiornare Gradiens
 
-`uv run gradiens aggiorna`, oppure il bottone "Aggiorna" del pannello di controllo, scarica la versione nuova da GitHub (`git`), aggiorna le dipendenze (`uv sync`) e riaccende Gradiens se era acceso. Il database si aggiorna da solo alla riaccensione, dopo una copia di sicurezza. Se nella cartella ci sono modifiche locali al codice, l'aggiornamento non parte, per non perderle. Su Windows, se le dipendenze non si aggiornano perché un file è in uso, chiudi il pannello e lancia `uv sync` nella cartella di Gradiens.
+`uv run gradiens aggiorna`, oppure il bottone "Aggiorna" del pannello di controllo, scarica la versione nuova da GitHub (`git`), aggiorna le dipendenze (`uv sync`) e riaccende Gradiens se era acceso. Il database si aggiorna da solo alla riaccensione, dopo una copia di sicurezza. Se nella cartella ci sono modifiche locali al codice, l'aggiornamento non parte, per non perderle. Se dopo l'aggiornamento Gradiens non riparte entro 20 secondi, resta spento e lo dice, con la cartella dei log da guardare (`.gradiens/log`). Su Windows, se le dipendenze non si aggiornano perché un file è in uso, chiudi il pannello e lancia `uv sync` nella cartella di Gradiens.
 
 ## Pannello di controllo
 

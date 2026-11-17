@@ -43,7 +43,7 @@ class Profilo:
         return asdict(self)
 
     @classmethod
-    def da_dict(cls, d: dict) -> "Profilo":
+    def da_dict(cls, d: dict) -> Profilo:
         noti = {f.name for f in fields(cls)}
         return cls(**{k: v for k, v in d.items() if k in noti})  # i campi sconosciuti di versioni future si ignorano
 

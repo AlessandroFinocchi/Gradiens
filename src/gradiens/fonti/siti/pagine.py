@@ -7,7 +7,15 @@ from urllib.parse import urlsplit
 import lxml.html
 from lxml import etree
 
-from gradiens.fonti.siti.indirizzi import chiave, di_servizio, host, normalizza, segmenti, sembra_articolo, stesso_dominio
+from gradiens.fonti.siti.indirizzi import (
+    chiave,
+    di_servizio,
+    host,
+    normalizza,
+    segmenti,
+    sembra_articolo,
+    stesso_dominio,
+)
 from gradiens.fonti.siti.rete import Pagina
 
 MENU = {"nav", "header", "footer", "aside"}

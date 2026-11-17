@@ -2,8 +2,8 @@ import asyncio
 
 import httpx
 
-from gradiens.fonti.siti.indirizzi import normalizza
 from gradiens.fonti.siti import rete
+from gradiens.fonti.siti.indirizzi import normalizza
 from gradiens.fonti.siti.rete import ERRORE_RETE, Navigatore
 
 

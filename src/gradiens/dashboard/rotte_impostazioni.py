@@ -2,26 +2,25 @@
 
 import json
 from collections.abc import Callable
+from typing import Annotated, Literal
 from urllib.parse import urlparse
 
 import httpx
-from typing import Annotated, Literal
-
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session
 
+from gradiens.app import avvio_sistema
+from gradiens.app.configurazione import RADICE, salva_segreto
 from gradiens.dashboard import segnali
 from gradiens.dashboard.comune import Sessione, frammento
 from gradiens.dati import impostazioni, interessi, proposte
-from gradiens.dati.impostazioni import ImpostazioneNonValida
 from gradiens.dati import siti as dati_siti
+from gradiens.dati.impostazioni import ImpostazioneNonValida
 from gradiens.dati.modelli import Sito
 from gradiens.fonti import siti, youtube
 from gradiens.fonti.siti import Profilo
-from gradiens.app import avvio_sistema
-from gradiens.app.configurazione import RADICE, salva_segreto
 from gradiens.telegram import bot as telegram
 from gradiens.telegram.messaggi import COMANDI
 

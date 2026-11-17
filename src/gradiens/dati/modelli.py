@@ -117,9 +117,9 @@ class Notizia(Base):
     esecuzione_id: Mapped[int | None] = mapped_column(ForeignKey("esecuzioni.id", ondelete="SET NULL"))
     argomento_id: Mapped[int | None] = mapped_column(ForeignKey("argomenti.id", ondelete="SET NULL"), index=True)  # ESE-08
 
-    argomento: Mapped["Argomento | None"] = relationship(back_populates="notizie")
+    argomento: Mapped[Argomento | None] = relationship(back_populates="notizie")
 
-    pertinenze: Mapped[list["Pertinenza"]] = relationship(
+    pertinenze: Mapped[list[Pertinenza]] = relationship(
         back_populates="notizia", cascade="all, delete-orphan", order_by="Pertinenza.punteggio.desc()"
     )
 

@@ -223,7 +223,7 @@ class Esecutore:
 
         trovate: list[Candidata] = []
         risultati = await asyncio.gather(*(cronometra(t, c) for t, _, c in compiti), return_exceptions=True)
-        for (tipo, nome, _), risultato in zip(compiti, risultati):
+        for (tipo, nome, _), risultato in zip(compiti, risultati, strict=True):
             if isinstance(risultato, Exception):
                 log.warning("Raccolta da %s fallita: %s", nome, risultato)
                 m.di(tipo).errori += 1
@@ -390,12 +390,12 @@ class Esecutore:
         """INT-04, INT-06: proposte dai cuori nuovi. Se Claude non risponde si riprova alla prossima esecuzione."""
         compiti = [(prompt.sistema_raffinamento(i), prompt.messaggio_proposta(notizie_[:proposte.MASSIMO_NOTIZIE]),
                     prompt.SCHEMA_RAFFINAMENTO,
-                    lambda dati, i=i, n=len(notizie_): proposte.registra_raffinamento(s, i, str(dati.get("raffinamento", "")), n))
+                    lambda dati, i=i, n=len(notizie_): proposte.registra_raffinamento(s, i, str(dati.get("raffinamento", "")), n))  # noqa: B008 (valori fissati alla creazione della lambda)
                    for i, notizie_ in proposte.da_raffinare(s, soglia)]
         if cuori := proposte.per_interesse_nuovo(s):
             compiti.append((prompt.sistema_nuovo_interesse(interessi.elenca(s)),
                             prompt.messaggio_nuovo_interesse(cuori[:proposte.MASSIMO_NOTIZIE]), prompt.SCHEMA_NUOVO_INTERESSE,
-                            lambda dati, n=len(cuori): proposte.registra_interesse(
+                            lambda dati, n=len(cuori): proposte.registra_interesse(  # noqa: B008 (valore fissato alla creazione della lambda)
                                 s, str(dati.get("nome", "")), str(dati.get("descrizione", "")), n)))
         self._fase("proposte", len(compiti))
         for sistema, messaggio, schema, registra in compiti:

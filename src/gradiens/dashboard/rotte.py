@@ -2,7 +2,6 @@
 
 import json
 from datetime import UTC
-
 from typing import Annotated
 
 from fastapi import APIRouter, FastAPI, Form, HTTPException, Request
@@ -15,8 +14,8 @@ from gradiens.dashboard import rotte_configurazione, rotte_impostazioni
 from gradiens.dashboard.comune import CARTELLA, TIPI, Sessione, frammento, pagina
 from gradiens.dati import argomenti, esecuzioni, impostazioni, interessi, notizie, proposte
 from gradiens.dati import siti as dati_siti
-from gradiens.dati.modelli import Esecuzione, Notizia
 from gradiens.dati.impostazioni import ImpostazioneNonValida
+from gradiens.dati.modelli import Esecuzione, Notizia
 from gradiens.dati.notizie import Filtri
 from gradiens.esecuzione.esecutore import GiaInCorso
 from gradiens.llm import claude_code

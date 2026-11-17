@@ -44,8 +44,8 @@ def candidate(f: feedparser.FeedParserDict, base: str, fonte: str) -> list[Candi
 
 
 def _indirizzi_nella_pagina(doc, base: str) -> list[str]:
-    trovati = [normalizza(l.get("href", ""), base)
-               for l in doc.xpath("//link[contains(@rel, 'alternate')][contains(@type, 'rss') or contains(@type, 'atom')]")]
+    trovati = [normalizza(link.get("href", ""), base)
+               for link in doc.xpath("//link[contains(@rel, 'alternate')][contains(@type, 'rss') or contains(@type, 'atom')]")]
     trovati += [u for u, _ in collegamenti(doc, base) if SEMBRA_FEED.search(urlsplit(u).netloc + urlsplit(u).path)]
     return [u for u in dict.fromkeys(trovati) if u and "comment" not in u.lower()]
 

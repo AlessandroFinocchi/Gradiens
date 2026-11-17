@@ -12,7 +12,6 @@ from gradiens.dati.modelli import Notizia, Pertinenza
 from gradiens.dati.notizie import adesso
 from gradiens.esecuzione.esecutore import GiaInCorso
 from gradiens.telegram import bot as telegram
-from gradiens.telegram import messaggi
 
 HTMX = {"HX-Request": "true"}
 TOKEN = "123456789:" + "A" * 35

@@ -99,7 +99,7 @@ def test_cancellazione_dopo_7_giorni_tranne_l_archivio(s):
 
 def test_in_evidenza_le_migliori_3_per_fonte_delle_ultime_24_ore(s):
     a = interessi.aggiungi(s, "A", "a")
-    for n, punteggio in enumerate([95, 90, 85, 80]):
+    for punteggio in [95, 90, 85, 80]:
         notizia(s, f"paper-{punteggio}", giorni_fa=0, punteggi=[(a.id, punteggio)])
     notizia(s, "paper-sotto-soglia", giorni_fa=0, punteggi=[(a.id, 50)])
     vecchio = notizia(s, "paper-di-ieri-l-altro", giorni_fa=0, punteggi=[(a.id, 99)])

@@ -3,7 +3,6 @@ from datetime import timedelta
 import pytest
 
 from gradiens.app import avvio_sistema
-
 from gradiens.dati import argomenti, esecuzioni, impostazioni, interessi, proposte
 from gradiens.dati import siti as dati_siti
 from gradiens.dati.modelli import Notizia, Pertinenza

@@ -78,7 +78,11 @@ Tutte e sei le fasi hanno un documento e le decisioni dell'utente sono in [decis
    rete (`esecuzioni.NESSUNA_RETE`) non conta per il recupero (decisione 40, `ESE-01` precisato). Le correzioni C e D
    della scheda 13 (avvisi Telegram persi, controllo della rete via HTTP) non sono state decise. Test in
    `tests/esecuzione/test_programmatore.py` e `test_esecutore.py`. `mappa-moduli.md` non è stata aggiornata (300 s,
-   "conta qualsiasi esecuzione").
+   "conta qualsiasi esecuzione"). **Fatto ruff come linter (17 nov 2026)**: ruff 0.17.5 come dipendenza di sviluppo,
+   configurazione minima della 6.1 del documento 05 in `pyproject.toml` (solo linter, niente formatter), passo
+   `uv run ruff check` nella CI. Le segnalazioni vere erano 23 (non circa 15): oltre a quelle stimate, 4 UP037
+   (annotazioni tra virgolette), 2 B008 (lambda con valori fissati, lasciate con `noqa`) e 1 F811 (due funzioni
+   `esegui` in `app/servizio.py`: la rotta è diventata `esegui_da_cli`).
 6. ADR 0013; ADR 0012 per ultimo.
 
 **Ancora aperto**

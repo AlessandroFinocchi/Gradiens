@@ -52,6 +52,7 @@ def aggiorna(conf: Configurazione, avanzamento: Callable[[str], None] = print, r
         cli.richiedi_spegnimento(conf)
         if not cli._attendi(lambda: cli.leggi_stato(conf) is None):
             raise ErroreAggiornamento("Gradiens non si è spento in tempo: riprova tra poco.")
+    problema = ""  # cosa è successo prima della riaccensione, per il messaggio se Gradiens non riparte
     try:
         avanzamento("Scarico la versione nuova…")
         if (r := _comando([git, "merge", "--ff-only", "@{u}"], radice)).returncode != 0:
@@ -60,9 +61,15 @@ def aggiorna(conf: Configurazione, avanzamento: Callable[[str], None] = print, r
         if (r := _comando([uv, "sync"], radice)).returncode != 0:
             raise ErroreAggiornamento(f"Versione nuova scaricata, ma le dipendenze non si sono aggiornate: {r.stderr.strip()[-300:]}"
                                       " Chiudi il pannello e lancia `uv sync` nella cartella di Gradiens.")
+        problema = "Versione nuova installata."
+    except ErroreAggiornamento as errore:
+        problema = str(errore)
+        raise
     finally:
         if acceso:  # anche se qualcosa è andato storto: Gradiens resta acceso come prima
             avanzamento("Riaccendo Gradiens…")
             cli._avvia_staccato(conf)
-            cli._attendi(lambda: cli.leggi_stato(conf) is not None)
+            if not cli._attendi(lambda: cli.leggi_stato(conf) is not None):  # decisione 43: resta spento e lo dice
+                spento = f"Gradiens non è ripartito e resta spento: guarda i log in {conf.cartella_log}"
+                raise ErroreAggiornamento(f"{problema} {spento}" if problema else spento) from None
     return f"Gradiens è aggiornato ({nuove.stdout.strip()} modifiche nuove)."

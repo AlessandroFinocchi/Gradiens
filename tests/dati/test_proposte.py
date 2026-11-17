@@ -1,9 +1,8 @@
-from datetime import timedelta
 
 import pytest
 
 from gradiens.dashboard.comune import evidenzia
-from gradiens.dati import impostazioni, interessi, notizie, proposte
+from gradiens.dati import interessi, notizie, proposte
 from gradiens.dati.database import crea_motore, fabbrica_sessioni, migra
 from gradiens.dati.impostazioni import ImpostazioneNonValida
 from gradiens.dati.modelli import Interesse, Notizia, Pertinenza, Proposta

@@ -57,7 +57,7 @@ def spegni(request: Request) -> JSONResponse:
 
 
 @controllo.post("/esegui")
-async def esegui(request: Request) -> JSONResponse:
+async def esegui_da_cli(request: Request) -> JSONResponse:
     """Avvio di un'esecuzione dalla CLI (CLI-02). `async`: l'esecuzione parte nel ciclo del servizio."""
     try:
         id = request.app.state.esecutore.avvia("cli")

@@ -32,7 +32,7 @@ ERRORE_RETE, VIETATA, TETTO = 0, -1, -2
 # Stato condiviso dal processo: le esecuzioni periodiche girano nello stesso processo dell'app.
 _robots: dict[str, tuple[float, RobotFileParser | None, bool]] = {}  # origine -> (scadenza, regole, tutto vietato)
 _prossima: dict[str, float] = {}  # host -> primo istante libero per una richiesta
-_cache: dict[str, tuple[dict[str, str], "Pagina"]] = {}  # url -> (intestazioni di convalida, pagina)
+_cache: dict[str, tuple[dict[str, str], Pagina]] = {}  # url -> (intestazioni di convalida, pagina)
 
 
 @dataclass

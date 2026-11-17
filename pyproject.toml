@@ -27,6 +27,7 @@ dev = [
     "httpx2",
     "pytest",
     "pytest-cov>=7.1.0",
+    "ruff",  # solo il linter (decisione 47); versione fissata da uv.lock
 ]
 
 [build-system]
@@ -36,3 +37,15 @@ build-backend = "uv_build"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q --import-mode=importlib"
+
+[tool.ruff]
+line-length = 120  # la lunghezza prevalente nel codice (docs/miglioramenti/05-dipendenze-e-stile.md, punto 5)
+# target-version non serve: ruff lo ricava da requires-python.
+
+[tool.ruff.lint]
+# Regole predefinite (E4, E7, E9, F) più import in ordine (I), errori probabili (B), sintassi moderna (UP).
+# E501 (righe lunghe) resta fuori finché non c'è il formatter. Niente regole N: i nomi italiani vanno bene così.
+select = ["E4", "E7", "E9", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["gradiens"]

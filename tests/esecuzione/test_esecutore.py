@@ -1,8 +1,8 @@
 import asyncio
 import json
 from dataclasses import replace
-from types import SimpleNamespace
 from datetime import timedelta
+from types import SimpleNamespace
 
 import httpx
 import pytest

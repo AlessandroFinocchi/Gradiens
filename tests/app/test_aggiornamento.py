@@ -57,6 +57,30 @@ def test_scarica_aggiorna_le_dipendenze_e_riaccende(installazione, monkeypatch):
     assert eventi == ["spegni", "uv sync", "riaccendi"]  # su Windows i file in uso non si sostituiscono
 
 
+def test_aggiorna_segnala_se_il_servizio_non_riparte(installazione, monkeypatch, conf):
+    installata, pubblica, eventi = installazione
+    pubblica("v2\n")
+    stati = iter([{"acceso": True}])  # acceso prima; dopo la riaccensione non risponde più
+    monkeypatch.setattr(aggiornamento.cli, "leggi_stato", lambda conf: next(stati, None))
+    monkeypatch.setattr(aggiornamento.cli, "_attendi", lambda condizione: condizione())  # come la vera dopo 20 s
+    with pytest.raises(aggiornamento.ErroreAggiornamento, match="non è ripartito.*log") as errore:  # decisione 43
+        aggiornamento.aggiorna(conf, lambda _: None, installata)
+    assert str(conf.cartella_log) in str(errore.value) and eventi == ["spegni", "uv sync", "riaccendi"]
+
+
+def test_dopo_uv_sync_fallito_segnala_anche_che_il_servizio_non_riparte(installazione, monkeypatch, conf):
+    installata, pubblica, eventi = installazione
+    pubblica("v2\n")
+    stati = iter([{"acceso": True}])
+    monkeypatch.setattr(aggiornamento.cli, "leggi_stato", lambda conf: next(stati, None))
+    monkeypatch.setattr(aggiornamento.cli, "_attendi", lambda condizione: condizione())
+    originale = aggiornamento._comando
+    monkeypatch.setattr(aggiornamento, "_comando", lambda a, c: subprocess.CompletedProcess(a, 1, "", "rotto")
+                        if a[0] == "UV" else originale(a, c))
+    with pytest.raises(aggiornamento.ErroreAggiornamento, match="dipendenze non si sono aggiornate.*non è ripartito"):
+        aggiornamento.aggiorna(conf, lambda _: None, installata)
+
+
 def test_non_tocca_le_modifiche_locali(installazione):
     installata, pubblica, eventi = installazione
     pubblica("v2\n")

@@ -21,5 +21,8 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - name: Ambiente con le versioni di uv.lock (Python 3.14 compreso)
         run: uv sync --locked
+      - name: Linter (ruff, solo controllo; decisione 47)
+        run: uv run ruff check
       - name: Test, con il rapporto di copertura (decisione 23, senza soglia minima)
+        if: ${{ !cancelled() }}  # anche se il linter ha fallito: i risultati dei test servono comunque
         run: uv run pytest --cov=gradiens --cov-branch --cov-report=term-missing

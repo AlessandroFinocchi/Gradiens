@@ -45,29 +45,29 @@ def _locale(d: datetime) -> datetime:
 
 
 def data_breve(d: datetime) -> str:
-    l = _locale(d)
-    return f"{l.day} {MESI[l.month - 1]}, {l:%H:%M}"
+    ora = _locale(d)
+    return f"{ora.day} {MESI[ora.month - 1]}, {ora:%H:%M}"
 
 
 def data_breve_giorno(d: datetime) -> str:
-    l = _locale(d)
-    return f"{l.day} {MESI[l.month - 1]}"
+    ora = _locale(d)
+    return f"{ora.day} {MESI[ora.month - 1]}"
 
 
 def data_lunga(d: datetime) -> str:
-    l = _locale(d)
-    return f"{l.day} {MESI[l.month - 1]} {l.year} alle {l:%H:%M}"
+    ora = _locale(d)
+    return f"{ora.day} {MESI[ora.month - 1]} {ora.year} alle {ora:%H:%M}"
 
 
 def data_relativa(d: datetime) -> str:
-    l, oggi = _locale(d), datetime.now().astimezone().date()
-    if l.date() == oggi:
-        return f"oggi alle {l:%H:%M}"
-    if l.date() == oggi - timedelta(days=1):
-        return f"ieri alle {l:%H:%M}"
-    if l.date() == oggi + timedelta(days=1):
-        return f"domani alle {l:%H:%M}"
-    return f"il {l.day} {MESI[l.month - 1]} alle {l:%H:%M}"
+    ora, oggi = _locale(d), datetime.now().astimezone().date()
+    if ora.date() == oggi:
+        return f"oggi alle {ora:%H:%M}"
+    if ora.date() == oggi - timedelta(days=1):
+        return f"ieri alle {ora:%H:%M}"
+    if ora.date() == oggi + timedelta(days=1):
+        return f"domani alle {ora:%H:%M}"
+    return f"il {ora.day} {MESI[ora.month - 1]} alle {ora:%H:%M}"
 
 
 def evidenzia(attuale: str, proposto: str) -> list[tuple[str, bool]]:

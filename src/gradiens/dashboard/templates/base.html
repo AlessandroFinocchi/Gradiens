@@ -12,10 +12,10 @@
 <script src="{{ statico('app.js') }}" defer></script>
 </head>
 <body>
-<div class="app"{% if procedura %} data-senza-sidebar{% endif %}>
+<div class="app"{% if procedura %} data-senza-sidebar{% endif %}{% if sidebar_fissa %} data-sidebar-fissa{% endif %}>
   {% if not procedura %}
   <nav class="sidebar" aria-label="Pagine">
-    <a class="marchio" href="/"><span class="segno">∇</span><span>Gradiens</span></a>
+    <button class="marchio" type="button" hx-post="/sidebar" hx-swap="none" aria-pressed="{{ 'true' if sidebar_fissa else 'false' }}" title="Tieni la barra aperta o chiusa"><span class="segno">∇</span><span>Gradiens</span></button>
     {% for id, (nome, indirizzo) in pagine.items() %}
     <a class="voce" href="{{ indirizzo }}"{% if id == pagina %} aria-current="page"{% endif %}>{{ icona(id) }}<span>{{ nome }}</span></a>
     {% endfor %}

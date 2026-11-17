@@ -30,6 +30,15 @@ def aiuto(request: Request, s: Sessione):
     return pagina(request, s, "aiuto", "aiuto", COMANDI=COMANDI, conf=request.app.state.conf)
 
 
+@router.post("/sidebar")
+def cambia_sidebar(s: Sessione):
+    """UI-01: il clic sul simbolo di Gradiens fissa la sidebar espansa o la sblocca; vale per tutte le pagine."""
+    imp = impostazioni.leggi(s)
+    imp.sidebar_fissa = not imp.sidebar_fissa
+    s.commit()
+    return Response(status_code=204, headers={"HX-Trigger": json.dumps({"sidebar-cambiata": imp.sidebar_fissa})})
+
+
 # ---------- Home (UI-02) e resoconto di un'esecuzione (UI-03) ----------
 
 

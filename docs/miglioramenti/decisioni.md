@@ -305,3 +305,10 @@ qui nella rilettura finale del 17 novembre 2026, senza cambiarle.
     presente su `ubuntu-latest` non ha `tkinter`, quindi dalla fetta 7 (pannello, ADR 0009) i test su Linux si
     fermavano alla raccolta di `tests/app/test_pannello.py`. Nello stesso passo `actions/checkout@v5` e
     `astral-sh/setup-uv@v7`, che girano su Node 24 (Node 20 è deprecato sui runner).
+68. **Sidebar fissata con il simbolo di Gradiens** (17 nov 2026, richiesta dell'utente; completa `UI-01`): il
+    simbolo in alto non porta più alla Home (c'è già la sua voce), ma fissa la sidebar espansa o la sblocca. La
+    scelta sta nel database (`impostazioni.sidebar_fissa`, migrazione 0015), come il tema: vale per tutte le pagine
+    e non finisce nel browser, fuori dalla cartella (`PER-02`). Sul telefono non vale. Inoltre, aprendo le
+    Impostazioni il fuoco si toglie dall'ingranaggio, così alla chiusura della finestra il browser non lo rimette
+    lì e la sidebar non resta espansa. *Rischio accettato*: chi usa la tastiera, chiusa la finestra, riparte
+    dall'inizio della pagina invece che dall'ingranaggio.

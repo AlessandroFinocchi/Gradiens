@@ -45,6 +45,7 @@ class Impostazioni(Base):
     # ADR 0013: dashboard da fuori casa con Tailscale Serve. Il nome resta salvato anche ad accesso spento.
     accesso_remoto: Mapped[bool] = mapped_column(default=False)
     indirizzo_remoto: Mapped[str | None] = mapped_column(String(253))  # solo il nome, es. "pc.tail1234.ts.net"
+    sidebar_fissa: Mapped[bool] = mapped_column(default=False)  # UI-01: resta espansa (clic sul simbolo)
 
 
 class Interesse(Base):

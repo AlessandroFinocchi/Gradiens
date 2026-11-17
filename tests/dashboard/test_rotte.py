@@ -595,6 +595,17 @@ def test_aiuto(client):
     assert 'aria-current="page"' in pagina.split("Aiuto</span>")[0].rsplit("<a", 1)[1]  # voce attiva nella sidebar
 
 
+def test_il_simbolo_di_gradiens_fissa_e_sblocca_la_sidebar(client):
+    """UI-01, decisione 68: lo stato vale per tutte le pagine, quindi sta nel database e non nella pagina."""
+    assert "data-sidebar-fissa" not in client.get("/").text
+    risposta = client.post("/sidebar", headers=HTMX)
+    assert risposta.status_code == 204 and risposta.headers["HX-Trigger"] == '{"sidebar-cambiata": true}'
+    pagina = client.get("/notizie").text
+    assert "data-sidebar-fissa" in pagina and 'aria-pressed="true"' in pagina
+    assert client.post("/sidebar", headers=HTMX).headers["HX-Trigger"] == '{"sidebar-cambiata": false}'
+    assert "data-sidebar-fissa" not in client.get("/aiuto").text
+
+
 def test_interruttore_dell_icona_del_pannello(client, monkeypatch):
     create = []
     monkeypatch.setattr(avvio_sistema, "crea_icone", lambda radice: create.append(radice))

@@ -195,6 +195,7 @@ def pagina(request: Request, s: Session, modello: str, nome: str, **contesto) ->
             "pagina": nome,
             "pagine": PAGINE,
             "tema": imp.tema,
+            "sidebar_fissa": imp.sidebar_fissa,
             "segnale_globale": segnali.globale(
                 segnali.segnali(s, request.app.state.bot.problema(), avvio_sistema.stato_avvio(RADICE).problema)
             ),

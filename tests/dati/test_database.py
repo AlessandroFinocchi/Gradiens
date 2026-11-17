@@ -235,5 +235,6 @@ def test_la_migrazione_dell_accesso_da_fuori_casa_lo_lascia_spento_e_non_tocca_i
         imp = impostazioni.leggi(s)
         assert (imp.tema, imp.soglia, imp.telegram_chat_id, imp.configurazione_completata) == ("dark", 75, 4242, True)
         assert (imp.accesso_remoto, imp.indirizzo_remoto) == (False, None)
+        assert imp.sidebar_fissa is False  # 0015, sempre con `ADD COLUMN`
     with motore.connect() as c:
         assert c.exec_driver_sql("SELECT COUNT(*) FROM interessi").scalar() == 1

@@ -4,7 +4,7 @@ import re
 from datetime import UTC, datetime
 from html import escape
 
-from gradiens.dashboard.comune import AVVIATA_DA, FONTI, durata, token_brevi
+from gradiens.dashboard.comune import AVVIATA_DA, FONTI, cambio_versione, durata, token_brevi
 from gradiens.dati.esecuzioni import STATI_BUONI
 from gradiens.dati.modelli import Esecuzione, Notizia
 from gradiens.dati.notizie import nome_fonte
@@ -65,6 +65,8 @@ def fine_esecuzione(e: Esecuzione, r: dict, gruppi: dict[str, list[Notizia]],
         righe += [f"• {escape(st['fonte'])}: {escape(st['stato'])}" for st in problemi[:MAX_PROBLEMI]]
         if len(problemi) > MAX_PROBLEMI:
             righe.append(f"… e altre {len(problemi) - MAX_PROBLEMI}: le trovi nel resoconto, nella dashboard.")
+    if versione := cambio_versione(r):
+        righe.append(f"\nℹ️ {escape(versione)}")
     if avviso:  # es. il login di Claude Code che scade: lo si legge ogni giorno, senza aprire la dashboard
         righe.append(f"\n⚠️ {escape(avviso)}")
     return "\n".join(righe), numerate

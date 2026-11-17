@@ -417,6 +417,18 @@ def test_avviso_del_login_di_claude_code_nella_home(client, monkeypatch):
     assert "Il login di Claude Code scade il 10/11 alle 04:23" in client.get("/").text
 
 
+def test_cambio_di_versione_di_claude_code_nella_home(client):
+    versione = {"provider": "claude-code", "versione": "2.1.316", "precedente": None, "provata": True}
+    with client.app.state.sessioni() as s:
+        e = esecuzioni.inizia(s, "cli")
+        esecuzioni.termina(s, e.id, "completata", {"versione_llm": versione})
+    assert "Claude Code è passato" not in client.get("/").text
+    with client.app.state.sessioni() as s:
+        e = esecuzioni.inizia(s, "cli")
+        esecuzioni.termina(s, e.id, "completata", {"versione_llm": {**versione, "versione": "2.1.325", "precedente": "2.1.316"}})
+    assert "Claude Code è passato dalla versione 2.1.316 alla 2.1.325" in client.get("/").text
+
+
 def test_ricerca_nella_pagina_notizie(dati):
     pagina = dati.get("/notizie", params={"q": "parola-che-non-esiste"}).text
     assert 'id="cerca"' in pagina and 'value="parola-che-non-esiste"' in pagina

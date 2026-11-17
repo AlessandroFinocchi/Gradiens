@@ -11,7 +11,7 @@ from sqlalchemy.exc import NoResultFound
 from starlette.datastructures import QueryParams
 
 from gradiens.dashboard import rotte_configurazione, rotte_impostazioni
-from gradiens.dashboard.comune import CARTELLA, TIPI, Sessione, frammento, pagina
+from gradiens.dashboard.comune import CARTELLA, TIPI, Sessione, cambio_versione, frammento, pagina
 from gradiens.dati import argomenti, esecuzioni, impostazioni, interessi, notizie, proposte
 from gradiens.dati import siti as dati_siti
 from gradiens.dati.impostazioni import ImpostazioneNonValida
@@ -35,15 +35,17 @@ def aiuto(request: Request, s: Sessione):
 @router.get("/", response_class=HTMLResponse)
 def home(request: Request, s: Sessione):
     ultima = esecuzioni.ultima(s)
+    riepilogo = ultima and esecuzioni.riepilogo(ultima)
     prossima = request.app.state.programmatore.prossima()
     return pagina(
         request, s, "home", "home",
         prossima=prossima and prossima.astimezone(UTC).replace(tzinfo=None),  # i filtri delle date vogliono UTC
         avanzamento=request.app.state.esecutore.avanzamento,
-        ultima=ultima, riepilogo=ultima and esecuzioni.riepilogo(ultima),
+        ultima=ultima, riepilogo=riepilogo,
         evidenza=notizie.in_evidenza(s, impostazioni.leggi(s).soglia),
         nomi_categorie=impostazioni.nomi_categorie(s),
         siti_in_errore=dati_siti.in_errore(s), proposte=proposte.pendenti(s), avviso_login=claude_code.avviso_login(),
+        avviso_versione=riepilogo and cambio_versione(riepilogo),
         argomenti_nuovi=[r for r in argomenti.timeline(s, ultima and ultima.id) if r.nuove],  # UI-02, avvisi
         storico=[(e, esecuzioni.riepilogo(e)) for e in esecuzioni.storico(s)],
     )

@@ -4,7 +4,7 @@ import sys
 
 import pytest
 
-from gradiens.llm.base import ErroreLLM, QuotaEsaurita
+from gradiens.llm.base import ErroreLLM, LoginRifiutato, QuotaEsaurita
 from gradiens.llm.claude_code import ClaudeCode, interpreta
 
 # Finto `claude`: salva argomenti, stdin e ambiente, poi risponde secondo la modalità.
@@ -12,6 +12,12 @@ FINTO = r'''
 import json, os, sys, time
 cartella = os.path.dirname(os.path.abspath(__file__))
 modalita = open(os.path.join(cartella, "modalita.txt")).read().strip()
+if sys.argv[1:] == ["--version"]:
+    sys.exit(1) if modalita == "senza-versione" else print("2.1.325 (Claude Code)")
+    sys.exit()
+if sys.argv[1:] == ["auth", "status"]:
+    print(json.dumps({"loggedIn": True, "subscriptionType": "pro"}))
+    sys.exit()
 chiamate = os.path.join(cartella, "chiamate.txt")
 n = (int(open(chiamate).read()) if os.path.exists(chiamate) else 0) + 1
 open(chiamate, "w").write(str(n))
@@ -24,6 +30,8 @@ if modalita == "lento-poi-scrive":
     open(os.path.join(cartella, "finito.txt"), "w").write("ancora vivo")
 if modalita == "quota":
     print(json.dumps({"is_error": True, "api_error_status": 429, "result": "Claude usage limit reached"}))
+elif modalita == "login":
+    print(json.dumps({"is_error": True, "result": "Invalid API key · Please run /login"}))
 elif modalita == "rotto" or (modalita == "rotto-una-volta" and n == 1):
     print("non è json")
 else:
@@ -66,6 +74,24 @@ def test_quota_esaurita_senza_nuovo_tentativo(finto):
     with pytest.raises(QuotaEsaurita):
         chiedi(finto("quota"))
     assert (finto.cartella / "chiamate.txt").read_text() == "1"
+
+
+def test_login_rifiutato_ferma_senza_nuovo_tentativo(finto):
+    # Es. `--bare` predefinito di `-p` in una versione futura: Claude Code non legge più il login (doc 05, 4.5).
+    with pytest.raises(LoginRifiutato, match="/login"):
+        chiedi(finto("login"))
+    assert (finto.cartella / "chiamate.txt").read_text() == "1"
+
+
+@pytest.mark.parametrize("risposta", [
+    {"is_error": True, "api_error_status": 401, "result": "errore"},
+    {"is_error": True, "api_error_status": 403, "result": "errore"},
+    {"is_error": True, "result": "Not logged in · Please run /login"},
+    {"is_error": True, "result": "API Error: 401 authentication_error"},
+])
+def test_errori_di_autenticazione_riconosciuti(risposta):
+    with pytest.raises(LoginRifiutato):
+        interpreta(json.dumps(risposta))
 
 
 def test_errore_temporaneo_riprovato_una_volta(finto):
@@ -116,6 +142,13 @@ def test_pronto_controlla_il_collegamento_all_account(uscita, atteso):
     else:
         with pytest.raises(ErroreLLM, match=atteso):
             asyncio.run(provider.pronto())
+
+
+@pytest.mark.parametrize("modalita, versione", [("ok", "2.1.325"), ("senza-versione", None)])
+def test_pronto_restituisce_la_versione_di_claude_code(finto, modalita, versione):
+    # Una versione illeggibile non ferma l'esecuzione: manca solo il confronto con la precedente.
+    assert asyncio.run(finto(modalita).pronto()) == versione
+    assert not (finto.cartella / "chiamate.txt").exists()  # nessuna chiamata al modello
 
 
 def test_avviso_prima_che_il_login_scada(tmp_path, monkeypatch):

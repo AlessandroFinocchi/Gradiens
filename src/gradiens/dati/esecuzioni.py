@@ -58,6 +58,16 @@ def storico(sessione: Session, limite: int = 20) -> list[Esecuzione]:
     return list(sessione.scalars(select(Esecuzione).order_by(Esecuzione.id.desc()).limit(limite)))
 
 
+def versione_provata(sessione: Session, provider: str, limite: int = 50) -> str | None:
+    """Versione del provider (es. Claude Code) dell'ultima esecuzione che l'ha usata dopo averla provata
+    (decisione 45). None se non c'è: per esempio la prima volta, o dopo più di `limite` esecuzioni senza."""
+    for esecuzione in storico(sessione, limite):
+        v = json.loads(esecuzione.metriche or "{}").get("versione_llm") or {}
+        if v.get("provider") == provider and v.get("provata"):
+            return v.get("versione")
+    return None
+
+
 def riepilogo(esecuzione: Esecuzione) -> dict:
     """Metriche salvate (ESE-11) con i totali di tutte le fonti; vuote per un'esecuzione in corso.
     Le esecuzioni registrate prima della fetta 4b non hanno alcuni campi: si leggono con `.get`."""
@@ -74,6 +84,7 @@ def riepilogo(esecuzione: Esecuzione) -> dict:
         # Prima siti e canali con un problema, poi quelli andati bene.
         "stati": sorted(tutti("stati"), key=lambda st: st["stato"] in STATI_BUONI),
         "problemi": tutti("problemi"), "escluse": tutti("notizie_escluse"),
+        "versione_llm": m.get("versione_llm"),
     }
 
 

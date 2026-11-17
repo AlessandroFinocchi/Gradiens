@@ -4,6 +4,11 @@ from gradiens.llm.base import ErroreLLM, Provider
 from gradiens.llm.claude_code import ClaudeCode
 
 PROVIDER = {"claude-code": ClaudeCode}
+NOMI = {"claude-code": "Claude Code"}  # per l'utente
+
+
+def nome_provider(nome: str) -> str:
+    return NOMI.get(nome, nome)
 
 
 def crea_provider(nome: str) -> Provider:

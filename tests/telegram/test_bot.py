@@ -259,6 +259,16 @@ def test_avviso_del_login_in_fondo_al_messaggio_di_fine_esecuzione(ambiente, mon
     assert inviati[0][1].endswith("⚠️ Il login di Claude Code scade il 10/11: rifallo &lt;subito&gt;")
 
 
+def test_cambio_di_versione_di_claude_code_nel_messaggio_di_fine_esecuzione(ambiente):
+    client, id = ambiente
+    with client.app.state.sessioni() as s:
+        esecuzioni.termina(s, id, "completata", {"versione_llm": {
+            "provider": "claude-code", "versione": "2.1.325", "precedente": "2.1.316", "provata": True}})
+    b, inviati = bot_di(client)
+    asyncio.run(b.invia_esecuzione(id))
+    assert "ℹ️ Claude Code è passato dalla versione 2.1.316 alla 2.1.325" in inviati[0][1]
+
+
 def test_fonti_con_problemi_nel_messaggio_di_fine_esecuzione(ambiente):
     client, id = ambiente
     stati = [{"fonte": "redhotcyber.com", "stato": "nessuna strategia funzionante"}, {"fonte": "e.org", "stato": "ok"},

@@ -26,8 +26,8 @@ from gradiens.dati.esecuzioni import NESSUNA_RETE, SPENTO
 from gradiens.dati.modelli import FONTE_DI_TIPO, Notizia, Pertinenza, Sito
 from gradiens.esecuzione import prompt
 from gradiens.fonti import Candidata, ContenutoAssente, NonAncoraDisponibile, arxiv, siti, youtube
-from gradiens.llm import crea_provider
-from gradiens.llm.base import ErroreLLM, Provider, QuotaEsaurita, Risposta
+from gradiens.llm import crea_provider, nome_provider
+from gradiens.llm.base import ErroreBloccante, ErroreLLM, Provider, QuotaEsaurita, Risposta
 
 log = logging.getLogger(__name__)
 
@@ -74,6 +74,7 @@ class Contatori:
 class Metriche:
     fonti: dict[str, Contatori] = field(default_factory=dict)
     token: dict = field(default_factory=lambda: {r: {"ingresso": 0, "uscita": 0} for r in ("prefiltro", "elaborazione")})
+    versione_llm: dict | None = None  # decisione 45: provider, versione, precedente (se è cambiata), provata
 
     def escludi(self, c: Candidata, motivo: str) -> None:
         conta = self.di(c.tipo)
@@ -149,6 +150,8 @@ class Esecutore:
                 await self._pipeline(s, metriche, coperture)
         except QuotaEsaurita as errore:
             stato, motivo = "interrotta", str(errore)
+        except ErroreBloccante as errore:  # es. login rifiutato: niente notizia per notizia
+            stato, motivo = "fallita", str(errore)
         except asyncio.CancelledError:
             stato, motivo = "interrotta", SPENTO
             raise
@@ -167,6 +170,8 @@ class Esecutore:
                 "fonti": {nome: asdict(c) for nome, c in metriche.fonti.items()},
                 "token": metriche.token,
             }
+            if metriche.versione_llm:
+                dati["versione_llm"] = metriche.versione_llm
             registrata = await self._termina(id, stato, dati, motivo)
             log.info("Esecuzione %s %s %s", id, stato, motivo or "")
             if registrata and self.al_termine is not None and motivo != SPENTO:  # allo spegnimento non si manda niente
@@ -282,9 +287,12 @@ class Esecutore:
             raise ValueError("Serve almeno un interesse (Impostazioni).")
         prefiltro = self._fabbrica_provider(imp.provider_prefiltro)
         elaborazione = self._fabbrica_provider(imp.provider_elaborazione)
-        for provider in (prefiltro, elaborazione):  # ACC-15: es. Claude Code non collegato, l'esecuzione non parte
-            await provider.pronto()
+        versioni = []
+        for provider, modello in ((prefiltro, imp.modello_prefiltro), (elaborazione, imp.modello_elaborazione)):
+            versioni.append((provider, modello, await provider.pronto()))  # ACC-15: es. Claude Code non collegato
         await self._attendi_rete()
+        if con_versione := next((v for v in versioni if v[2]), None):
+            await self._prova_se_cambiato(s, m, *con_versione, prompt.sistema_prefiltro(elenco_interessi, imp.escludi_sponsorizzati))
         dal = notizie.adesso() - timedelta(days=imp.finestra_giorni)
         m.token["prefiltro"].update(provider=imp.provider_prefiltro, modello=imp.modello_prefiltro)
         m.token["elaborazione"].update(provider=imp.provider_elaborazione, modello=imp.modello_elaborazione)
@@ -332,7 +340,7 @@ class Esecutore:
                         return
                     risposta = await chiedi(elaborazione, sistema=sistema, messaggio=prompt.messaggio_valutazione(c),
                                             schema=prompt.SCHEMA_VALUTAZIONE, modello=imp.modello_elaborazione)
-                except QuotaEsaurita:
+                except ErroreBloccante:
                     raise
                 except ContenutoAssente as stato:  # YT-05: non diventa notizia, compare nel resoconto
                     notizie.segna_viste(s, [c.url])
@@ -355,6 +363,31 @@ class Esecutore:
             await self._argomenti(s, elaborazione, imp.modello_elaborazione, m)
             await self._proposte(s, elaborazione, imp.modello_elaborazione, imp.soglia, m)
 
+    async def _prova_se_cambiato(self, s: Session, m: Metriche, provider: Provider, modello: str, versione: str,
+                                 sistema: str) -> None:
+        """Decisione 45: se la versione del provider (es. Claude Code, che si aggiorna da solo) non è quella già
+        provata, una chiamata breve con lo schema del pre-filtro prima di usarlo. Se fallisce l'esecuzione si
+        ferma, e la prova si ripete alla prossima."""
+        precedente = esecuzioni.versione_provata(s, provider.nome)
+        m.versione_llm = {"provider": provider.nome, "versione": versione,
+                          "precedente": precedente if versione != precedente else None, "provata": versione == precedente}
+        if versione == precedente:
+            return
+        log.info("%s passato da %s a %s: prova di funzionamento", provider.nome, precedente, versione)
+        self._fase(f"prova di {nome_provider(provider.nome)}", 0)
+        try:
+            risposta = await chiedi(provider, sistema=sistema, messaggio=prompt.messaggio_prefiltro([]),
+                                    schema=prompt.SCHEMA_PREFILTRO, modello=modello)
+            if risposta.token_ingresso <= 0:
+                raise ErroreLLM("la risposta non dice quanti token ha usato.")
+        except QuotaEsaurita:
+            raise
+        except ErroreLLM as errore:
+            raise ErroreBloccante(f"{nome_provider(provider.nome)} {versione}: la prova di funzionamento non è riuscita, "
+                                  f"esecuzione fermata. {errore}") from errore
+        m.conta_token("prefiltro", risposta)
+        m.versione_llm["provata"] = True
+
     async def _argomenti(self, s: Session, elaborazione: Provider, modello: str, m: Metriche) -> None:
         """ESE-08, ADR 0008: le notizie mostrate dall'esecuzione, a blocchi in fila, così ogni blocco
         vede gli argomenti creati dal precedente. Se Claude non risponde restano senza argomento."""
@@ -367,7 +400,7 @@ class Esecutore:
                 risposta = await chiedi(
                     elaborazione, sistema=prompt.sistema_argomenti(esistenti), messaggio=prompt.messaggio_argomenti(blocco),
                     schema=prompt.SCHEMA_ARGOMENTI, modello=modello)
-            except QuotaEsaurita:
+            except ErroreBloccante:
                 raise
             except Exception as errore:  # un argomento mancante non fa fallire l'esecuzione (ADR 0008)
                 log.warning("Passo degli argomenti non riuscito: %s", errore)
@@ -402,7 +435,7 @@ class Esecutore:
             try:
                 risposta = await chiedi(elaborazione, sistema=sistema, schema=schema, modello=modello, messaggio=messaggio)
                 registra(risposta.dati)
-            except QuotaEsaurita:
+            except ErroreBloccante:
                 raise
             except Exception as errore:  # una proposta mancata non fa fallire l'esecuzione
                 s.rollback()
@@ -442,7 +475,7 @@ class Esecutore:
             try:
                 risposta = await chiedi(prefiltro, sistema=sistema, messaggio=prompt.messaggio_prefiltro(blocco),
                                         schema=prompt.SCHEMA_PREFILTRO, modello=modello)
-            except QuotaEsaurita:
+            except ErroreBloccante:
                 raise
             except ErroreLLM as errore:  # il blocco non si segna come visto: ci si riprova la volta dopo
                 log.warning("Pre-filtro fallito per un blocco di %s notizie: %s", len(blocco), errore)
@@ -514,15 +547,16 @@ class Esecutore:
 
 async def _tutti(coroutine) -> list:
     """Esegue in parallelo; al primo errore ferma le altre (la sessione del database è condivisa).
-    La quota esaurita esce come tale anche insieme ad altri errori (S-02); un errore solo esce da solo."""
+    Un errore bloccante (quota esaurita, login rifiutato) esce come tale anche insieme ad altri errori (S-02);
+    un errore solo esce da solo."""
     try:
         async with asyncio.TaskGroup() as gruppo:
             compiti = [gruppo.create_task(c) for c in coroutine]
     except ExceptionGroup as gruppo:
         errori = _foglie(gruppo)
-        quota = [e for e in errori if isinstance(e, QuotaEsaurita)]
-        if quota or len(errori) == 1:
-            raise (quota or errori)[0] from None
+        bloccanti = [e for e in errori if isinstance(e, ErroreBloccante)]
+        if bloccanti or len(errori) == 1:
+            raise (bloccanti or errori)[0] from None
         raise
     return [c.result() for c in compiti]
 

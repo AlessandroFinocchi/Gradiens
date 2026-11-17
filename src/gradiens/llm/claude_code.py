@@ -4,13 +4,14 @@ import asyncio
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
 
 from gradiens.app.avvio_sistema import eseguibile_claude
-from gradiens.llm.base import ErroreLLM, QuotaEsaurita, Risposta
+from gradiens.llm.base import ErroreBloccante, ErroreLLM, LoginRifiutato, QuotaEsaurita, Risposta
 
 log = logging.getLogger(__name__)
 
@@ -24,6 +25,8 @@ OPZIONI_ISOLAMENTO = [
     "--no-session-persistence",
 ]
 PAROLE_QUOTA = ("usage limit", "rate limit", "limit reached", "quota")
+# Il testo degli errori di login non è documentato (ipotesi dai messaggi visti): conta anche il codice HTTP.
+PAROLE_LOGIN = ("/login", "not logged in", "invalid api key", "authentication", "unauthorized")
 
 
 def trova_eseguibile() -> Path:
@@ -54,6 +57,8 @@ def interpreta(uscita: str) -> Risposta:
         testo = str(d.get("result") or d.get("api_error_status") or "errore sconosciuto")
         if d.get("api_error_status") == 429 or any(p in testo.lower() for p in PAROLE_QUOTA):
             raise QuotaEsaurita(f"Quota dell'abbonamento esaurita: {testo}")
+        if d.get("api_error_status") in (401, 403) or any(p in testo.lower() for p in PAROLE_LOGIN):
+            raise LoginRifiutato(f"Claude Code ha rifiutato il login ({testo}): {RIMEDIO_LOGIN}")
         raise ErroreLLM(f"Claude Code ha risposto con un errore: {testo}")
     dati = d.get("structured_output")
     if not isinstance(dati, dict):
@@ -71,14 +76,17 @@ class ClaudeCode:
         self._limite = asyncio.Semaphore(parallelismo)
         self._timeout = timeout
 
-    async def pronto(self) -> None:
-        """Claude Code installato e collegato a un account (UI-11, ACC-15)."""
+    async def pronto(self) -> str | None:
+        """Claude Code installato e collegato a un account (UI-11, ACC-15); restituisce la sua versione."""
         await asyncio.to_thread(stato_account, self._comando)
+        versione_ = await asyncio.to_thread(versione, self._comando)
+        log.info("Claude Code %s", versione_ or "di versione sconosciuta")
+        return versione_
 
     async def chiedi(self, *, sistema: str, messaggio: str, schema: dict, modello: str) -> Risposta:
         try:
             return await self._una_chiamata(sistema, messaggio, schema, modello)
-        except QuotaEsaurita:
+        except ErroreBloccante:
             raise
         except ErroreLLM as errore:  # un solo nuovo tentativo per gli errori temporanei
             log.warning("Claude Code, nuovo tentativo dopo: %s", errore)
@@ -129,6 +137,18 @@ def stato_account(comando: list[str] | None = None) -> str:
         raise ErroreLLM(f"Claude Code non è collegato a un account: {RIMEDIO_LOGIN}")
     abbonamento = dati.get("subscriptionType")
     return f"abbonamento {str(abbonamento).capitalize()}" if abbonamento else "collegato con una chiave API"
+
+
+def versione(comando: list[str] | None = None) -> str | None:
+    """`claude --version` (opzione documentata, non chiama il modello), es. "2.1.316". None se non si legge:
+    l'esecuzione va avanti, manca solo il confronto con la versione precedente."""
+    try:
+        risultato = subprocess.run([*(comando or [str(trova_eseguibile())]), "--version"], capture_output=True,
+                                   text=True, encoding="utf-8", errors="replace", timeout=30, env=_ambiente())
+    except (OSError, subprocess.TimeoutExpired, ErroreLLM):
+        return None
+    trovata = re.match(r"\d+(\.\d+)+", risultato.stdout.strip()) if risultato.returncode == 0 else None
+    return trovata and trovata.group()
 
 
 def scadenza_login() -> datetime | None:

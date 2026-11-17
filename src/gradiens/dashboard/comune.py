@@ -17,6 +17,7 @@ from gradiens.dashboard import segnali
 from gradiens.dati import impostazioni
 from gradiens.dati.esecuzioni import STATI_BUONI
 from gradiens.dati.notizie import nome_fonte
+from gradiens.llm import nome_provider
 
 CARTELLA = Path(__file__).parent
 modelli = Jinja2Templates(directory=CARTELLA / "templates")
@@ -90,6 +91,16 @@ def durata(secondi: float | None) -> str:
         return "—"
     minuti, resto = divmod(round(secondi), 60)
     return f"{minuti} min {resto:02d} s" if minuti else f"{resto} s"
+
+
+def cambio_versione(riepilogo: dict) -> str | None:
+    """Decisione 45: il provider (es. Claude Code) ha cambiato versione e la prova è riuscita. Se non è
+    riuscita l'esecuzione è fallita e lo dice il suo motivo."""
+    v = riepilogo.get("versione_llm") or {}
+    if not (v.get("precedente") and v.get("provata")):
+        return None
+    return (f"{nome_provider(v['provider'])} è passato dalla versione {v['precedente']} alla {v['versione']}: "
+            "la prova di funzionamento è riuscita.")
 
 
 def migliaia(n: int) -> str:

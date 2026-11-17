@@ -15,7 +15,7 @@ from gradiens.dati.modelli import Argomento, CategoriaArxiv, Esecuzione, Notizia
 from gradiens.esecuzione import prompt
 from gradiens.esecuzione.esecutore import Esecutore, GiaInCorso
 from gradiens.fonti import Candidata
-from gradiens.llm.base import ErroreLLM, QuotaEsaurita
+from gradiens.llm.base import ErroreLLM, LoginRifiutato, QuotaEsaurita
 from gradiens.llm.finto import Finto
 
 
@@ -1089,3 +1089,66 @@ def test_un_argomento_del_tipo_sbagliato_non_fa_fallire_l_esecuzione(sessioni):
     esecuzione, _, salvate, _ = esegui(sessioni, raccolta(candidata("sicurezza-alta")), provider=Finto(sbagliato))
     assert esecuzione.stato == "completata"
     assert [(n.titolo, n.argomento_id) for n in salvate] == [("sicurezza-alta", None)]
+
+
+@pytest.mark.parametrize("schema", [prompt.SCHEMA_PREFILTRO, prompt.SCHEMA_VALUTAZIONE])
+def test_login_rifiutato_ferma_l_esecuzione(sessioni, schema):
+    """Doc 05, 4.5 punto 2: un login rifiutato vale per tutte le chiamate. Prima l'esecuzione falliva notizia
+    per notizia (con un nuovo tentativo ciascuna) e finiva "completata" senza notizie."""
+    def rifiuta(sistema, messaggio, schema_chiesto):
+        if schema_chiesto is schema:
+            raise LoginRifiutato("Claude Code ha rifiutato il login")
+        return risponditore(sistema, messaggio, schema_chiesto)
+
+    paper = [candidata(f"sicurezza-alta-{i}") for i in range(3)]
+    esecuzione, _, salvate, _ = esegui(sessioni, raccolta(*paper), provider=Finto(rifiuta))
+    assert (esecuzione.stato, esecuzione.motivo) == ("fallita", "Claude Code ha rifiutato il login")
+    assert salvate == []
+
+
+class ConVersione(Finto):
+    """Finto con una versione, come Claude Code (decisione 45)."""
+
+    nome = "claude-code"
+
+    def __init__(self, risponditore, versione="2.1.316"):
+        super().__init__(risponditore)
+        self.versione = versione
+
+    async def pronto(self):
+        return self.versione
+
+
+def prove_di_fumo(provider: Finto) -> int:
+    return sum(messaggio == "[]" for _, messaggio in provider.chiamate)  # pre-filtro di un elenco vuoto
+
+
+def test_versione_registrata_e_prova_di_fumo_solo_quando_cambia(sessioni):
+    """Decisione 45: una chiamata breve quando la versione di Claude Code cambia, non a ogni esecuzione."""
+    provider = ConVersione(risponditore)
+    esecuzioni_di_fila(sessioni, raccolta(), provider, volte=2)
+    assert prove_di_fumo(provider) == 1  # alla prima esecuzione non c'è una versione già provata
+    provider.versione = "2.1.325"
+    tutte = esecuzioni_di_fila(sessioni, raccolta(), provider, volte=1)
+    assert prove_di_fumo(provider) == 2
+
+    assert [e.stato for e, _ in tutte] == ["completata"] * 3
+    versione = {"provider": "claude-code", "versione": "2.1.316", "precedente": None, "provata": True}
+    assert [m["versione_llm"] for _, m in tutte] == [
+        versione, versione, {**versione, "versione": "2.1.325", "precedente": "2.1.316"}]
+    assert tutte[2][1]["token"]["prefiltro"]["ingresso"] > 0  # i token della prova contano
+
+
+def test_prova_di_fumo_fallita_ferma_l_esecuzione_e_si_ripete(sessioni):
+    def rotto(sistema, messaggio, schema):
+        if messaggio == "[]":
+            return {}  # forma inattesa: per esempio un campo della risposta che cambia nome
+        return risponditore(sistema, messaggio, schema)
+
+    provider = ConVersione(rotto)
+    (prima, metriche), (seconda, _) = esecuzioni_di_fila(sessioni, raccolta(candidata("sicurezza-alta")), provider, volte=2)
+
+    assert prima.stato == seconda.stato == "fallita"
+    assert prima.motivo.startswith("Claude Code 2.1.316: la prova di funzionamento non è riuscita")
+    assert len(provider.chiamate) == 2  # solo le due prove: nessuna notizia esaminata con Claude Code guasto
+    assert metriche["versione_llm"]["provata"] is False

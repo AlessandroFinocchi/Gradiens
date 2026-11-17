@@ -82,7 +82,21 @@ Tutte e sei le fasi hanno un documento e le decisioni dell'utente sono in [decis
    configurazione minima della 6.1 del documento 05 in `pyproject.toml` (solo linter, niente formatter), passo
    `uv run ruff check` nella CI. Le segnalazioni vere erano 23 (non circa 15): oltre a quelle stimate, 4 UP037
    (annotazioni tra virgolette), 2 B008 (lambda con valori fissati, lasciate con `noqa`) e 1 F811 (due funzioni
-   `esegui` in `app/servizio.py`: la rotta è diventata `esegui_da_cli`).
+   `esegui` in `app/servizio.py`: la rotta è diventata `esegui_da_cli`). **Fatta la 4.5 del documento 05, punti 1-3
+   (17 nov 2026, decisione 45)**: `ClaudeCode.pronto()` restituisce la versione letta da `claude --version`, scritta
+   nel log e nelle metriche (`versione_llm`); `Provider.pronto()` ora restituisce la versione o None. Un errore di
+   login (401, 403 o il testo, che non è documentato) solleva `LoginRifiutato`, che come `QuotaEsaurita` deriva dal
+   nuovo `ErroreBloccante`: niente nuovo tentativo e l'esecuzione si ferma subito, "fallita" con il motivo. Se la
+   versione non è quella dell'ultima esecuzione che l'ha provata (`esecuzioni.versione_provata`), prima della
+   raccolta parte una chiamata breve con lo schema del pre-filtro e un elenco vuoto; se fallisce l'esecuzione si
+   ferma (scelta dell'utente) e la prova si ripete alla successiva. Il motivo si vede in Home e su Telegram come per
+   ogni esecuzione fallita; il cambio di versione riuscito è un avviso della Home e una riga del messaggio Telegram.
+   La prima esecuzione dopo questa modifica fa la prova una volta. Test con il finto `claude` e con provider finti.
+   Prova vera (17 nov 2026, autorizzata): la stessa chiamata della prova, lanciata da uno script fuori
+   dall'esecutore, con Claude Code 2.1.316 su Linux: risposta `{"pertinenti": [], "sponsorizzate": []}`, 1.610 token
+   in ingresso e 154 in uscita (1.764 in tutto, dentro la stima di 1.300-2.000), una sola chiamata. Il testo
+   vero di un login rifiutato resta non visto: le parole riconosciute sono un'ipotesi. Il punto 4 (campi documentati di `auth status`) e la nota sui rischi
+   nell'ADR 0006 restano da fare.
 6. ADR 0013; ADR 0012 per ultimo.
 
 **Ancora aperto**
@@ -93,7 +107,8 @@ Tutte e sei le fasi hanno un documento e le decisioni dell'utente sono in [decis
   il feed del canale YouTube) e in [06c-dashboard-da-internet.md](06c-dashboard-da-internet.md) (passi in
   Tailscale); tutto il ramo Windows resta solo letto.
 - **Misure e prove autorizzate e non ancora fatte**: M1-M6 sui token (decisione 10, a tempi separati) e la
-  prova vera di yt-dlp (decisione 46).
+  prova vera di yt-dlp (decisione 46). La prova di fumo di Claude Code è stata fatta
+  una volta a mano (17 nov 2026); quella dentro un'esecuzione vera avverrà alla prossima esecuzione.
 - **Domande minori mai fatte**: tre della fase 2 (elencate in decisioni.md) e la proposta P-3 della fase 3
   (le metriche salvate cambiano solo per aggiunta).
 - **Documenti non riscritti dopo le riletture o le decisioni**: 03, 04, 05, 06a, 06b e 06c hanno in testa una

@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from gradiens.dati import argomenti, esecuzioni, impostazioni, interessi, notizie, proposte
 from gradiens.dati import siti as dati_siti
-from gradiens.dati.esecuzioni import SPENTO
+from gradiens.dati.esecuzioni import NESSUNA_RETE, SPENTO
 from gradiens.dati.modelli import FONTE_DI_TIPO, Notizia, Pertinenza, Sito
 from gradiens.esecuzione import prompt
 from gradiens.fonti import Candidata, ContenutoAssente, NonAncoraDisponibile, arxiv, siti, youtube
@@ -89,7 +89,8 @@ class Metriche:
         self.token[ruolo]["uscita"] += risposta.token_uscita
 
 
-ATTESA_RETE, PAUSA_RETE = 300, 5  # secondi: all'accensione del PC la rete arriva di solito dopo pochi secondi
+# Secondi: all'accensione del PC la rete arriva di solito dopo pochi secondi, ma è arrivata anche dopo 5-10 minuti (I-4).
+ATTESA_RETE, PAUSA_RETE = 900, 5
 HOST_DI_PROVA = ("one.one.one.one", 443)  # un nome che si risolve in ogni rete collegata a internet
 
 
@@ -194,7 +195,7 @@ class Esecutore:
         fine = time.monotonic() + ATTESA_RETE
         while not await asyncio.to_thread(rete_disponibile):
             if time.monotonic() > fine:
-                raise RuntimeError("Nessuna connessione a internet: controlla la rete e riprova.")
+                raise RuntimeError(NESSUNA_RETE)  # non conta per il recupero (`esecuzioni.avviate_dal`)
             self._fase("attesa della rete", 0)
             await asyncio.sleep(PAUSA_RETE)
 

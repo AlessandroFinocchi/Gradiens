@@ -10,6 +10,7 @@ from gradiens.dati.modelli import Esecuzione
 from gradiens.dati.notizie import adesso
 
 SPENTO = "Gradiens è stato spento durante l'esecuzione."
+NESSUNA_RETE = "Nessuna connessione a internet: controlla la rete e riprova."
 
 
 def inizia(sessione: Session, avviata_da: str) -> Esecuzione:
@@ -39,8 +40,13 @@ def segna_interrotte(sessione: Session) -> int:
 
 
 def avviate_dal(sessione: Session, quando: datetime) -> bool:
-    """C'è un'esecuzione avviata da `quando` (UTC) in poi? Serve al recupero all'avvio (ESE-01)."""
-    return sessione.scalars(select(Esecuzione.id).where(Esecuzione.avviata_il >= quando).limit(1)).first() is not None
+    """C'è un'esecuzione avviata da `quando` (UTC) in poi? Serve al recupero (ESE-01). Quelle fallite per
+    mancanza di rete non contano: un riavvio con la rete recupera la giornata (decisione 40)."""
+    return sessione.scalars(
+        select(Esecuzione.id)
+        .where(Esecuzione.avviata_il >= quando, Esecuzione.motivo.is_distinct_from(NESSUNA_RETE))
+        .limit(1)
+    ).first() is not None
 
 
 STATI_BUONI = ("ok", "nessun articolo nuovo")

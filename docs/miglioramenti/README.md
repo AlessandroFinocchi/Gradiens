@@ -72,7 +72,13 @@ Tutte e sei le fasi hanno un documento e le decisioni dell'utente sono in [decis
    (`_destinazione`); un redirect verso la rete di casa vale come rete assente (decisione 39, solo redirect). Un
    robots.txt con 5xx vieta il sito per 5 minuti invece di un'ora (non solo per il `Navigatore`: l'estrazione ne
    crea uno per articolo); il 429 resta un'ora. Test in `tests/fonti/siti/test_sicurezza.py` e nel nuovo
-   `tests/fonti/siti/test_rete.py`.
+   `tests/fonti/siti/test_rete.py`. **Fatte le schede 9 e 13 (17 nov 2026)**: il programmatore controlla
+   `avviate_dal` a ogni orario superato, così al ritorno all'ora solare parte una sola esecuzione
+   (`esecuzione/programmatore.py`); l'attesa della rete passa a 15 minuti e un'esecuzione fallita per mancanza di
+   rete (`esecuzioni.NESSUNA_RETE`) non conta per il recupero (decisione 40, `ESE-01` precisato). Le correzioni C e D
+   della scheda 13 (avvisi Telegram persi, controllo della rete via HTTP) non sono state decise. Test in
+   `tests/esecuzione/test_programmatore.py` e `test_esecutore.py`. `mappa-moduli.md` non è stata aggiornata (300 s,
+   "conta qualsiasi esecuzione").
 6. ADR 0013; ADR 0012 per ultimo.
 
 **Ancora aperto**

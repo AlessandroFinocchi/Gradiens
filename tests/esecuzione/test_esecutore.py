@@ -514,6 +514,23 @@ def test_aspetta_la_rete_prima_di_raccogliere(sessioni, monkeypatch):
     assert (esecuzione.stato, esecuzione.motivo) == ("fallita", "Nessuna connessione a internet: controlla la rete e riprova.")
 
 
+def test_aspetta_la_rete_fino_a_quindici_minuti(sessioni, monkeypatch):
+    """Scheda 13 (I-4) del documento 04, decisione 40: all'accensione la rete è arrivata anche dopo 5-10 minuti."""
+    from gradiens.esecuzione import esecutore as modulo
+
+    tempo = [0.0]  # orologio finto: ogni controllo della rete dura 5 secondi
+
+    def rete_disponibile():
+        tempo[0] += 5
+        return tempo[0] >= 14 * 60  # la rete arriva dopo 14 minuti
+
+    monkeypatch.setattr(modulo, "time", SimpleNamespace(monotonic=lambda: tempo[0]))
+    monkeypatch.setattr(modulo, "rete_disponibile", rete_disponibile)
+    monkeypatch.setattr(modulo, "PAUSA_RETE", 0)
+    esecuzione, _, salvate, _ = esegui(sessioni, raccolta(candidata("sicurezza-alta")))
+    assert esecuzione.stato == "completata" and len(salvate) == 1
+
+
 # Test di caratterizzazione T-02…T-07 (docs/miglioramenti/02-test-e-copertura.md, decisione 26): fissano il
 # comportamento di oggi prima di ADR 0010 e 0011. Dove sembra sbagliato restano verdi con "vedi S-nn" (decisione 24).
 

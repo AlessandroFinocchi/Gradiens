@@ -56,11 +56,10 @@ class Programmatore:
                 notizie.cancella_scadute(s)
             imp = impostazioni.leggi(s)
             scadenza = _scadenza(adesso, imp.orario_programmato)
-            if ultimo is None:
-                # All'avvio: si recupera l'esecuzione di oggi se l'orario è passato e da allora non ne è partita nessuna.
-                da_avviare = adesso >= scadenza and not esecuzioni.avviate_dal(s, scadenza.astimezone(UTC).replace(tzinfo=None))
-            else:
-                da_avviare = ultimo < scadenza <= adesso
+            # All'avvio si recupera l'esecuzione di oggi se l'orario è passato. Sempre, se da allora ne è già
+            # partita una non si riparte: al ritorno all'ora solare l'orario si supera due volte (S-09).
+            superata = adesso >= scadenza if ultimo is None else ultimo < scadenza <= adesso
+            da_avviare = superata and not esecuzioni.avviate_dal(s, scadenza.astimezone(UTC).replace(tzinfo=None))
         self._ultimo_controllo = adesso
         # UI-11: prima della configurazione iniziale fallirebbe per i dati mancanti.
         if da_avviare and not imp.programmazione_in_pausa and imp.configurazione_completata:

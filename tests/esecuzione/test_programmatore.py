@@ -79,6 +79,30 @@ def test_niente_recupero_se_un_esecuzione_e_partita_dopo_l_orario(sessioni):
     assert e.avviate == 0
 
 
+def test_il_recupero_riparte_dopo_un_esecuzione_fallita_per_mancanza_di_rete(sessioni):
+    # Scheda 13 (I-4) del documento 04, decisione 40: il recupero all'accensione è fallito perché la rete non
+    # arrivava; al riavvio del servizio nello stesso giorno, con la rete, va recuperato.
+    with sessioni() as s:
+        fallita = esecuzioni.inizia(s, "programmazione")
+        fallita.avviata_il = ora(7, 7, 5).astimezone(UTC).replace(tzinfo=None)
+        s.commit()
+        esecuzioni.termina(s, fallita.id, "fallita", {}, esecuzioni.NESSUNA_RETE)
+    p, e = programmatore(sessioni, ora(7, 9, 0))
+    p.controlla()
+    assert e.avviate == 1
+
+
+def test_un_esecuzione_fallita_per_altri_motivi_conta_per_il_recupero(sessioni):
+    with sessioni() as s:
+        fallita = esecuzioni.inizia(s, "programmazione")
+        fallita.avviata_il = ora(7, 7, 5).astimezone(UTC).replace(tzinfo=None)
+        s.commit()
+        esecuzioni.termina(s, fallita.id, "fallita", {}, "Claude Code non è collegato a un account.")
+    p, e = programmatore(sessioni, ora(7, 9, 0))
+    p.controlla()
+    assert e.avviate == 0
+
+
 def test_niente_recupero_prima_dell_orario(sessioni):
     p, e = programmatore(sessioni, ora(7, 6, 0))
     p.controlla()
@@ -145,3 +169,36 @@ def test_niente_esecuzioni_prima_della_configurazione_iniziale(sessioni):
     p.controlla()
     p.controlla()
     assert e.avviate == 0
+
+
+def test_al_ritorno_all_ora_solare_l_esecuzione_parte_una_volta(sessioni):
+    # Scheda 9 (S-09) del documento 04: l'orologio locale torna dalle 02:59:30 alle 02:00 e l'orario delle
+    # 02:30 si supera due volte: la seconda volta c'è già l'esecuzione partita alle 02:30.
+    with sessioni() as s:
+        impostazioni.salva_esecuzione(s, 60, 7, orario="02:30")
+
+    class Registra(EsecutoreFinto):
+        """Scrive la riga dell'esecuzione come l'esecutore vero, con l'ora della partenza (02:30) in UTC."""
+        def avvia(self, avviata_da: str) -> int:
+            with sessioni() as s:
+                riga = esecuzioni.inizia(s, avviata_da)
+                riga.avviata_il = ora(1, 2, 30).astimezone(UTC).replace(tzinfo=None)
+                s.commit()
+            return super().avvia(avviata_da)
+
+    e = Registra()
+    orologio = iter([ora(1, 2, 29), ora(1, 2, 30), ora(1, 2, 59), ora(1, 2, 0), ora(1, 2, 30)])
+    p = Programmatore(sessioni, e, adesso=lambda: next(orologio))
+    for _ in range(5):
+        p.controlla()
+    assert e.avviate == 1
+
+
+def test_all_ora_legale_l_esecuzione_parte_una_volta(sessioni):
+    # Scheda 9 (H2): l'orologio salta dalle 01:59:30 alle 03:00 e l'orario delle 02:30 non esiste.
+    with sessioni() as s:
+        impostazioni.salva_esecuzione(s, 60, 7, orario="02:30")
+    p, e = programmatore(sessioni, ora(1, 1, 59), ora(1, 3, 0), ora(1, 3, 1))
+    for _ in range(3):
+        p.controlla()
+    assert e.avviate == 1

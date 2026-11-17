@@ -155,7 +155,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
   - dal bottone in dashboard;
   - dalla CLI;
   - dal comando `/aggiorna` del bot Telegram;
-  - dalla programmazione giornaliera, il cui orario si configura nelle Impostazioni (predefinito alle 7:00, nell'ora del PC). La programmazione la gestisce l'applicazione stessa mentre è in funzione, e si può mettere in pausa (`TG-10`). Se all'orario Gradiens non era in funzione, l'esecuzione si recupera appena parte: se l'orario di oggi è già passato e da allora non è partita nessuna esecuzione, di qualunque tipo, se ne avvia una, una sola anche dopo più giorni di spegnimento. Con la programmazione in pausa non si recupera niente.
+  - dalla programmazione giornaliera, il cui orario si configura nelle Impostazioni (predefinito alle 7:00, nell'ora del PC). La programmazione la gestisce l'applicazione stessa mentre è in funzione, e si può mettere in pausa (`TG-10`). Se all'orario Gradiens non era in funzione, l'esecuzione si recupera appena parte: se l'orario di oggi è già passato e da allora non è partita nessuna esecuzione, di qualunque tipo, se ne avvia una, una sola anche dopo più giorni di spegnimento. Non conta un'esecuzione fallita per mancanza di rete: l'esecuzione aspetta la rete fino a 15 minuti, e se fallisce lo stesso la giornata si recupera al successivo avvio di Gradiens. Con la programmazione in pausa non si recupera niente. Al ritorno all'ora solare un orario tra le 2:00 e le 2:59 si ripete, ma l'esecuzione parte una volta sola.
 - `ESE-02` Gira una sola esecuzione alla volta. Se ne viene richiesta un'altra mentre una è in corso, la richiesta viene rifiutata con il messaggio "esecuzione già in corso".
 
 **Raccolta e filtro**

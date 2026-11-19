@@ -51,7 +51,7 @@
       <section class="blocco" aria-labelledby="t-avvisi">
         <h2 id="t-avvisi">Avvisi</h2>
         {% if avviso_login or avviso_versione or proposte or siti_in_errore or argomenti_nuovi %}
-        <ul class="avvisi">
+        <ul class="avvisi scorre">
           {% if avviso_login %}
           <li><div class="fisso">
             <span class="segnale avvertimento">{{ icona("avvertimento") }}</span>
@@ -107,7 +107,7 @@
       <section class="blocco largo" aria-labelledby="t-storico">
         <h2 id="t-storico">Storico delle esecuzioni</h2>
         {% if storico %}
-        <div class="tabella-scorre">
+        <div class="tabella-scorre scorre">
           <table>
             <thead><tr><th>Avvio</th><th>Avviata da</th><th class="num">Durata</th><th class="num">Esaminate</th><th class="num">Mostrate</th><th class="num">Errori</th><th class="num">Token</th><th>Esito</th></tr></thead>
             <tbody>

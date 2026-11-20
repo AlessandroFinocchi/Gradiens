@@ -1,10 +1,12 @@
 {% extends "base.html" %}
 {% from "icone.html" import icona with context %}
-{# Pagina Notizie (UI-04) e Archivio (UI-08): stesso elenco, filtri e ordinamenti (UI-06, UI-07). #}
-{% set titolo = "Archivio" if archivio else "Notizie" %}
+{# Pagine Notizie, una per Siti web, YouTube e arXiv (UI-04), e Archivio (UI-08): stesso elenco, filtri e ordinamenti
+   (UI-06, UI-07). Fonti e interessi sono caselle nel pannello a destra, fuori dal <form> ma legate a lui con
+   form="filtri" (decisione 69). #}
+{% set titolo = "Archivio" if archivio else FONTI[sezione][1] %}
 {% block titolo %}{{ titolo }}{% endblock %}
 {% block contenuto %}
-<main class="pagina">
+<main class="pagina con-pannello">
   <header class="testata">
     <div class="testata-riga">
       <div>
@@ -17,31 +19,25 @@
       </div>
       {% if not archivio %}{% include "avanzamento.html" %}{% endif %}
     </div>
-    <form class="filtri" aria-label="Filtri" hx-get="{{ '/archivio' if archivio else '/notizie' }}"
-          hx-trigger="change, input changed delay:400ms from:#cerca"
-          hx-target="#elenco" hx-select="#elenco" hx-select-oob="#filtro-fonte" hx-swap="outerHTML" hx-push-url="true">
+    <form class="filtri" id="filtri" aria-label="Filtri" hx-get="{{ request.url.path }}"
+          hx-trigger="change, change from:#pannello-filtri, input changed delay:400ms from:#cerca"
+          hx-target="#elenco" hx-select="#elenco" hx-select-oob="#filtro-fonti" hx-swap="outerHTML" hx-push-url="true">
       <input class="campo cerca" id="cerca" type="search" name="q" value="{{ filtri.testo }}" placeholder="Cerca…"
              aria-label="Cerca nelle {{ 'notizie archiviate' if archivio else 'notizie' }}" autocomplete="off">
+      {% if tipi_pagina|length > 1 %}
+      {% set scelti = request.query_params.getlist("tipo") %}
       <div class="gruppo" role="group" aria-label="Tipo">
-        {% for valore, (nome_icona, nome) in TIPI.items() %}
-        <label class="chip"><input class="nascosto" type="checkbox" name="tipo" value="{{ valore }}"{% if valore in filtri.tipi %} checked{% endif %}>{{ icona(nome_icona) }}{{ nome }}</label>
+        {% for valore in tipi_pagina %}
+        <label class="chip"><input class="nascosto" type="checkbox" name="tipo" value="{{ valore }}"{% if valore in scelti %} checked{% endif %}>{{ icona(TIPI[valore][0]) }}{{ TIPI[valore][1] }}</label>
         {% endfor %}
       </div>
+      {% endif %}
       <span class="separatore"></span>
-      <select class="selettore" name="interesse" aria-label="Interesse">
-        <option value="">Tutti gli interessi</option>
-        {% for i in interessi %}<option value="{{ i.id }}"{% if filtri.interesse_id == i.id %} selected{% endif %}>{{ i.nome }}</option>{% endfor %}
-      </select>
       <select class="selettore" name="giorni" aria-label="Data">
         {% for valore, nome in ([("", "Qualsiasi data"), ("7", "Ultimi 7 giorni"), ("30", "Ultimo mese"), ("365", "Ultimo anno")] if archivio
                                 else [("", "Ultimi 7 giorni"), ("1", "Oggi"), ("3", "Ultimi 3 giorni")]) %}
         <option value="{{ valore }}"{% if (filtri.giorni or "")|string == valore %} selected{% endif %}>{{ nome }}</option>
         {% endfor %}
-      </select>
-      {# Solo le fonti dei tipi selezionati: si aggiorna con l'elenco (hx-select-oob). #}
-      <select class="selettore" id="filtro-fonte" name="fonte" aria-label="Fonte">
-        <option value="">Tutte le fonti</option>
-        {% for valore, nome in fonti.items() %}<option value="{{ valore }}"{% if filtri.fonte == valore %} selected{% endif %}>{{ nome }}</option>{% endfor %}
       </select>
       {% if not archivio %}
       <label class="chip"><input class="nascosto" type="checkbox" name="cuore" value="1"{% if filtri.solo_cuore %} checked{% endif %}>{{ icona("cuore") }}Con il cuore</label>
@@ -55,6 +51,26 @@
       </select>
     </form>
   </header>
+  {# Sul telefono il pannello sta sopra l'elenco e parte chiuso (app.js). #}
+  <details class="pannello-filtri" id="pannello-filtri" open>
+    <summary>Fonti e interessi</summary>
+    {# Solo le fonti dei tipi selezionati: si aggiorna con l'elenco (hx-select-oob). #}
+    <fieldset id="filtro-fonti">
+      <legend>Fonti</legend>
+      {% for valore, nome in fonti.items() %}
+      <label class="casella"><input type="checkbox" form="filtri" name="fonte" value="{{ valore }}"{% if valore in filtri.fonti %} checked{% endif %}><span>{{ nome }}</span></label>
+      {% else %}
+      <p class="nota">Nessuna fonte con notizie.</p>
+      {% endfor %}
+    </fieldset>
+    <hr>
+    <fieldset>
+      <legend>Interessi</legend>
+      {% for i in interessi %}
+      <label class="casella"><input type="checkbox" form="filtri" name="interesse" value="{{ i.id }}"{% if i.id in filtri.interessi %} checked{% endif %}><span>{{ i.nome }}</span></label>
+      {% endfor %}
+    </fieldset>
+  </details>
   {% include "elenco.html" %}
 </main>
 {% endblock %}

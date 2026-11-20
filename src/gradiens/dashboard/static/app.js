@@ -37,8 +37,18 @@ document.addEventListener("esecuzione-finita", () => {
   if (parte) htmx.ajax("GET", location.href, { target: `#${parte.id}`, select: `#${parte.id}`, swap: "outerHTML" });
 });
 
+// Pannello di fonti e interessi (decisione 69): a destra sempre aperto; su schermi stretti sta sopra l'elenco e
+// parte chiuso per non coprirlo. Si riallinea quando la finestra cambia larghezza. Stessa soglia di stile.css.
+const schermoStretto = matchMedia("(max-width: 1100px)");
+function apriPannello() {
+  const pannello = document.getElementById("pannello-filtri");
+  if (pannello) pannello.open = !schermoStretto.matches;
+}
+schermoStretto.addEventListener("change", apriPannello);
+
 // Indirizzo diretto a una sezione, es. /#impostazioni/aspetto (UI-10).
 document.addEventListener("DOMContentLoaded", () => {
+  apriPannello();
   const m = location.hash.match(/^#impostazioni\/([\w-]+)$/);
   if (m) htmx.ajax("GET", `/impostazioni/${m[1]}`, "#impostazioni");
 });

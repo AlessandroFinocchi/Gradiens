@@ -312,3 +312,15 @@ qui nella rilettura finale del 17 novembre 2026, senza cambiarle.
     Impostazioni il fuoco si toglie dall'ingranaggio, così alla chiusura della finestra il browser non lo rimette
     lì e la sidebar non resta espansa. *Rischio accettato*: chi usa la tastiera, chiusa la finestra, riparte
     dall'inizio della pagina invece che dall'ingranaggio.
+69. **Notizie divise per sorgente, fonti e interessi a caselle** (20 nov 2026, richiesta dell'utente; cambia `UI-01`,
+    `UI-04`, `UI-06`, `UI-07`, `UI-08`): la pagina Notizie diventa tre pagine, `/notizie/siti`, `/notizie/youtube`
+    (video e short, con i chip per distinguerli) e `/notizie/arxiv`, raccolte nella sidebar sotto il titolo
+    "Notizie". Fonti e interessi non sono più menù a tendina ma caselle in un pannello a destra dell'elenco, in due
+    gruppi con titolo separati da una riga; più caselle dello stesso gruppo valgono in OR e, ordinando per
+    pertinenza, conta il punteggio più alto tra gli interessi spuntati. Ogni pagina mostra solo le fonti della sua
+    sorgente. L'Archivio resta una pagina sola con tutti i tipi e lo stesso pannello, che lì elenca solo le fonti
+    delle notizie con il cuore. Sotto i 1100 px il pannello va sopra l'elenco, chiuso. Il vecchio `/notizie` porta alla pagina del
+    primo tipo scelto, o a `/notizie/siti`, con gli stessi filtri; la Home toglie "Tutte le notizie" e ogni gruppo di "In evidenza" porta alla sua pagina. Le
+    caselle stanno fuori dal `<form>` dei filtri, legate con `form="filtri"`, così l'elenco con i suoi bottoni resta
+    fuori dal modulo come prima. *Rischio accettato*: le caselle delle fonti si rigenerano a ogni cambio di filtro
+    (per seguire i tipi scelti) e la tastiera perde il punto in cui era nel pannello.

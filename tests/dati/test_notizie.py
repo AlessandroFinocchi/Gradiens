@@ -54,7 +54,9 @@ def test_ordinamento_per_interesse_filtrato_e_per_data(s):
     notizia(s, "forte-in-a", giorni_fa=3, punteggi=[(a.id, 95), (b.id, 61)])
     notizia(s, "forte-in-b", giorni_fa=1, punteggi=[(a.id, 70), (b.id, 99)])
     assert titoli(notizie.elenca(s, Filtri(), 60)) == ["forte-in-b", "forte-in-a"]
-    assert titoli(notizie.elenca(s, Filtri(interesse_id=a.id), 60)) == ["forte-in-a", "forte-in-b"]
+    assert titoli(notizie.elenca(s, Filtri(interessi=[a.id]), 60)) == ["forte-in-a", "forte-in-b"]
+    # più interessi in OR: conta il punteggio più alto tra quelli scelti
+    assert titoli(notizie.elenca(s, Filtri(interessi=[a.id, b.id]), 60)) == ["forte-in-b", "forte-in-a"]
     assert titoli(notizie.elenca(s, Filtri(ordine="data", crescente=True), 60)) == ["forte-in-a", "forte-in-b"]
 
 
@@ -63,7 +65,8 @@ def test_filtri_tipo_fonte_cuore(s):
     notizia(s, "paper", punteggi=[(a.id, 80)], cuore=True)
     notizia(s, "video", tipo="video", fonte="Lab", punteggi=[(a.id, 80)])
     assert titoli(notizie.elenca(s, Filtri(tipi=["video"]), 60)) == ["video"]
-    assert titoli(notizie.elenca(s, Filtri(fonte="cs.CR"), 60)) == ["paper"]
+    assert titoli(notizie.elenca(s, Filtri(fonti=["cs.CR"]), 60)) == ["paper"]
+    assert set(titoli(notizie.elenca(s, Filtri(fonti=["cs.CR", "Lab"]), 60))) == {"paper", "video"}
     assert titoli(notizie.elenca(s, Filtri(solo_cuore=True), 60)) == ["paper"]
 
 

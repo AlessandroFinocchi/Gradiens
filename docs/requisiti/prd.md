@@ -34,7 +34,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 - `INT-07` Aggiungere un interesse, modificarne la descrizione o il raffinamento (a mano o approvando una proposta) vale solo per le notizie valutate da quel momento in poi. Le notizie già valutate tengono i loro punteggi e non si rivalutano.
 - `INT-08` Rinominare un interesse ne cambia solo l'etichetta.
 - `INT-09` Eliminare un interesse cancella i suoi punteggi di **pertinenza**:
-  - le notizie che non hanno più nessun punteggio sopra la soglia escono dalla pagina Notizie;
+  - le notizie che non hanno più nessun punteggio sopra la soglia escono dalle pagine Notizie;
   - le notizie in archivio restano, con l'etichetta "interesse eliminato".
 
 ## 4. Fonti
@@ -240,10 +240,10 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 
 Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dashboard. Tutta la dashboard segue lo stile delle app Claude, con tema chiaro e scuro e notizie mostrate come elenco compatto (variante 2 di [mockup/00-confronto-stili.html](../../mockup/00-confronto-stili.html)).
 
-- `UI-01` **Sidebar**: mostra sempre le icone di tutte le pagine. Quando ci si passa sopra con il puntatore, o la si raggiunge con la tastiera, si espande e mostra anche i nomi; la pagina si sposta per non finirci sotto (sul telefono la sidebar resta sopra il contenuto). Un clic sul simbolo di Gradiens in alto la fissa espansa, un altro clic la sblocca; la scelta vale per tutte le pagine. Chiusa la finestra delle Impostazioni, la sidebar torna stretta. In alto ci sono le pagine Home, Notizie, Timeline e Archivio, in quest'ordine. In basso, separate, ci sono Aiuto e, sotto, l'icona a ingranaggio delle Impostazioni. L'ingranaggio mostra un segnale quando almeno una sezione delle Impostazioni ne ha uno (`UI-10`).
+- `UI-01` **Sidebar**: mostra sempre le icone di tutte le pagine. Quando ci si passa sopra con il puntatore, o la si raggiunge con la tastiera, si espande e mostra anche i nomi; la pagina si sposta per non finirci sotto (sul telefono la sidebar resta sopra il contenuto). Un clic sul simbolo di Gradiens in alto la fissa espansa, un altro clic la sblocca; la scelta vale per tutte le pagine. Chiusa la finestra delle Impostazioni, la sidebar torna stretta. In alto ci sono, in quest'ordine, la Home, la sezione Notizie con le pagine Siti web, YouTube e arXiv (`UI-04`), poi Timeline e Archivio. Il titolo della sezione Notizie si legge a sidebar espansa; stretta, la sezione è separata da due righe (decisione 69). In basso, separate, ci sono Aiuto e, sotto, l'icona a ingranaggio delle Impostazioni. L'ingranaggio mostra un segnale quando almeno una sezione delle Impostazioni ne ha uno (`UI-10`).
 - `UI-02` **Home**, organizzata in quattro blocchi:
   1. ultima esecuzione, con ora di avvio, durata, metriche, errori, bottone "Avvia esecuzione" e avanzamento se un'esecuzione è in corso; prossima esecuzione programmata, oppure "programmazione in pausa";
-  2. "In evidenza", con le 3 notizie a pertinenza più alta per ogni tipo di fonte (siti web, YouTube, arXiv) tra quelle scoperte nelle ultime 24 ore e mostrate nella pagina Notizie;
+  2. "In evidenza", con le 3 notizie a pertinenza più alta per ogni tipo di fonte (siti web, YouTube, arXiv) tra quelle scoperte nelle ultime 24 ore e mostrate nelle pagine Notizie; il titolo di ogni gruppo porta alla sua pagina;
   3. avvisi: proposte di raffinamento da approvare, siti in stato di errore, argomenti con notizie nuove;
   4. storico delle esecuzioni.
 
@@ -254,7 +254,7 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
   - i video senza trascrizione;
   - le notizie escluse;
   - la segnalazione del tetto arXiv, se è stato raggiunto.
-- `UI-04` **Pagina Notizie**: è l'elenco di tutte le notizie. Mostra le notizie degli ultimi 7 giorni che superano la soglia. Per ogni notizia mostra:
+- `UI-04` **Pagine Notizie**: le notizie sono divise in tre pagine, una per sorgente: Siti web, YouTube (video e short) e arXiv (decisione 69). Ognuna mostra le notizie di quella sorgente degli ultimi 7 giorni che superano la soglia. Per ogni notizia mostra:
   - titolo originale, e la traduzione italiana se la notizia è in un'altra lingua;
   - fonte, tipo e data;
   - interessi con il loro punteggio;
@@ -263,20 +263,20 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
   - riassunto, tagliato a due righe;
   - link.
 
-  Da qui si avvia un'esecuzione con un bottone. Cliccando una notizia si apre la pagina della notizia specifica (`UI-13`).
+  Da qui si avvia un'esecuzione con un bottone. Cliccando una notizia si apre la pagina della notizia specifica (`UI-13`). La pagina della notizia torna alla pagina della sua sorgente.
 - `UI-05` Il **cuore** mette una notizia in archivio e contribuisce al raffinamento degli interessi. Se si toglie il cuore, la notizia torna alla regola dei 7 giorni.
-- `UI-06` **Filtri** della pagina Notizie:
-  - tipo: arXiv, sito, video YT, short YT;
+- `UI-06` **Filtri** delle pagine Notizie:
+  - tipo: solo nella pagina YouTube, video YT e short YT (nell'Archivio tutti e quattro i tipi);
   - interesse;
   - data;
-  - fonte: l'elenco mostra solo le fonti dei tipi selezionati (tutte se non è selezionato nessun tipo); una fonte scelta che non appartiene ai tipi selezionati si ignora;
+  - fonte: solo le fonti della pagina, e tra queste quelle dei tipi selezionati (tutte se non è selezionato nessun tipo); una fonte scelta che non appartiene ai tipi selezionati si ignora;
   - cuore.
 
-  Dentro lo stesso filtro i valori si combinano in OR, filtri diversi si combinano in AND.
-- `UI-07` **Ordinamento** della pagina Notizie, con verso invertibile, per due criteri:
-  - pertinenza, che è il default: conta il punteggio più alto, oppure quello dell'interesse filtrato;
+  Fonti e interessi sono caselle in un pannello a destra dell'elenco, in due gruppi con titolo, "Fonti" e "Interessi", separati da una riga; sugli schermi stretti il pannello sta sopra l'elenco e si apre con un clic. Gli altri filtri restano sopra l'elenco. Dentro lo stesso filtro i valori si combinano in OR, filtri diversi si combinano in AND.
+- `UI-07` **Ordinamento** delle pagine Notizie, con verso invertibile, per due criteri:
+  - pertinenza, che è il default: conta il punteggio più alto, oppure il più alto tra gli interessi filtrati;
   - data di pubblicazione: per le notizie con data incerta conta la data di scoperta.
-- `UI-08` **Archivio**: tutte le notizie con il cuore. Non vengono mai cancellate e hanno gli stessi filtri e ordinamenti della pagina Notizie.
+- `UI-08` **Archivio**: tutte le notizie con il cuore, di ogni sorgente, in una pagina sola. Non vengono mai cancellate e hanno gli stessi filtri e ordinamenti delle pagine Notizie, con il filtro per tipo su tutti e quattro i tipi; il pannello mostra solo le fonti delle notizie con il cuore.
 - `UI-09` **Timeline**:
   - è un elenco compatto di argomenti: per ognuno mostra solo il nome, i metadati (numero di notizie, periodo, ultimo aggiornamento, notizie in archivio, notizie arrivate con l'ultima esecuzione) e i bottoni per rinominare, unire ed eliminare;
   - compaiono solo gli argomenti con almeno 2 notizie, prima quelli aggiornati più di recente;

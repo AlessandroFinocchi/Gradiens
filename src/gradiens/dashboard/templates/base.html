@@ -16,9 +16,16 @@
   {% if not procedura %}
   <nav class="sidebar" aria-label="Pagine">
     <button class="marchio" type="button" hx-post="/sidebar" hx-swap="none" aria-pressed="{{ 'true' if sidebar_fissa else 'false' }}" title="Tieni la barra aperta o chiusa"><span class="segno">∇</span><span>Gradiens</span></button>
-    {% for id, (nome, indirizzo) in pagine.items() %}
-    <a class="voce" href="{{ indirizzo }}"{% if id == pagina %} aria-current="page"{% endif %}>{{ icona(id) }}<span>{{ nome }}</span></a>
+    {% macro voce(id, nome, indirizzo, nome_icona=id) %}<a class="voce" href="{{ indirizzo }}"{% if id == pagina %} aria-current="page"{% endif %}>{{ icona(nome_icona) }}<span>{{ nome }}</span></a>{% endmacro %}
+    {{ voce("home", "Home", "/") }}
+    {# Sezione Notizie (UI-01): il titolo si legge a sidebar espansa, stretta resta una riga. #}
+    <div class="titolo-sezione"><span>Notizie</span></div>
+    {# Nella sidebar "ArXiv" con la maiuscola, come le altre voci. #}
+    {% for id, (nome_icona, nome) in FONTI.items() %}{{ voce(id, "ArXiv" if id == "arxiv" else nome, "/notizie/" ~ id, nome_icona) }}
     {% endfor %}
+    <hr class="divisore-sidebar">
+    {{ voce("timeline", "Timeline", "/timeline") }}
+    {{ voce("archivio", "Archivio", "/archivio") }}
     <div class="basso">
       <a class="voce" href="/aiuto"{% if pagina == "aiuto" %} aria-current="page"{% endif %}>{{ icona("aiuto") }}<span>Aiuto</span></a>
       {{ ingranaggio(segnale_globale) }}

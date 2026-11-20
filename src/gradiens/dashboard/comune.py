@@ -30,19 +30,14 @@ def statico(nome: str) -> str:
     return f"/static/{nome}?v={int((CARTELLA / 'static' / nome).stat().st_mtime)}"
 
 
-PAGINE = {
-    "home": ("Home", "/"),
-    "notizie": ("Notizie", "/notizie"),
-    "timeline": ("Timeline", "/timeline"),
-    "archivio": ("Archivio", "/archivio"),
-}
 TIPI = {
     "arxiv": ("arxiv", "arXiv"),
     "sito": ("sito", "Sito"),
     "video": ("video", "Video YT"),
     "short": ("short", "Short YT"),
 }
-FONTI = {"siti": ("sito", "Siti web"), "youtube": ("youtube", "YouTube"), "arxiv": ("arxiv", "arXiv")}  # (icona, nome)
+# (icona, nome); sono anche le pagine della sezione Notizie della sidebar, /notizie/<chiave> (UI-01, UI-04)
+FONTI = {"siti": ("sito", "Siti web"), "youtube": ("youtube", "YouTube"), "arxiv": ("arxiv", "arXiv")}
 AVVIATA_DA = {"programmazione": "programmazione", "dashboard": "dashboard", "cli": "terminale", "telegram": "Telegram"}
 MESI = ["gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"]
 
@@ -193,7 +188,6 @@ def pagina(request: Request, s: Session, modello: str, nome: str, **contesto) ->
         f"{modello}.html",
         {
             "pagina": nome,
-            "pagine": PAGINE,
             "tema": imp.tema,
             "sidebar_fissa": imp.sidebar_fissa,
             "segnale_globale": segnali.globale(

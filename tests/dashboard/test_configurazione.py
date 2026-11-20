@@ -57,7 +57,7 @@ def test_completare_sblocca_la_dashboard_e_non_torna_piu(client_nuovo):
     # Decisione 55 dei requisiti: un dato tolto dopo si vede solo come segnale, la dashboard resta usabile.
     client_nuovo.post("/impostazioni/arxiv/categorie/rimuovi", data={"codice": "cs.CR"}, headers=h)
     pagina = client_nuovo.get("/notizie")
-    assert pagina.url.path == "/notizie" and "3 sezioni delle Impostazioni da guardare" in pagina.text
+    assert pagina.url.path == "/notizie/siti" and "3 sezioni delle Impostazioni da guardare" in pagina.text
 
 
 def test_alla_fine_si_puo_creare_l_icona_del_pannello(client_nuovo, monkeypatch):

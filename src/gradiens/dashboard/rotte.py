@@ -5,17 +5,27 @@ from datetime import UTC
 from typing import Annotated
 
 from fastapi import APIRouter, FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import NoResultFound
 from starlette.datastructures import QueryParams
 
 from gradiens.dashboard import rotte_configurazione, rotte_impostazioni
-from gradiens.dashboard.comune import CARTELLA, SOLO_DAL_PC, TIPI, Sessione, cambio_versione, dal_pc, frammento, pagina
+from gradiens.dashboard.comune import (
+    CARTELLA,
+    FONTI,
+    SOLO_DAL_PC,
+    TIPI,
+    Sessione,
+    cambio_versione,
+    dal_pc,
+    frammento,
+    pagina,
+)
 from gradiens.dati import argomenti, esecuzioni, impostazioni, interessi, notizie, proposte
 from gradiens.dati import siti as dati_siti
 from gradiens.dati.impostazioni import ImpostazioneNonValida
-from gradiens.dati.modelli import Esecuzione, Notizia
+from gradiens.dati.modelli import FONTE_DI_TIPO, Esecuzione, Notizia
 from gradiens.dati.notizie import Filtri
 from gradiens.esecuzione.esecutore import GiaInCorso
 from gradiens.llm import claude_code
@@ -151,66 +161,8 @@ def _intero(valore: str | None) -> int | None:
         return None
 
 
-def leggi_filtri(q: QueryParams, archivio: bool) -> Filtri:
-    """I parametri arrivano dall'indirizzo: tutto ciò che non è riconosciuto si ignora."""
-    ordine, _, verso = (q.get("ordine") or ("data-desc" if archivio else "pertinenza-desc")).partition("-")
-    return Filtri(
-        archivio=archivio,
-        tipi=[t for t in q.getlist("tipo") if t in TIPI],
-        interesse_id=_intero(q.get("interesse")),
-        fonte=q.get("fonte") or None,
-        giorni=_intero(q.get("giorni")),
-        solo_cuore=q.get("cuore") == "1",
-        testo=(q.get("q") or "").strip()[:200],
-        ordine="data" if ordine == "data" else "pertinenza",
-        crescente=verso == "asc",
-    )
-
-
-def _elenco(request: Request, s: Sessione, archivio: bool) -> HTMLResponse:
-    filtri = leggi_filtri(request.query_params, archivio)
-    nomi_categorie = impostazioni.nomi_categorie(s)
-    fonti = notizie.fonti(s, filtri.tipi, nomi_categorie)
-    if filtri.fonte not in fonti:  # fonte di un tipo non selezionato (UI-06): si ignora
-        filtri.fonte = None
-    soglia = impostazioni.leggi(s).soglia
-    nome = "archivio" if archivio else "notizie"
-    return pagina(
-        request,
-        s,
-        "notizie",
-        nome,
-        archivio=archivio,
-        filtri=filtri,
-        soglia=soglia,
-        notizie=notizie.elenca(s, filtri, soglia),
-        filtrata=bool(
-            request.query_params.get("tipo")
-            or filtri.interesse_id
-            or filtri.fonte
-            or filtri.giorni
-            or filtri.solo_cuore
-            or filtri.testo
-        ),
-        interessi=interessi.elenca(s),
-        fonti=fonti,
-        nomi_categorie=nomi_categorie,
-        ultima=esecuzioni.ultima(s),
-        avanzamento=request.app.state.esecutore.avanzamento,
-    )
-
-
-@router.get("/notizie", response_class=HTMLResponse)
-def pagina_notizie(request: Request, s: Sessione):
-    return _elenco(request, s, archivio=False)
-
-
-@router.get("/archivio", response_class=HTMLResponse)
-def pagina_archivio(request: Request, s: Sessione):
-    return _elenco(request, s, archivio=True)
-
-
-@router.get("/notizie/{id}", response_class=HTMLResponse)
+# La notizia specifica prima delle pagine: `{id:int}` prende solo le cifre, il resto va a `/notizie/{sezione}`.
+@router.get("/notizie/{id:int}", response_class=HTMLResponse)
 def notizia_specifica(request: Request, s: Sessione, id: int):
     notizia = notizie.dettaglio(s, id)
     if notizia is None:
@@ -219,11 +171,93 @@ def notizia_specifica(request: Request, s: Sessione, id: int):
         request,
         s,
         "notizia",
-        "archivio" if notizia.cuore else "notizie",
+        "archivio" if notizia.cuore else FONTE_DI_TIPO[notizia.tipo],
         n=notizia,
+        sezione=FONTE_DI_TIPO[notizia.tipo],
         numero_interessi=len(interessi.elenca(s)),
         nomi_categorie=impostazioni.nomi_categorie(s),
     )
+
+
+# Tipi di notizia di ogni pagina di notizie (UI-04): siti, YouTube (video e short) e arXiv.
+TIPI_DI_PAGINA = {pagina: [t for t in TIPI if FONTE_DI_TIPO[t] == pagina] for pagina in FONTI}
+
+
+def leggi_filtri(q: QueryParams, archivio: bool, ammessi: list[str]) -> Filtri:
+    """I parametri arrivano dall'indirizzo: tutto ciò che non è riconosciuto si ignora. Senza tipi scelti
+    valgono tutti quelli `ammessi` dalla pagina."""
+    ordine, _, verso = (q.get("ordine") or ("data-desc" if archivio else "pertinenza-desc")).partition("-")
+    return Filtri(
+        archivio=archivio,
+        tipi=[t for t in q.getlist("tipo") if t in ammessi] or list(ammessi),
+        interessi=[i for i in map(_intero, q.getlist("interesse")) if i is not None],
+        fonti=q.getlist("fonte"),
+        giorni=_intero(q.get("giorni")),
+        solo_cuore=q.get("cuore") == "1",
+        testo=(q.get("q") or "").strip()[:200],
+        ordine="data" if ordine == "data" else "pertinenza",
+        crescente=verso == "asc",
+    )
+
+
+def _elenco(request: Request, s: Sessione, sezione: str | None) -> HTMLResponse:
+    """Una pagina di notizie (`sezione` è una chiave di FONTI) o, senza sezione, l'Archivio con tutti i tipi."""
+    archivio = sezione is None
+    ammessi = TIPI_DI_PAGINA[sezione] if sezione else list(TIPI)
+    filtri = leggi_filtri(request.query_params, archivio, ammessi)
+    nomi_categorie = impostazioni.nomi_categorie(s)
+    fonti = notizie.fonti(s, filtri.tipi, nomi_categorie, archivio)
+    filtri.fonti = [f for f in filtri.fonti if f in fonti]  # fonte di un tipo non selezionato (UI-06): si ignora
+    tutti_gli_interessi = interessi.elenca(s)
+    filtri.interessi = [i for i in filtri.interessi if i in {x.id for x in tutti_gli_interessi}]
+    soglia = impostazioni.leggi(s).soglia
+    return pagina(
+        request,
+        s,
+        "notizie",
+        sezione or "archivio",
+        archivio=archivio,
+        sezione=sezione,
+        tipi_pagina=ammessi,
+        filtri=filtri,
+        soglia=soglia,
+        notizie=notizie.elenca(s, filtri, soglia),
+        filtrata=bool(
+            request.query_params.get("tipo")
+            or filtri.interessi
+            or filtri.fonti
+            or filtri.giorni
+            or filtri.solo_cuore
+            or filtri.testo
+        ),
+        interessi=tutti_gli_interessi,
+        fonti=fonti,
+        nomi_categorie=nomi_categorie,
+        ultima=esecuzioni.ultima(s),
+        avanzamento=request.app.state.esecutore.avanzamento,
+    )
+
+
+@router.get("/notizie")
+def notizie_senza_sezione(request: Request):
+    """Indirizzo di prima della divisione in tre pagine (decisione 69): porta alla pagina del primo tipo scelto, o
+    ai Siti web, con gli stessi filtri. I tipi delle altre pagine lì si ignorano."""
+    tipi = [t for t in request.query_params.getlist("tipo") if t in FONTE_DI_TIPO]
+    indirizzo = f"/notizie/{FONTE_DI_TIPO[tipi[0]] if tipi else 'siti'}"
+    query = request.url.query
+    return RedirectResponse(f"{indirizzo}?{query}" if query else indirizzo, status_code=307)
+
+
+@router.get("/notizie/{sezione}", response_class=HTMLResponse)
+def pagina_notizie(request: Request, s: Sessione, sezione: str):
+    if sezione not in FONTI:
+        raise HTTPException(404, "Pagina inesistente")
+    return _elenco(request, s, sezione)
+
+
+@router.get("/archivio", response_class=HTMLResponse)
+def pagina_archivio(request: Request, s: Sessione):
+    return _elenco(request, s, None)
 
 
 @router.post("/notizie/{id}/cuore", response_class=HTMLResponse)

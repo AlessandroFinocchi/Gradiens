@@ -22,8 +22,8 @@ class Filtri:
 
     archivio: bool = False
     tipi: list[str] = field(default_factory=list)  # vuoto = tutti
-    interesse_id: int | None = None
-    fonte: str | None = None
+    interessi: list[int] = field(default_factory=list)  # vuoto = tutti; più valori in OR (UI-06)
+    fonti: list[str] = field(default_factory=list)  # vuoto = tutte; più valori in OR
     giorni: int | None = None  # solo le notizie pubblicate negli ultimi N giorni
     testo: str = ""  # ricerca: ogni parola deve comparire nel titolo, nella traduzione, nel riassunto o nella fonte
     solo_cuore: bool = False
@@ -32,21 +32,18 @@ class Filtri:
 
 
 def elenca(sessione: Session, filtri: Filtri, soglia: int) -> list[Notizia]:
-    if filtri.interesse_id is None:
-        punteggio = select(func.max(Pertinenza.punteggio)).where(Pertinenza.notizia_id == Notizia.id).scalar_subquery()
-    else:  # UI-07: con un interesse filtrato conta il suo punteggio
-        punteggio = (
-            select(Pertinenza.punteggio)
-            .where(Pertinenza.notizia_id == Notizia.id, Pertinenza.interesse_id == filtri.interesse_id)
-            .scalar_subquery()
-        )
+    # UI-07: conta il punteggio più alto, tra i soli interessi filtrati se ce ne sono
+    punteggio = select(func.max(Pertinenza.punteggio)).where(Pertinenza.notizia_id == Notizia.id)
+    if filtri.interessi:
+        punteggio = punteggio.where(Pertinenza.interesse_id.in_(filtri.interessi))
+    punteggio = punteggio.scalar_subquery()
 
     query = select(Notizia).options(
         selectinload(Notizia.pertinenze).selectinload(Pertinenza.interesse), selectinload(Notizia.argomento)
     )
     if filtri.archivio:
         query = query.where(Notizia.cuore)
-        if filtri.interesse_id is not None:
+        if filtri.interessi:
             query = query.where(punteggio.is_not(None))
     else:  # UI-04: ultimi 7 giorni, almeno un punteggio sopra la soglia (ESE-06)
         query = query.where(
@@ -54,8 +51,8 @@ def elenca(sessione: Session, filtri: Filtri, soglia: int) -> list[Notizia]:
         )
     if filtri.tipi:
         query = query.where(Notizia.tipo.in_([t for t in filtri.tipi if t in TIPI_NOTIZIA]))
-    if filtri.fonte:
-        query = query.where(Notizia.fonte == filtri.fonte)
+    if filtri.fonti:
+        query = query.where(Notizia.fonte.in_(filtri.fonti))
     if filtri.giorni:
         query = query.where(Notizia.pubblicata_il >= adesso() - timedelta(days=filtri.giorni))
     if filtri.solo_cuore:
@@ -97,11 +94,14 @@ def nome_fonte(tipo: str, fonte: str, nomi_categorie: dict[str, str]) -> str:
     return nomi_categorie.get(fonte, fonte) if tipo == "arxiv" else fonte
 
 
-def fonti(sessione: Session, tipi: list[str], nomi_categorie: dict[str, str]) -> dict[str, str]:
-    """Fonti delle notizie dei tipi scelti (tutti se `tipi` è vuoto), come {valore: nome mostrato}."""
+def fonti(sessione: Session, tipi: list[str], nomi_categorie: dict[str, str], archivio: bool = False) -> dict[str, str]:
+    """Fonti delle notizie dei tipi scelti (tutti se `tipi` è vuoto), come {valore: nome mostrato}.
+    Per l'Archivio solo quelle delle notizie con il cuore."""
     query = select(Notizia.tipo, Notizia.fonte).distinct()
     if tipi:
         query = query.where(Notizia.tipo.in_(tipi))
+    if archivio:
+        query = query.where(Notizia.cuore)
     nomi = {fonte: nome_fonte(tipo, fonte, nomi_categorie) for tipo, fonte in sessione.execute(query)}
     return dict(sorted(nomi.items(), key=lambda voce: voce[1].casefold()))
 

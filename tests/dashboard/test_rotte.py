@@ -44,36 +44,68 @@ def dati(client):
 
 
 def test_notizie_mostra_gli_ultimi_7_giorni_e_non_esegue_html(dati):
-    pagina = dati.get("/notizie").text
-    assert "Video sul ransomware" in pagina and "Paper vecchio" not in pagina
+    pagina = dati.get("/notizie/arxiv").text
+    assert "Paper &lt;script" in pagina and "Paper vecchio" not in pagina
     assert "<script>alert(1)</script>" not in pagina  # testo delle fonti: sempre escapato
-    assert "&lt;script&gt;" in pagina
+
+
+def test_una_pagina_per_sorgente(dati):
+    """Decisione 69: Siti web, YouTube e arXiv sono pagine diverse, sotto la sezione Notizie della sidebar."""
+    arxiv, youtube = dati.get("/notizie/arxiv").text, dati.get("/notizie/youtube").text
+    assert "Paper &lt;script" in arxiv and "Video sul ransomware" not in arxiv
+    assert "Video sul ransomware" in youtube and "Paper &lt;script" not in youtube
+    assert "Nessuna notizia negli ultimi 7 giorni" in dati.get("/notizie/siti").text
+    assert 'href="/notizie/arxiv" aria-current="page"' in arxiv and "<span>Notizie</span>" in arxiv
+    # Chip dei tipi solo dove la pagina ne ha più di uno: video e short su YouTube.
+    assert 'name="tipo" value="short"' in youtube and 'name="tipo"' not in arxiv
+    # Vecchio indirizzo: la pagina del primo tipo scelto, o i Siti web, con gli stessi filtri.
+    vecchio = lambda q="": dati.get(f"/notizie{q}", follow_redirects=False).headers["location"]  # noqa: E731
+    assert vecchio() == "/notizie/siti"
+    assert vecchio("?tipo=short&tipo=arxiv&q=gta") == "/notizie/youtube?tipo=short&tipo=arxiv&q=gta"
+    assert vecchio("?tipo=altro&cuore=1") == "/notizie/siti?tipo=altro&cuore=1"
+    assert dati.get("/notizie/altro").status_code == 404
 
 
 def test_filtri_dall_indirizzo(dati):
-    pagina = dati.get("/notizie?tipo=video&ordine=data-asc").text
-    assert "Video sul ransomware" in pagina and "Paper &lt;script" not in pagina
-    assert 'value="video" checked' in pagina
-    assert "Nessuna notizia con questi filtri" in dati.get("/notizie?tipo=short").text
-    assert dati.get("/notizie?interesse=abc&giorni=²&tipo=altro").status_code == 200  # parametri ignorati
+    pagina = dati.get("/notizie/youtube?tipo=video&ordine=data-asc").text
+    assert "Video sul ransomware" in pagina and 'value="video" checked' in pagina
+    assert "Nessuna notizia con questi filtri" in dati.get("/notizie/youtube?tipo=short").text
+    assert "Video sul ransomware" in dati.get("/notizie/youtube?tipo=arxiv").text  # tipo di un'altra pagina: ignorato
+    assert dati.get("/notizie/arxiv?interesse=abc&giorni=²&tipo=altro").status_code == 200  # parametri ignorati
 
 
-def test_il_filtro_fonte_mostra_solo_le_fonti_dei_tipi_scelti(dati):
+def test_interessi_come_caselle_in_or(dati):
+    with dati.app.state.sessioni() as s:
+        sic, corsa = (next(i.id for i in interessi.elenca(s) if i.nome == nome) for nome in ("Sicurezza", "Corsa"))
+    assert "Nessuna notizia con questi filtri" in dati.get(f"/notizie/arxiv?interesse={corsa}").text
+    pagina = dati.get(f"/notizie/arxiv?interesse={corsa}&interesse={sic}&interesse=9999").text
+    assert "Paper &lt;script" in pagina
+    assert f'name="interesse" value="{sic}" checked' in pagina and f'name="interesse" value="{corsa}" checked' in pagina
+
+
+def test_le_caselle_delle_fonti_mostrano_solo_le_fonti_della_pagina(dati):
     with dati.app.state.sessioni() as s:
         impostazioni.aggiungi_categoria(s, "cs.CR", "Crittografia e Sicurezza")
-    pagina = dati.get("/notizie").text
-    assert '<option value="cs.CR">Crittografia e Sicurezza</option>' in pagina and '<option value="Lab">' in pagina
-    solo_arxiv = dati.get("/notizie?tipo=arxiv").text
-    assert 'value="cs.CR"' in solo_arxiv and 'value="Lab"' not in solo_arxiv
-    # Fonte di un tipo non selezionato: si ignora, e il menu torna a "Tutte le fonti".
-    video = dati.get("/notizie?tipo=video&fonte=cs.CR").text
-    assert "Video sul ransomware" in video and 'value="cs.CR"' not in video
-    assert 'value="Lab"' in dati.get("/notizie?fonte=inesistente").text
-    # Il nome della categoria compare anche nelle schede e nella pagina della notizia.
-    assert "<span>Crittografia e Sicurezza</span>" in pagina and "<span>Lab</span>" in pagina
+    arxiv = dati.get("/notizie/arxiv").text
+    assert 'name="fonte" value="cs.CR"><span>Crittografia e Sicurezza</span>' in arxiv and 'value="Lab"' not in arxiv
+    youtube = dati.get("/notizie/youtube").text
+    assert 'name="fonte" value="Lab"><span>Lab</span>' in youtube and 'value="cs.CR"' not in youtube
+    # Fonte di un'altra pagina: si ignora.
+    assert "Video sul ransomware" in dati.get("/notizie/youtube?fonte=cs.CR").text
+    # L'Archivio ha tutti i tipi: le fonti seguono i chip scelti (UI-06), e sono solo quelle con il cuore.
+    assert 'value="cs.CR"' in dati.get("/archivio").text
+    with dati.app.state.sessioni() as s:
+        s.query(Notizia).filter_by(url="https://arxiv.org/abs/3").one().cuore = False
+        s.commit()
+    assert 'value="cs.CR"' not in dati.get("/archivio").text and 'value="cs.CR"' in dati.get("/notizie/arxiv").text
+    solo_video = dati.get("/archivio?tipo=video&fonte=cs.CR&fonte=Lab").text
+    assert 'value="cs.CR"' not in solo_video and 'name="fonte" value="Lab" checked' in solo_video
+    # Il nome della categoria compare anche nelle schede e nella pagina della notizia, che torna alla sua pagina.
+    assert "<span>Crittografia e Sicurezza</span>" in arxiv
     with dati.app.state.sessioni() as s:
         id = s.query(Notizia).filter_by(url="https://arxiv.org/abs/1").one().id
-    assert "<span>Crittografia e Sicurezza</span>" in dati.get(f"/notizie/{id}").text
+    notizia = dati.get(f"/notizie/{id}").text
+    assert "<span>Crittografia e Sicurezza</span>" in notizia and 'class="indietro" href="/notizie/arxiv"' in notizia
 
 
 def test_archivio_tiene_anche_le_vecchie(dati):
@@ -286,7 +318,7 @@ def test_timeline_argomento_e_azioni(dati):
     assert "2 notizie" in timeline and "1 in archivio" in timeline
     pagina = dati.get(f"/argomenti/{id_a}").text
     assert pagina.index("Paper &lt;script") < pagina.index("Paper vecchio")  # dalla più recente
-    assert f'href="/argomenti/{id_a}"' in dati.get("/notizie").text  # argomento sulla notizia (UI-04)
+    assert f'href="/argomenti/{id_a}"' in dati.get("/notizie/arxiv").text  # argomento sulla notizia (UI-04)
     assert "Apri la timeline" in dati.get(f"/notizie/{id_notizia}").text
     assert dati.get("/argomenti/9999").status_code == 404
     rinomina = dati.post(f"/argomenti/{id_a}/rinomina", data={"nome": "Attacco alla ASL"}, headers=HTMX)
@@ -650,7 +682,7 @@ def test_cambio_di_versione_di_claude_code_nella_home(client):
 
 
 def test_ricerca_nella_pagina_notizie(dati):
-    pagina = dati.get("/notizie", params={"q": "parola-che-non-esiste"}).text
+    pagina = dati.get("/notizie/arxiv", params={"q": "parola-che-non-esiste"}).text
     assert 'id="cerca"' in pagina and 'value="parola-che-non-esiste"' in pagina
     assert "Nessuna notizia contiene tutte le parole cercate" in pagina
 

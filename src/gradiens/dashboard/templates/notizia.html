@@ -4,7 +4,7 @@
 {% block titolo %}{{ n.titolo_it or n.titolo }}{% endblock %}
 {% block contenuto %}
 <main class="dettaglio">
-  <a class="indietro" href="{{ '/archivio' if n.cuore else '/notizie' }}">{{ icona("indietro") }}{{ "Archivio" if n.cuore else "Notizie" }}</a>
+  <a class="indietro" href="{{ '/archivio' if n.cuore else '/notizie/' ~ sezione }}">{{ icona("indietro") }}{{ "Archivio" if n.cuore else FONTI[sezione][1] }}</a>
 
   <div class="n-meta">
     {{ icona(TIPI[n.tipo][0]) }}<span>{{ TIPI[n.tipo][1] }}</span>·<span>{{ nome_fonte(n.tipo, n.fonte, nomi_categorie) }}</span>·<span>pubblicata il {{ n.pubblicata_il|data_lunga }}</span>

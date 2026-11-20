@@ -84,11 +84,11 @@
       </section>
 
       <section class="blocco largo" aria-labelledby="t-evidenza">
-        <h2 id="t-evidenza">In evidenza <a class="link spinta" href="/notizie">Tutte le notizie</a></h2>
+        <h2 id="t-evidenza">In evidenza</h2>
         <div class="colonne-evidenza">
           {% for gruppo, elenco in evidenza.items() %}
           <div>
-            <h3>{{ icona(FONTI[gruppo][0]) }}{{ FONTI[gruppo][1] }}</h3>
+            <h3><a href="/notizie/{{ gruppo }}" title="Tutte le notizie di {{ FONTI[gruppo][1] }}">{{ icona(FONTI[gruppo][0]) }}{{ FONTI[gruppo][1] }}</a></h3>
             {% if elenco %}
             <ol>
               {% for n in elenco %}

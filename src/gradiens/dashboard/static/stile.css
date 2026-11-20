@@ -69,11 +69,17 @@ a { color: inherit; }
 .voce > span:not(.pallino-voce), .marchio > span:last-child { transition: opacity .12s; }
 .sidebar:not(:hover):not(:focus-within) .voce > span:not(.pallino-voce),
 .sidebar:not(:hover):not(:focus-within) .marchio > span:last-child { opacity: 0; }
+/* Sezione Notizie (decisione 69): il titolo si legge a sidebar espansa, stretta resta solo la riga. */
+.titolo-sezione { display: flex; align-items: center; gap: 8px; height: 18px; margin: 8px 6px 2px; color: var(--tenue); font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.titolo-sezione::after { content: ""; flex: 1; border-top: 1px solid var(--bordo); }
+.sidebar:not(:hover):not(:focus-within) .titolo-sezione > span { display: none; }
+.divisore-sidebar { border: 0; border-top: 1px solid var(--bordo); margin: 6px; }
 /* Sidebar fissata con il simbolo (decisione 68): espansa anche senza puntatore. Sul telefono non vale. */
 @media (min-width: 701px) {
   .app[data-sidebar-fissa] .sidebar { width: 216px; }
   .app[data-sidebar-fissa] .sidebar .voce > span:not(.pallino-voce),
   .app[data-sidebar-fissa] .sidebar .marchio > span:last-child { opacity: 1; }
+  .app[data-sidebar-fissa] .sidebar .titolo-sezione > span { display: inline; }
 }
 .pallino-voce { position: absolute; left: 22px; top: 3px; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--sidebar); }
 .pallino-voce .segnale.avvertimento .icona { width: 13px; height: 13px; }
@@ -260,6 +266,8 @@ summary.interesse-testa::-webkit-details-marker { display: none; }
 
 .colonne-evidenza { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
 .colonne-evidenza h3 { margin: 0 0 6px; font-size: 13.5px; display: flex; align-items: center; gap: 6px; }
+.colonne-evidenza h3 a { display: inline-flex; align-items: center; gap: 6px; color: inherit; text-decoration: none; }
+.colonne-evidenza h3 a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .colonne-evidenza ol { list-style: none; margin: 0; padding: 0; }
 .colonne-evidenza li { padding: 8px 0; border-top: 1px solid var(--bordo); }
 .colonne-evidenza li a { text-decoration: none; font-family: var(--font-titoli); font-weight: 600; font-size: 14.5px; line-height: 1.35; display: block; }
@@ -470,3 +478,27 @@ form:has(input[name="automatica"]:not(:checked)) .solo-se-automatica { display: 
 /* Il nome di una fonte è anche il suo link: stesso aspetto del titolo, sottolineato al passaggio. */
 .riga .titolo a { color: inherit; text-decoration: none; }
 .riga .titolo a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* Pagine di notizie e Archivio: elenco a sinistra, fonti e interessi a destra (decisione 69). La pagina si allarga
+   del pannello, così l'elenco resta largo come prima. */
+.pagina.con-pannello { max-width: 1500px; display: grid; grid-template-columns: minmax(0, 1fr) 260px; grid-template-areas: "testata testata" "elenco pannello"; align-items: start; }
+.con-pannello > .testata { grid-area: testata; }
+.con-pannello > #elenco { grid-area: elenco; min-width: 0; }
+.pannello-filtri { grid-area: pannello; align-self: stretch; padding: 18px 20px; border-left: 1px solid var(--bordo); }
+.pannello-filtri > summary { display: none; }
+.pannello-filtri fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.pannello-filtri legend { padding: 0; margin-bottom: 6px; font-family: var(--font-titoli); font-weight: 600; font-size: 15.5px; }
+.pannello-filtri hr { border: 0; border-top: 1px solid var(--bordo); margin: 16px 0; }
+.pannello-filtri .nota { margin: 0; }
+.casella { display: flex; align-items: center; gap: 10px; padding: 4px 0; cursor: pointer; font-size: 14px; }
+.casella input { width: 18px; height: 18px; margin: 0; accent-color: var(--accento); flex: none; cursor: pointer; }
+.casella span { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 1100px) {  /* stessa soglia di app.js */
+  .pagina.con-pannello { grid-template-columns: minmax(0, 1fr); grid-template-areas: "testata" "pannello" "elenco"; }
+  .pannello-filtri { border-left: 0; border-bottom: 1px solid var(--bordo); padding: 10px 24px; }
+  .pannello-filtri > summary { display: list-item; cursor: pointer; color: var(--tenue); font-size: 13.5px; }
+  .pannello-filtri[open] > summary { margin-bottom: 10px; }
+}
+@media (max-width: 700px) {
+  .pannello-filtri { padding: 10px 16px; }
+}

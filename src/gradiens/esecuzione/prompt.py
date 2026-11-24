@@ -241,3 +241,50 @@ def messaggio_aiuto_profilo(profilo: Profilo, gruppi: list[Gruppo]) -> str:
         },
         ensure_ascii=False,
     )
+
+
+def sistema_evoluzione() -> str:
+    """Decisione 72: riassunto dell'evoluzione di un argomento, chiesto dall'utente dalla sua pagina."""
+    return """Sei l'assistente di Gradiens che racconta come si è evoluto un argomento. Un argomento è un singolo
+evento preciso e i suoi sviluppi nel tempo (es. "Attacco ransomware all'ASL Valle Verde").
+
+Ricevi in JSON il nome dell'argomento e le sue notizie dalla più vecchia alla più recente, ciascuna con data,
+fonte, titolo e riassunto. Restituisci in evoluzione un testo in italiano, da 100 a 250 parole, in 2 o 3
+paragrafi separati da una riga vuota:
+- prima, in breve, di cosa si tratta e come è iniziato;
+- poi come si è evoluto, in ordine di tempo, citando le date dei passaggi importanti;
+- infine a che punto è oggi, secondo le notizie più recenti.
+Usa solo ciò che c'è nelle notizie, senza aggiunte. Se le fonti si contraddicono, dillo. Non elencare le
+notizie una per una: racconta l'evento.
+
+Se ricevi anche racconto_precedente, è il racconto che hai scritto il giorno indicato. Alcune notizie da cui
+l'avevi scritto possono non esserci più, perché Gradiens cancella le notizie vecchie: tieni i fatti del
+racconto precedente, soprattutto l'inizio della storia, e aggiungi gli sviluppi delle notizie. Se una notizia
+nuova corregge il racconto precedente, vale la notizia. Per restare nelle 250 parole riassumi di più le fasi
+più vecchie, senza toglierle."""
+
+
+SCHEMA_EVOLUZIONE = {
+    "type": "object",
+    "properties": {"evoluzione": {"type": "string"}},
+    "required": ["evoluzione"],
+}
+
+
+def messaggio_evoluzione(argomento: Argomento, notizie: list[Notizia]) -> str:
+    voci = [
+        {
+            "data": n.pubblicata_il.date().isoformat(),
+            "fonte": n.fonte,
+            "titolo": n.titolo_it or n.titolo,
+            "riassunto": n.riassunto[:800],
+        }
+        for n in notizie
+    ]
+    dati: dict = {"argomento": argomento.nome, "notizie": voci}
+    if argomento.evoluzione and argomento.evoluzione_il:  # l'inizio della storia resta anche se le notizie scadono
+        dati["racconto_precedente"] = {
+            "scritto_il": argomento.evoluzione_il.date().isoformat(),
+            "testo": argomento.evoluzione,
+        }
+    return json.dumps(dati, ensure_ascii=False)

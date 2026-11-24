@@ -56,7 +56,7 @@ uv run gradiens pannello  # apre il pannello di controllo
 uv run gradiens aggiorna  # scarica la versione nuova e riaccende Gradiens se era acceso
 ```
 
-Poi apri http://127.0.0.1:8765/. La prima volta si apre la configurazione iniziale, in quattro passi: interessi, fonti (basta un canale YouTube, un sito o una categoria arXiv), Claude Code e bot Telegram, con un tutorial passo dopo passo. Dopo, tutto si cambia dall'ingranaggio in basso a sinistra. Dal bot puoi poi usare `/aggiorna`, `/stato`, `/ultima`, `/pausa`, `/riprendi` e `/help`.
+Poi apri http://127.0.0.1:8765/. La prima volta si apre la configurazione iniziale, in quattro passi: interessi, fonti (basta un canale YouTube, un sito o una categoria arXiv), Claude Code e, se vuoi, il bot Telegram, con un tutorial passo dopo passo (puoi anche collegarlo dopo, dalle Impostazioni). Dopo, tutto si cambia dall'ingranaggio in basso a sinistra. Dal bot puoi poi usare `/aggiorna`, `/stato`, `/ultima`, `/pausa`, `/riprendi` e `/help`.
 
 `gradiens avvia` stacca l'app dal terminale, quindi continua a girare anche se chiudi il terminale o la sessione SSH, su Windows come su Linux. Con `--primo-piano` resta collegata al terminale, il che è utile per il debug.
 

@@ -25,8 +25,9 @@ from gradiens.dashboard.comune import (
 from gradiens.dati import argomenti, esecuzioni, impostazioni, interessi, notizie, proposte
 from gradiens.dati import siti as dati_siti
 from gradiens.dati.impostazioni import ImpostazioneNonValida
-from gradiens.dati.modelli import FONTE_DI_TIPO, Esecuzione, Notizia
+from gradiens.dati.modelli import FONTE_DI_TIPO, Argomento, Esecuzione, Notizia
 from gradiens.dati.notizie import Filtri
+from gradiens.esecuzione import evoluzione
 from gradiens.esecuzione.esecutore import GiaInCorso
 from gradiens.llm import claude_code
 from gradiens.telegram.messaggi import COMANDI
@@ -143,6 +144,34 @@ def unisci_argomento(request: Request, s: Sessione, id: int, destinazione: Annot
     _azione(s, lambda: argomenti.unisci(s, id, destinazione))
     # Dalla pagina dell'argomento unito si va a quella della destinazione; dalla Timeline si ricarica.
     return _dopo(f"/argomenti/{destinazione}" if "/argomenti/" in request.headers.get("HX-Current-URL", "") else None)
+
+
+@router.post("/argomenti/{id}/cuore")
+def cuore_argomento(request: Request, s: Sessione, id: int):
+    """UI-09: se il cuore manca ad almeno una notizia lo mette a tutte, altrimenti lo toglie a tutte. Toglierlo
+    fa cancellare alla pulizia le notizie più vecchie di 7 giorni: da fuori casa no, come per una notizia
+    (decisione 56)."""
+    argomento = s.get(Argomento, id)
+    if argomento is None:
+        raise HTTPException(404, "Argomento inesistente")
+    cuore = not all(n.cuore for n in argomento.notizie)
+    if not cuore and not dal_pc(request):
+        raise HTTPException(403, SOLO_DAL_PC)
+    argomenti.imposta_cuore(s, id, cuore)
+    return _dopo()
+
+
+@router.post("/argomenti/{id}/evoluzione", response_class=HTMLResponse)
+async def evoluzione_argomento(request: Request, s: Sessione, id: int):
+    """Decisione 72: l'LLM racconta come si è evoluto l'argomento. Consuma quota solo quando lo si chiede."""
+    if s.get(Argomento, id) is None:
+        raise HTTPException(404, "Argomento inesistente")
+    errore = None
+    try:
+        await evoluzione.riassumi(s, id)
+    except evoluzione.RiassuntoNonDisponibile as e:
+        errore = str(e)
+    return frammento(request, "argomento_evoluzione", r=argomenti.riassunto(s, id, _ultima_id(s)), errore=errore)
 
 
 @router.post("/argomenti/{id}/elimina")

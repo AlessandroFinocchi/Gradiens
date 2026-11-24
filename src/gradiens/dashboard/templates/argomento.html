@@ -9,8 +9,9 @@
   <div class="argomento-testa">
     <div><h1>{{ r.argomento.nome }}</h1>
       <div class="riga-info" style="margin-top: 4px"><span>{{ metadati(r) }}</span>{% if r.nuove %}<span class="stato">{{ r.nuove }} {{ "nuova" if r.nuove == 1 else "nuove" }}</span>{% endif %}</div></div>
-    {{ azioni_argomento(r.argomento, tutti) }}
+    {{ azioni_argomento(r, tutti) }}
   </div>
+  {% include "argomento_evoluzione.html" %}
   <ol class="linea-tempo">
     {% for n in r.argomento.notizie %}
     <li{% if loop.first %} class="recente"{% endif %}>

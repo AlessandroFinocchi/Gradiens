@@ -9,7 +9,7 @@ from gradiens.app import avvio_sistema
 from gradiens.app.servizio import crea_app
 from gradiens.dashboard.comune import SOLO_DAL_PC
 from gradiens.dashboard.rotte_impostazioni import ALZARE_SOLO_DAL_PC
-from gradiens.dati import impostazioni, interessi
+from gradiens.dati import argomenti, impostazioni, interessi
 from gradiens.dati import siti as dati_siti
 from gradiens.dati.modelli import CanaleYoutube, Notizia, Sito
 from gradiens.dati.notizie import adesso
@@ -125,6 +125,24 @@ def test_da_fuori_casa_il_cuore_si_mette_ma_non_si_toglie(client, remoto, fonti)
         "disabled"
         not in client.get(f"/notizie/{fonti['notizia']}").text.split('aria-pressed="true"')[0].rsplit("<button", 1)[1]
     )
+
+
+def test_da_fuori_casa_il_cuore_all_argomento_si_mette_ma_non_si_toglie(client, remoto, fonti):
+    with client.app.state.sessioni() as s:
+        a = argomenti.crea(s, "Evento")
+        s.get(Notizia, fonti["notizia"]).argomento = a
+        s.commit()
+        id_a = a.id
+    assert remoto.post(f"/argomenti/{id_a}/cuore").status_code == 403  # tutte con il cuore: toglierlo no
+    assert (
+        "disabled" in remoto.get(f"/argomenti/{id_a}").text.split('aria-label="Togli il cuore a tutte')[1].split(">")[0]
+    )
+    with client.app.state.sessioni() as s:
+        s.get(Notizia, fonti["notizia"]).cuore = False
+        s.commit()
+    assert remoto.post(f"/argomenti/{id_a}/cuore").status_code == 204
+    with client.app.state.sessioni() as s:
+        assert s.get(Notizia, fonti["notizia"]).cuore
 
 
 def test_da_fuori_casa_i_tetti_si_abbassano_ma_non_si_alzano(client, remoto, fonti):

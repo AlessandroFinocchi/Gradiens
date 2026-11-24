@@ -447,7 +447,7 @@ sequenceDiagram
 - **Note**: nei messaggi gli `id` delle notizie sono indici nel blocco (0..n-1), non id del database (`:48`, `:121`); l'esecutore li riporta alle notizie e scarta quelli fuori intervallo. Gli interessi invece usano gli id veri (`:18`). `messaggio_nuovo_interesse` legge `p.interesse.nome` per ogni pertinenza (`:175`): carica gli interessi in modo pigro dalla sessione.
 
 ### `esecuzione/aiuto_profilo.py` (aggiunto il 17 nov 2026)
-- **Responsabilità**: l'aiuto dell'LLM al profilo di un sito, su richiesta (ADR 0012): l'unica chiamata LLM fuori da un'esecuzione.
+- **Responsabilità**: l'aiuto dell'LLM al profilo di un sito, su richiesta (ADR 0012): una chiamata LLM fuori da un'esecuzione, come il riassunto dell'evoluzione di un argomento (`esecuzione/evoluzione.py`, decisione 72).
 - **Interfaccia pubblica**: `async aiuta(s, client, profilo, fabbrica_provider=None) -> Aiuto`; `@dataclass Aiuto(proposta, token, gruppi_tolti)` con `oltre_il_tetto`; `AiutoNonDisponibile` (messaggio per l'utente, anche per ogni `ErroreLLM`); costanti `TETTO = 10_000`, `CARATTERI_PER_TOKEN = 2.35`, `CARICO_FISSO = 1_300`, `USCITA = 2_700`.
 - **Stato condiviso**: nessuno. Tabelle: `impostazioni` (lettura di provider e modello dell'elaborazione). Un processo `claude` tramite il provider; due o più richieste al sito tramite `fonti.siti.aiuto.leggi_albero`.
 - **Dipende da / usato da**: `dati.impostazioni`, `esecuzione.prompt`, `esecuzione.esecutore` (`chiedi`, per il controllo della forma), `fonti.siti` (`Profilo`), `fonti.siti.aiuto`, `llm` / `dashboard.rotte_impostazioni` (rotta `/impostazioni/siti/{id}/aiuto`).
@@ -667,7 +667,7 @@ Convenzioni. Le rotte rispondono con HTML (pagine intere con `comune.pagina`, fr
   - POST `/configurazione/completa`: verifica i dati e conclude (204 + `HX-Redirect: /`)
 - **Stato condiviso**: da `app.state`: `conf.telegram_token` (`:55`). Lancia `claude auth status` (`stato_account`, timeout 30 s) solo per il passo "claude" o in `completa`. Può creare le icone del pannello (`avvio_sistema.crea_icone`). Tabelle: `impostazioni` (L; S diretta: `configurazione_completata`, `:91-92`), `interessi`, `siti`, `canali_youtube`, `categorie_arxiv` (L).
 - **Dipende da / usato da**: `dashboard.comune`, `rotte_impostazioni` (`dati_sezione`), `dati.impostazioni`, `interessi`, `siti`, `llm.base` (`ErroreLLM`), `llm.claude_code` (`stato_account`), `app.avvio_sistema`, `app.configurazione`. Usato da `rotte` (router) e, in modo pigro, da `rotte_impostazioni`.
-- **Note**: `passo` rende `configurazione.html` per una richiesta normale e `configurazione_passo.html` (frammento) se c'è `HX-Request` (`:66-73`). `completa` richiede anche Telegram collegato (token e chat): `_fatti` lo valuta (`:55`) e il passo "telegram" è obbligatorio per terminare. `completa` scrive `configurazione_completata` con attributo sul modello e `s.commit()`, senza passare da una funzione di dati/ (`:91-92`). Il blocco della configurazione è in `comune.pagina`, non qui (B4d).
+- **Note**: `passo` rende `configurazione.html` per una richiesta normale e `configurazione_passo.html` (frammento) se c'è `HX-Request` (`:66-73`). `_fatti` valuta anche Telegram (token e chat), ma il passo è in `FACOLTATIVI` e `completa` non lo richiede (decisione 70). `completa` scrive `configurazione_completata` con attributo sul modello e `s.commit()`, senza passare da una funzione di dati/ (`:91-92`). Il blocco della configurazione è in `comune.pagina`, non qui (B4d).
 
 ## C1. Schede dei moduli: fonti
 

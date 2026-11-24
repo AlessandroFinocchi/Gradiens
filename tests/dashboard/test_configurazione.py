@@ -60,6 +60,16 @@ def test_completare_sblocca_la_dashboard_e_non_torna_piu(client_nuovo):
     assert pagina.url.path == "/notizie/siti" and "3 sezioni delle Impostazioni da guardare" in pagina.text
 
 
+def test_telegram_e_facoltativo(client_nuovo):
+    h = {"HX-Request": "true"}
+    client_nuovo.post("/impostazioni/interessi", data={"nome": "AI", "descrizione": "Modelli"}, headers=h)
+    client_nuovo.post("/impostazioni/arxiv/categorie", data={"codice": "cs.CR"}, headers=h)
+    passo = client_nuovo.get("/configurazione?passo=telegram").text
+    assert "Facoltativo" in passo and 'hx-post="/configurazione/completa" hx-include="#icone" hx-target' in passo
+    assert client_nuovo.post("/configurazione/completa", headers=h).status_code == 204  # senza bot (TG-01)
+    assert "Bot Telegram non collegato" not in client_nuovo.get("/").text  # nessun segnale per chi non lo usa
+
+
 def test_alla_fine_si_puo_creare_l_icona_del_pannello(client_nuovo, monkeypatch):
     from gradiens.app import avvio_sistema
 

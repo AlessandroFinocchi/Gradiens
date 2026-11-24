@@ -17,7 +17,7 @@
         <h2><a href="/argomenti/{{ r.argomento.id }}">{{ r.argomento.nome }}</a></h2>
         <div class="riga-info"><span>{{ metadati(r) }}</span>{% if r.nuove %}<span class="stato">{{ r.nuove }} {{ "nuova" if r.nuove == 1 else "nuove" }}</span>{% endif %}</div>
       </div>
-      {{ azioni_argomento(r.argomento, tutti) }}
+      {{ azioni_argomento(r, tutti) }}
     </li>
     {% endfor %}
   </ul>

@@ -24,6 +24,7 @@ class Riassunto:
     aggiornato: datetime
     in_archivio: int
     nuove: int  # arrivate con l'ultima esecuzione
+    evoluzione_vecchia: bool  # il riassunto dell'evoluzione non copre più le notizie di oggi (decisione 72)
 
 
 def per_prompt(sessione: Session) -> list[Argomento]:
@@ -50,7 +51,10 @@ def crea(sessione: Session, nome: str) -> Argomento:
 def _riassunto(a: Argomento, ultima_esecuzione_id: int | None) -> Riassunto:
     date = [n.pubblicata_il for n in a.notizie]
     nuove = sum(ultima_esecuzione_id is not None and n.esecuzione_id == ultima_esecuzione_id for n in a.notizie)
-    return Riassunto(a, len(a.notizie), min(date), max(date), sum(n.cuore for n in a.notizie), nuove)
+    vecchia = a.evoluzione_il is not None and (
+        len(a.notizie) != a.evoluzione_notizie or any(n.scoperta_il > a.evoluzione_il for n in a.notizie)
+    )  # notizie arrivate, scadute o unite da un altro argomento dopo il riassunto
+    return Riassunto(a, len(a.notizie), min(date), max(date), sum(n.cuore for n in a.notizie), nuove, vecchia)
 
 
 def timeline(sessione: Session, ultima_esecuzione_id: int | None) -> list[Riassunto]:
@@ -89,6 +93,20 @@ def unisci(sessione: Session, id: int, destinazione: int) -> None:
     sessione.get_one(Argomento, destinazione)
     sessione.execute(update(Notizia).where(Notizia.argomento_id == id).values(argomento_id=destinazione))
     sessione.delete(sessione.get_one(Argomento, id))
+    sessione.commit()
+
+
+def imposta_cuore(sessione: Session, id: int, cuore: bool) -> None:
+    """Cuore a tutte le notizie dell'argomento (UI-09); quelle che lo hanno già tengono la data del loro cuore."""
+    for n in sessione.get_one(Argomento, id).notizie:
+        if n.cuore != cuore:
+            n.cuore, n.cuore_il = cuore, adesso() if cuore else None
+    sessione.commit()
+
+
+def salva_evoluzione(sessione: Session, id: int, testo: str, notizie: int) -> None:
+    a = sessione.get_one(Argomento, id)
+    a.evoluzione, a.evoluzione_il, a.evoluzione_notizie = testo, adesso(), notizie
     sessione.commit()
 
 

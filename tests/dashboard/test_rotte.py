@@ -148,13 +148,16 @@ def test_impostazioni_interessi(dati):
 
 def test_segnali_nella_finestra_e_sull_ingranaggio(dati):
     # Nel fixture c'è solo una categoria arXiv: canali e siti vuoti vanno bene (decisione 56 dei requisiti),
-    # manca il bot.
+    # e Telegram mai configurato non è un problema perché è facoltativo (TG-01).
     pagina = dati.get("/notizie").text
-    assert 'id="apri-impostazioni"' in pagina and "Bot Telegram non collegato" in pagina
+    assert 'id="apri-impostazioni"' in pagina and "Bot Telegram non collegato" not in pagina
+    dati.app.state.conf.telegram_token = "presente"  # collegato a metà: token senza chat confermata
+    assert "Bot Telegram non collegato" in dati.get("/notizie").text
+    dati.app.state.conf.telegram_token = None
     with dati.app.state.sessioni() as s:
         impostazioni.rimuovi_categoria(s, "cs.CR")  # nessuna fonte: avvertimento sulle tre sezioni delle fonti
     pagina = dati.get("/notizie").text
-    assert "4 sezioni delle Impostazioni da guardare" in pagina
+    assert "3 sezioni delle Impostazioni da guardare" in pagina
     finestra = dati.get("/impostazioni/canali-youtube", headers=HTMX).text
     assert finestra.count('title="Serve almeno una fonte: un canale YouTube, un sito o una categoria arXiv"') == 3
     assert 'class="campo-riga evidenziata"' in finestra  # la voce da sistemare
@@ -333,6 +336,68 @@ def test_timeline_argomento_e_azioni(dati):
     assert "3 notizie" in dati.get(f"/argomenti/{id_a}").text
     elimina = dati.post(f"/argomenti/{id_a}/elimina", headers={**HTMX, "HX-Current-URL": "http://127.0.0.1/timeline"})
     assert elimina.headers["HX-Refresh"] == "true" and "Ancora nessun argomento" in dati.get("/timeline").text
+
+
+def test_cuore_a_tutto_l_argomento(dati):
+    with dati.app.state.sessioni() as s:
+        a = argomenti.crea(s, "Attacco ASL")
+        arxiv = s.query(Notizia).filter_by(tipo="arxiv").all()  # due paper, uno già con il cuore
+        for n in arxiv:
+            n.argomento = a
+            n.cuore_il = adesso() - timedelta(days=3) if n.cuore else None
+        s.commit()
+        id_a, ids = a.id, [n.id for n in arxiv]
+        cuore_il = {n.id: n.cuore_il for n in arxiv}
+
+    def cuori():
+        with dati.app.state.sessioni() as s:
+            return [s.get(Notizia, i).cuore for i in ids]
+
+    pagina = dati.get(f"/argomenti/{id_a}").text
+    assert 'aria-label="Metti il cuore a tutte le notizie"' in pagina and "Togliere il cuore a tutte" not in pagina
+    risposta = dati.post(f"/argomenti/{id_a}/cuore", headers=HTMX)
+    assert risposta.status_code == 204 and risposta.headers["HX-Refresh"] == "true"
+    assert cuori() == [True, True]  # solo una parte aveva il cuore: ora tutte
+    with dati.app.state.sessioni() as s:  # chi lo aveva già tiene la data del suo cuore
+        assert [s.get(Notizia, i).cuore_il == cuore_il[i] for i in ids] == [n is not None for n in cuore_il.values()]
+    timeline = dati.get("/timeline").text
+    assert (
+        'aria-label="Togli il cuore a tutte le notizie"' in timeline
+        and "Togliere il cuore a tutte le 2 notizie" in timeline
+    )
+    dati.post(f"/argomenti/{id_a}/cuore", headers=HTMX)
+    assert cuori() == [False, False]  # tutte con il cuore: si toglie a tutte
+    assert dati.post("/argomenti/9999/cuore", headers=HTMX).status_code == 404
+
+
+def test_riassunto_dell_evoluzione_su_richiesta(dati, monkeypatch):
+    from gradiens.esecuzione import evoluzione
+
+    with dati.app.state.sessioni() as s:
+        a = argomenti.crea(s, "Attacco ASL")
+        for n in s.query(Notizia).filter_by(tipo="arxiv"):
+            n.argomento = a
+        s.commit()
+        id_a = a.id
+    pagina = dati.get(f"/argomenti/{id_a}").text
+    assert "Riassumi l&#39;evoluzione" in pagina and "Come si è evoluto" not in pagina  # niente chiamata da sola
+
+    async def guasto(s, id):
+        raise evoluzione.RiassuntoNonDisponibile("Claude Code non è collegato a un account.")
+
+    monkeypatch.setattr(evoluzione, "riassumi", guasto)
+    errore = dati.post(f"/argomenti/{id_a}/evoluzione", headers=HTMX).text
+    assert 'id="evoluzione"' in errore and "non è collegato" in errore and "<main" not in errore
+
+    async def racconta(s, id):
+        argomenti.salva_evoluzione(s, id, "Inizio <b>attacco</b>.\nOggi.", 2)
+
+    monkeypatch.setattr(evoluzione, "riassumi", racconta)
+    riquadro = dati.post(f"/argomenti/{id_a}/evoluzione", headers=HTMX).text
+    assert "<p>Inizio &lt;b&gt;attacco&lt;/b&gt;.</p><p>Oggi.</p>" in riquadro and "Aggiorna il riassunto" in riquadro
+    assert "da aggiornare" not in riquadro
+    assert "Come si è evoluto" in dati.get(f"/argomenti/{id_a}").text  # resta salvato
+    assert dati.post("/argomenti/9999/evoluzione", headers=HTMX).status_code == 404
 
 
 def test_proposta_di_raffinamento_nelle_impostazioni(dati):

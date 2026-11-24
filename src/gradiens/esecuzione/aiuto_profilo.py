@@ -1,6 +1,7 @@
 """Aiuto dell'LLM al profilo di un sito, su richiesta dell'utente (ADR 0012, decisioni 19 e 33).
 
-È l'unica chiamata LLM fuori da un'esecuzione: la dashboard chiama `aiuta`, mai il provider. Il tetto di
+È una chiamata LLM fuori da un'esecuzione, come il riassunto dell'evoluzione di un argomento (`evoluzione.py`):
+la dashboard chiama `aiuta`, mai il provider. Il tetto di
 token è una stima: prima della chiamata si accorcia l'albero dei link finché sta nel tetto, dopo si
 confrontano i token veri restituiti dal provider. L'interfaccia dei provider non cambia.
 """

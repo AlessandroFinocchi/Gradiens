@@ -24,12 +24,13 @@ PASSI = {  # passo: (nome, sezioni delle Impostazioni che usa)
     "claude": ("Claude Code", []),
     "telegram": ("Telegram", ["telegram"]),
 }
+FACOLTATIVI = {"telegram"}  # TG-01: si può collegare anche dopo, dalle Impostazioni
 PASSO_DI = {sezione: passo for passo, (_, sezioni) in PASSI.items() for sezione in sezioni}
 MANCA = {
     "interessi": "Aggiungi almeno un interesse.",
     "fonti": "Aggiungi almeno una fonte: un canale YouTube, un sito o una categoria arXiv.",
     "claude": "Collega Claude Code a un account.",
-    "telegram": "Collega il bot Telegram con i tre passi qui sopra.",
+    "telegram": "Facoltativo: puoi collegare il bot anche dopo, dalle Impostazioni.",
 }
 router = APIRouter(prefix="/configurazione")
 
@@ -66,6 +67,7 @@ def passo(request: Request, s: Session, nome: str, errore: str | None = None, **
         "indice": list(PASSI).index(nome),
         "fatti": fatti,
         "MANCA": MANCA,
+        "FACOLTATIVI": FACOLTATIVI,
         "account": account,
         "imp": impostazioni.leggi(s),
         "errore": errore,
@@ -94,7 +96,7 @@ def apri(request: Request, s: Sessione, passo_scelto: Annotated[str, Query(alias
 @router.post("/completa", response_class=HTMLResponse)
 def completa(request: Request, s: Sessione, icone: Annotated[bool, Form()] = False) -> Response:
     fatti, _ = _fatti(request, s, con_claude=True)
-    if mancanti := [MANCA[p] for p, fatto in fatti.items() if not fatto]:
+    if mancanti := [MANCA[p] for p, fatto in fatti.items() if not fatto and p not in FACOLTATIVI]:
         return passo(request, s, "telegram", errore=" ".join(mancanti))
     if icone and not dal_pc(request):  # ADR 0013: le icone riguardano il PC
         return passo(

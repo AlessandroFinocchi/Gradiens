@@ -324,3 +324,29 @@ qui nella rilettura finale del 17 novembre 2026, senza cambiarle.
     caselle stanno fuori dal `<form>` dei filtri, legate con `form="filtri"`, così l'elenco con i suoi bottoni resta
     fuori dal modulo come prima. *Rischio accettato*: le caselle delle fonti si rigenerano a ogni cambio di filtro
     (per seguire i tipi scelti) e la tastiera perde il punto in cui era nel pannello.
+70. **Elenco delle notizie più compatto e Telegram facoltativo** (24 nov 2026, richiesta dell'utente; cambia `UI-04`,
+    `TG-01`, `UI-11`): l'elenco delle pagine Notizie e dell'Archivio non mostra più il riassunto tagliato a due
+    righe, che occupava troppo spazio; resta nella pagina della notizia e nella ricerca. Il bot Telegram non è più
+    obbligatorio: nella configurazione iniziale il passo Telegram si può saltare, e un bot mai configurato non dà il
+    segnale sulla sezione (`BotGradiens.problema`). Lo danno ancora un collegamento a metà e un token non più
+    valido. *Rischio accettato*: chi salta il passo non riceve il messaggio di fine esecuzione finché non collega
+    il bot dalle Impostazioni, e nessun segnale glielo ricorda.
+71. **Cuore a tutto un argomento** (24 nov 2026, richiesta dell'utente; completa `UI-09`): nella Timeline e nella
+    pagina dell'argomento un cuore mette il cuore a tutte le notizie se ne manca almeno una, altrimenti lo toglie a
+    tutte (`POST /argomenti/{id}/cuore`, `argomenti.imposta_cuore`). Le notizie che lo avevano già tengono la
+    data del loro cuore. Togliere chiede conferma, perché le notizie più vecchie di 7 giorni si cancellano alla
+    pulizia, e da fuori casa non si può, come per una notizia (decisione 56). La pagina si ricarica, così metadati
+    e cuori delle notizie restano coerenti.
+72. **Riassunto dell'evoluzione di un argomento, su richiesta** (24 nov 2026, richiesta dell'utente; completa
+    `UI-09`): nella pagina dell'argomento il bottone "Riassumi l'evoluzione" chiede all'LLM dell'elaborazione come
+    si è evoluto l'evento (`esecuzione/evoluzione.py`, come l'aiuto al profilo di ADR 0012). Il testo si salva
+    sull'argomento con data e numero di notizie (migrazione 0016) e diventa "da aggiornare" quando le notizie
+    cambiano. Scartato il riassunto automatico a fine esecuzione: consumerebbe quota ogni giorno anche per
+    argomenti mai aperti. Si mandano al massimo le 40 notizie più recenti, con riassunti tagliati a 800
+    caratteri: la prova vera con Haiku su un argomento di 29 notizie è costata 17.000 token. L'LLM legge i
+    riassunti delle notizie, non il testo completo, che Gradiens non salva (`UI-13`). Aggiornando, riceve anche
+    il riassunto precedente con la sua data e ne tiene i fatti: altrimenti, scadute le prime notizie dopo 7
+    giorni, il nuovo racconto perderebbe l'inizio della storia (provato togliendo 15 notizie su 29: l'inizio è
+    rimasto, 11.600 token). Il riassunto sostituito non si conserva. *Rischio accettato*: la richiesta tiene
+    aperta la pagina fino a un minuto, due clic da due schede fanno due chiamate, e un errore del racconto
+    precedente passa a quello nuovo finché una notizia non lo corregge.

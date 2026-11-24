@@ -117,8 +117,12 @@ class BotGradiens:
         return nome and f"https://{nome}"
 
     def problema(self) -> str | None:
-        """Motivo del segnale sulla sezione Telegram, oppure None se il bot è a posto."""
-        if self._conf.telegram_token is None or self._chat() is None:
+        """Motivo del segnale sulla sezione Telegram, oppure None se il bot è a posto o non è mai stato
+        configurato: Telegram è facoltativo (TG-01), quindi solo un collegamento a metà è un problema."""
+        token, chat = self._conf.telegram_token, self._chat()
+        if token is None and chat is None:
+            return None
+        if token is None or chat is None:
             return "Bot Telegram non collegato"
         return self.errore
 

@@ -138,6 +138,10 @@ class Argomento(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     nome: Mapped[str] = mapped_column(String(200))
     creato_il: Mapped[datetime]
+    # Riassunto dell'evoluzione, chiesto dall'utente (decisione 72): quando e su quante notizie è stato scritto.
+    evoluzione: Mapped[str | None] = mapped_column(Text)
+    evoluzione_il: Mapped[datetime | None]
+    evoluzione_notizie: Mapped[int | None]
 
     notizie: Mapped[list[Notizia]] = relationship(back_populates="argomento", order_by="Notizia.pubblicata_il.desc()")
 

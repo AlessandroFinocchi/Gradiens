@@ -1,7 +1,14 @@
 {% from "icone.html" import icona with context %}
-{# Rinomina, unisci ed elimina (UI-09): pannelli nativi <details>, uguali nella Timeline e nella pagina dell'argomento. #}
-{% macro azioni_argomento(a, tutti) -%}
+{# Cuore a tutte le notizie, rinomina, unisci ed elimina (UI-09): pannelli nativi <details>, uguali nella Timeline e
+   nella pagina dell'argomento. Il cuore va a tutte se manca ad almeno una, altrimenti si toglie a tutte, con conferma. #}
+{% macro azioni_argomento(r, tutti) -%}
+{% set a = r.argomento %}
+{% set tutte = r.in_archivio == r.notizie %}
 <div class="azioni-argomento">
+  <button type="button" class="bottone-icona cuore" hx-post="/argomenti/{{ a.id }}/cuore" aria-pressed="{{ 'true' if tutte else 'false' }}"
+          aria-label="{{ 'Togli il cuore a tutte le notizie' if tutte else 'Metti il cuore a tutte le notizie' }}"
+          {%- if tutte %} hx-confirm="Togliere il cuore a tutte le {{ r.notizie }} notizie di «{{ a.nome }}»? Quelle più vecchie di 7 giorni saranno cancellate alla prossima pulizia."{% endif %}
+          {%- if not tutte or dal_pc(request) %} title="{{ 'Togli il cuore a tutte le notizie' if tutte else 'Metti il cuore a tutte le notizie' }}"{% else %}{{ disattiva_fuori(request) }}{% endif %}>{{ icona("cuore") }}</button>
   <details><summary class="bottone-icona" title="Rinomina" aria-label="Rinomina l'argomento">{{ icona("matita") }}</summary>
     <form class="popover" hx-post="/argomenti/{{ a.id }}/rinomina">
       <input class="campo" name="nome" value="{{ a.nome }}" maxlength="200" required aria-label="Nuovo nome"><button class="bottone piccolo">Rinomina</button></form></details>

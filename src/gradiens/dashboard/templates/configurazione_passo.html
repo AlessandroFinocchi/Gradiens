@@ -30,11 +30,11 @@
   {% if indice > 0 %}<a class="bottone secondario" href="/configurazione?passo={{ nomi[indice - 1] }}">Indietro</a>{% else %}<span></span>{% endif %}
   <span class="nota">{% if fatti[passo] %}Passo {{ indice + 1 }} di {{ nomi | length }}{% else %}{{ MANCA[passo] }}{% endif %}</span>
   {% if indice < nomi | length - 1 %}
-  {% if fatti[passo] %}<a class="bottone" href="/configurazione?passo={{ nomi[indice + 1] }}">Avanti</a>{% else %}<button class="bottone" disabled>Avanti</button>{% endif %}
+  {% if fatti[passo] or passo in FACOLTATIVI %}<a class="bottone" href="/configurazione?passo={{ nomi[indice + 1] }}">Avanti</a>{% else %}<button class="bottone" disabled>Avanti</button>{% endif %}
   {% else %}
   <span class="campo-riga">
     <label class="nota"><input type="checkbox" name="icone" value="true"{% if dal_pc(request) %} checked{% else %}{{ disattiva_fuori(request) }}{% endif %} id="icone"> Crea l'icona Gradiens sul desktop e nel menu</label>
-    <button class="bottone" hx-post="/configurazione/completa" hx-include="#icone" hx-target="#impostazioni"{% if not fatti[passo] %} disabled{% endif %}>Inizia a usare Gradiens</button>
+    <button class="bottone" hx-post="/configurazione/completa" hx-include="#icone" hx-target="#impostazioni">Inizia a usare Gradiens</button>
   </span>
   {% endif %}
 </div>

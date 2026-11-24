@@ -214,7 +214,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 
 ## 7. Telegram
 
-- `TG-01` Telegram è obbligatorio. Il bot si collega nella configurazione iniziale, seguendo un tutorial passo dopo passo:
+- `TG-01` Telegram è facoltativo (decisione 70). Il bot si collega nella configurazione iniziale, dove il passo si può saltare, oppure dopo, nella sezione Telegram delle Impostazioni, seguendo un tutorial passo dopo passo:
   1. aprire @BotFather in Telegram, creare il bot con `/newbot` e scegliere nome e username;
   2. copiare il token del bot nell'app, che verifica subito che il token funzioni;
   3. mandare `/start` al proprio bot. L'app rileva la chat, ne mostra il nome e chiede di confermarla come unica chat autorizzata.
@@ -260,8 +260,9 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
   - interessi con il loro punteggio;
   - argomento;
   - stato;
-  - riassunto, tagliato a due righe;
   - link.
+
+  Il riassunto non compare nell'elenco, per tenerlo compatto: si legge nella pagina della notizia (decisione 70).
 
   Da qui si avvia un'esecuzione con un bottone. Cliccando una notizia si apre la pagina della notizia specifica (`UI-13`). La pagina della notizia torna alla pagina della sua sorgente.
 - `UI-05` Il **cuore** mette una notizia in archivio e contribuisce al raffinamento degli interessi. Se si toglie il cuore, la notizia torna alla regola dei 7 giorni.
@@ -280,7 +281,9 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
 - `UI-09` **Timeline**:
   - è un elenco compatto di argomenti: per ognuno mostra solo il nome, i metadati (numero di notizie, periodo, ultimo aggiornamento, notizie in archivio, notizie arrivate con l'ultima esecuzione) e i bottoni per rinominare, unire ed eliminare;
   - compaiono solo gli argomenti con almeno 2 notizie, prima quelli aggiornati più di recente;
-  - cliccando un argomento si apre la **pagina dell'argomento**, con un indirizzo proprio, che mostra tutte le sue notizie in ordine di tempo, cioè quelle degli ultimi 7 giorni e quelle in archivio. Ogni notizia apre la pagina della notizia specifica (`UI-13`). Anche qui si può rinominare, unire ed eliminare l'argomento.
+  - cliccando un argomento si apre la **pagina dell'argomento**, con un indirizzo proprio, che mostra tutte le sue notizie in ordine di tempo, cioè quelle degli ultimi 7 giorni e quelle in archivio. Ogni notizia apre la pagina della notizia specifica (`UI-13`). Anche qui si può rinominare, unire ed eliminare l'argomento;
+  - nella Timeline e nella pagina dell'argomento un **cuore** vale per tutte le sue notizie: se almeno una non ha il cuore, lo mette a tutte; se lo hanno tutte, lo toglie a tutte, dopo una conferma che ricorda che quelle più vecchie di 7 giorni saranno cancellate alla pulizia. Da fuori casa il cuore si mette ma non si toglie, come per una notizia (decisione 71);
+  - nella pagina dell'argomento, con almeno 2 notizie, il bottone "Riassumi l'evoluzione" chiede all'LLM dell'elaborazione un racconto di 100-250 parole: di cosa si tratta, come si è evoluto con le date dei passaggi, a che punto è oggi, solo con ciò che c'è nelle notizie. Il testo si salva sull'argomento con la data e il numero di notizie; quando le notizie cambiano (nuove, scadute o unite) si mostra "da aggiornare" e il bottone diventa "Aggiorna il riassunto". Aggiornando, l'LLM riceve anche il riassunto precedente e ne tiene i fatti, così l'inizio della storia resta anche quando le prime notizie sono già state cancellate. La chiamata parte solo su richiesta, mai durante le esecuzioni, e consuma quota (decisione 72).
 - `UI-10` **Impostazioni**: si aprono dall'ingranaggio come finestra sopra la pagina corrente, nello stile delle impostazioni delle app Claude, e si chiudono con la X o con Esc. Sul telefono occupano tutto lo schermo. A sinistra c'è l'elenco delle sezioni, ognuna con la sua icona; a destra il contenuto della sezione scelta. Le sezioni sono:
   - **Interessi**: interessi con raffinamenti e proposte da approvare. Ogni interesse è compresso e mostra solo il nome; un clic lo espande per vedere e modificare descrizione e raffinamento;
   - **Canali YouTube**;
@@ -309,8 +312,9 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
   Se una sezione ha entrambi i tipi di segnale, si mostra l'avvertimento. Il segnale sparisce da solo quando la causa viene risolta.
 - `UI-11` **Configurazione iniziale**: si apre la prima volta, finché non è stata completata, e la dashboard non si usa finché non è completa. Dopo, se un dato obbligatorio manca, la dashboard resta usabile e lo segnala sulla sezione delle Impostazioni (`UI-14`). I dati obbligatori sono:
   - almeno un interesse e almeno una fonte, di qualsiasi tipo: un canale YouTube, un sito o una categoria arXiv;
-  - Claude Code installato e collegato a un account, se è usato in almeno un ruolo; la chiave dell'API di Claude, se è usata in almeno un ruolo;
-  - bot Telegram, collegato con il tutorial di `TG-01`.
+  - Claude Code installato e collegato a un account, se è usato in almeno un ruolo; la chiave dell'API di Claude, se è usata in almeno un ruolo.
+
+  Il bot Telegram (`TG-01`) è l'ultimo passo, facoltativo: la configurazione si completa anche senza, e un bot mai collegato non dà segnali; lo danno un collegamento a metà (token senza chat, o chat senza token) e un token non più valido (decisione 70).
 - `UI-12` **Aiuto**: si apre dall'icona in basso nella sidebar. È una pagina statica che spiega come usare l'intera applicazione:
   - fonti e profili dei siti;
   - interessi e raffinamento;

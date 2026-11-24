@@ -1,0 +1,17 @@
+{% from "icone.html" import icona with context %}
+{# Riassunto dell'evoluzione dell'argomento (decisione 72): lo scrive l'LLM solo quando l'utente lo chiede. #}
+{% set a = r.argomento %}
+<section id="evoluzione" class="evoluzione">
+  {% if a.evoluzione %}
+  <h2>Come si è evoluto</h2>
+  {% for paragrafo in a.evoluzione.split("\n") if paragrafo.strip() %}<p>{{ paragrafo }}</p>{% endfor %}
+  <p class="nota">Scritto dall'LLM il {{ a.evoluzione_il|data_breve }} da {{ a.evoluzione_notizie }} notizie{% if r.evoluzione_vecchia %} · <span class="stato">da aggiornare</span> le notizie sono cambiate da allora{% endif %}</p>
+  {% endif %}
+  {% if errore %}<div class="errore-riquadro" role="alert">{{ icona("avvertimento") }}<div>{{ errore }}</div></div>{% endif %}
+  {% if r.notizie >= 2 %}
+  <button type="button" class="bottone {{ 'secondario ' if a.evoluzione and not r.evoluzione_vecchia }}piccolo" hx-post="/argomenti/{{ a.id }}/evoluzione"
+          hx-target="#evoluzione" hx-swap="outerHTML" hx-disabled-elt="this" hx-indicator="#evoluzione-in-corso"
+          title="Chiede all'LLM come si è evoluto l'argomento: consuma quota">{{ "Aggiorna il riassunto" if a.evoluzione else "Riassumi l'evoluzione" }}</button>
+  <p id="evoluzione-in-corso" class="nota indicatore"><span class="rotella"></span> Chiedo all'LLM: può richiedere fino a un minuto.</p>
+  {% endif %}
+</section>

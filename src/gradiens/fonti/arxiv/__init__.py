@@ -2,6 +2,7 @@
 
 import asyncio
 import calendar
+import logging
 import re
 from datetime import UTC, datetime
 
@@ -14,7 +15,11 @@ API = "https://export.arxiv.org/api/query"
 PER_PAGINA = 200
 PAGINE_MASSIME = 20  # 4000 paper: oltre è quasi certamente un errore di configurazione
 PAUSA = 3.0  # secondi tra due richieste, come chiede arXiv
+ATTESE = (10.0, 30.0, 90.0)  # secondi prima di ogni nuovo tentativo dopo un 429 (troppe richieste) o un 5xx
+ATTESA_MASSIMA = 300.0  # tetto al Retry-After di arXiv: l'esecuzione non resta ferma per ore
 VERSIONE = re.compile(r"v\d+$")
+
+log = logging.getLogger(__name__)
 
 
 def _spazi(testo: str) -> str:
@@ -50,6 +55,23 @@ def interpreta(atom: str, categorie: list[str]) -> list[Candidata]:
     return candidate
 
 
+async def _scarica(client: httpx.AsyncClient, params: dict) -> httpx.Response:
+    """Una pagina dell'API. Se arXiv chiede di rallentare (429) o ha un guasto (5xx) si aspetta e si
+    riprova: un rifiuto passeggero non deve far perdere i paper di un giorno."""
+    for attesa in (*ATTESE, None):
+        risposta = await client.get(API, params=params, headers={"User-Agent": USER_AGENT}, timeout=60)
+        if attesa is None or (risposta.status_code != 429 and risposta.status_code < 500):
+            break
+        try:
+            attesa = min(max(float(risposta.headers["Retry-After"]), 0.0), ATTESA_MASSIMA)
+        except KeyError, ValueError:
+            pass  # assente o in forma di data: vale l'attesa prevista
+        log.info("arXiv ha risposto %s: riprovo tra %.0f s", risposta.status_code, attesa)
+        await asyncio.sleep(attesa)
+    risposta.raise_for_status()
+    return risposta
+
+
 async def raccogli(client: httpx.AsyncClient, categorie: list[str], dal: datetime) -> list[Candidata]:
     """Paper delle categorie pubblicati da `dal` in poi, dal più recente."""
     if not categorie:
@@ -59,19 +81,16 @@ async def raccogli(client: httpx.AsyncClient, categorie: list[str], dal: datetim
     for pagina in range(PAGINE_MASSIME):
         if pagina:
             await asyncio.sleep(PAUSA)
-        risposta = await client.get(
-            API,
-            params={
+        risposta = await _scarica(
+            client,
+            {
                 "search_query": query,
                 "sortBy": "submittedDate",
                 "sortOrder": "descending",
                 "start": pagina * PER_PAGINA,
                 "max_results": PER_PAGINA,
             },
-            headers={"User-Agent": USER_AGENT},
-            timeout=60,
         )
-        risposta.raise_for_status()
         blocco = interpreta(risposta.text, categorie)
         trovate += [c for c in blocco if c.pubblicata_il >= dal]
         if len(blocco) < PER_PAGINA or blocco[-1].pubblicata_il < dal:

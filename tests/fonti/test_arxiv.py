@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime
 
 import httpx
+import pytest
 
 from gradiens.fonti import arxiv
 
@@ -59,3 +60,49 @@ def test_raccogli_tiene_solo_la_finestra_e_si_ferma():
     assert len(richieste) == 1  # l'ultima voce è più vecchia della finestra: niente seconda pagina
     assert richieste[0].url.params["search_query"] == "cat:cs.CL OR cat:cs.CR"
     assert "Gradiens" in richieste[0].headers["User-Agent"]
+
+
+def _raccogli_con(risposte: list[httpx.Response], monkeypatch) -> tuple[list, list[float]]:
+    """Raccolta con risposte preparate e attese registrate invece di dormire."""
+    attese = []
+
+    async def dorme(secondi):
+        attese.append(secondi)
+
+    monkeypatch.setattr(arxiv.asyncio, "sleep", dorme)
+
+    async def prova():
+        trasporto = httpx.MockTransport(lambda _: risposte.pop(0))
+        async with httpx.AsyncClient(transport=trasporto) as client:
+            return await arxiv.raccogli(client, ["cs.CL"], dal=datetime(2026, 11, 1))
+
+    return asyncio.run(prova()), attese
+
+
+def test_dopo_un_429_aspetta_e_riprova(monkeypatch):
+    risposte = [httpx.Response(429), httpx.Response(503), httpx.Response(200, text=ATOM)]
+    trovate, attese = _raccogli_con(risposte, monkeypatch)
+    assert [c.url for c in trovate] == ["https://arxiv.org/abs/2611.01234"]
+    assert attese == list(arxiv.ATTESE[:2])
+
+
+def test_rispetta_retry_after_ma_con_un_limite(monkeypatch):
+    risposte = [
+        httpx.Response(429, headers={"Retry-After": "7"}),
+        httpx.Response(429, headers={"Retry-After": "86400"}),
+        httpx.Response(200, text=ATOM),
+    ]
+    _, attese = _raccogli_con(risposte, monkeypatch)
+    assert attese == [7.0, arxiv.ATTESA_MASSIMA]
+
+
+def test_dopo_troppi_429_si_arrende(monkeypatch):
+    risposte = [httpx.Response(429)] * (len(arxiv.ATTESE) + 1)
+    with pytest.raises(httpx.HTTPStatusError, match="429"):
+        _raccogli_con(risposte, monkeypatch)
+
+
+def test_un_errore_4xx_non_si_riprova(monkeypatch):
+    risposte = [httpx.Response(400)]
+    with pytest.raises(httpx.HTTPStatusError, match="400"):
+        _raccogli_con(risposte, monkeypatch)

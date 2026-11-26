@@ -63,6 +63,7 @@ class CanaleYoutube(Base):
 
     id: Mapped[str] = mapped_column(String(24), primary_key=True)  # UC…
     nome: Mapped[str] = mapped_column(String(200))
+    soglia: Mapped[int | None]  # ESE-06, decisione 73: vuota = quella generale
 
 
 class Sito(Base):
@@ -80,6 +81,7 @@ class Sito(Base):
     # ADR 0011: la raccolta successiva cerca da qui, se finestra e profilo sono quelli dell'impronta `coperto_con`.
     coperto_fino_a: Mapped[datetime | None]
     coperto_con: Mapped[str | None] = mapped_column(String(64))
+    soglia: Mapped[int | None]  # ESE-06, decisione 73: vuota = quella generale
 
 
 class CategoriaArxiv(Base):
@@ -87,6 +89,7 @@ class CategoriaArxiv(Base):
 
     codice: Mapped[str] = mapped_column(String(32), primary_key=True)  # es. cs.CR
     nome: Mapped[str | None] = mapped_column(String(100))  # es. "Crittografia e Sicurezza", per i filtri
+    soglia: Mapped[int | None]  # ESE-06, decisione 73: vuota = quella generale
 
 
 class Esecuzione(Base):

@@ -99,6 +99,31 @@ def esegui(sessioni, raccogli, provider=None, **imp):
         )
 
 
+def test_una_fonte_con_soglia_0_salta_il_prefiltro_e_mostra_tutto(sessioni):
+    """ESE-06, decisione 73: con la soglia 0 della categoria nessuna notizia passa dal pre-filtro e si salvano tutte;
+    tornata alla soglia generale, nelle Notizie resta solo quella sopra la soglia."""
+    with sessioni() as s:
+        impostazioni.salva_soglia(s, s.get(CategoriaArxiv, "cs.CR"), 0)
+    _, metriche, salvate, _ = esegui(
+        sessioni, raccolta(candidata("sicurezza-alta"), candidata("sicurezza-bassa"), candidata("cucina"))
+    )
+
+    assert sorted(n.titolo for n in salvate) == ["cucina", "sicurezza-alta", "sicurezza-bassa"]
+    assert metriche["fonti"]["arxiv"]["scartate_prefiltro"] == 0
+    assert metriche["token"]["prefiltro"]["ingresso"] == 0  # nessuna chiamata di pre-filtro
+    with sessioni() as s:
+        assert len(notizie.elenca(s, notizie.Filtri(), 60)) == 3
+        impostazioni.salva_soglia(s, s.get(CategoriaArxiv, "cs.CR"), None)
+        assert [n.titolo for n in notizie.elenca(s, notizie.Filtri(), 60)] == ["sicurezza-alta"]
+
+
+def test_la_soglia_della_fonte_vale_anche_al_salvataggio(sessioni):
+    with sessioni() as s:
+        impostazioni.salva_soglia(s, s.get(CategoriaArxiv, "cs.CR"), 20)
+    _, _, salvate, _ = esegui(sessioni, raccolta(candidata("sicurezza-bassa"), candidata("cucina")))
+    assert [n.titolo for n in salvate] == ["sicurezza-bassa"]  # 30 supera 20; "cucina" la scarta il pre-filtro
+
+
 def test_esecuzione_completa(sessioni):
     with sessioni() as s:
         notizie.segna_viste(s, ["https://arxiv.org/abs/sicurezza-vista"])
@@ -1387,16 +1412,21 @@ async def irraggiungibile(*_args, **_kwargs):
     raise httpx.ConnectError("rete giù")
 
 
+async def senza_risposta(*_args, **_kwargs):
+    raise httpx.ReadTimeout("")  # senza messaggio, come quello di arXiv il 26 novembre
+
+
 def test_nessuna_fonte_raggiungibile_e_cancellazione_durante_la_raccolta(sessioni):
     """T-51: con tutte le fonti in errore l'esecuzione fallisce con il motivo, senza chiamare l'LLM."""
     with sessioni() as s:
         impostazioni.aggiungi_canale(s, "UC" + "a" * 22, "Lab di Sicurezza")
-    fonti = {"arxiv": SimpleNamespace(raccogli=irraggiungibile), "youtube": SimpleNamespace(raccogli=irraggiungibile)}
+    fonti = {"arxiv": SimpleNamespace(raccogli=senza_risposta), "youtube": SimpleNamespace(raccogli=irraggiungibile)}
 
     esecuzione, metriche, salvate, finto = esegui(sessioni, fonti)
 
     assert (esecuzione.stato, esecuzione.motivo) == ("fallita", "Nessuna fonte raggiungibile.")
     assert [st["stato"] for f in metriche["fonti"].values() for st in f["stati"]] == ["non raggiungibile"] * 2
+    assert metriche["fonti"]["arxiv"]["stati"][0]["dettaglio"] == "ReadTimeout"  # mai un dettaglio vuoto
     assert salvate == [] and finto.chiamate == []
 
 

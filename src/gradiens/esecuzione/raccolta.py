@@ -51,9 +51,10 @@ async def raccogli(
     risultati = await asyncio.gather(*(cronometra(t, c) for t, _, c in compiti), return_exceptions=True)
     for (tipo, nome, _), risultato in zip(compiti, risultati, strict=True):
         if isinstance(risultato, Exception):
-            log.warning("Raccolta da %s fallita: %s", nome, risultato)
+            dettaglio = str(risultato) or type(risultato).__name__  # httpx.ReadTimeout non ha messaggio
+            log.warning("Raccolta da %s fallita: %s", nome, dettaglio)
             m.di(tipo).errori += 1
-            m.di(tipo).stati.append({"fonte": nome, "stato": "non raggiungibile", "dettaglio": str(risultato)})
+            m.di(tipo).stati.append({"fonte": nome, "stato": "non raggiungibile", "dettaglio": dettaglio})
         elif isinstance(risultato, BaseException):
             raise risultato
         else:

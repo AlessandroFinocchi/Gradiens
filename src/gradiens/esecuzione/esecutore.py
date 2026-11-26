@@ -197,9 +197,13 @@ class Esecutore:
                 for stato in conta.stati:
                     stato["nuove"] = per_fonte[(nome, stato["fonte"])]
 
+            # Decisione 73: le fonti con soglia 0 saltano il pre-filtro, così arrivano tutte le loro notizie.
+            soglie = notizie.soglie_fonti(s)
+            soglia = {c.url: notizie.soglia_di(soglie, imp.soglia, c.tipo, c.fonte) for c in nuove}
+            tutte = [c for c in nuove if soglia[c.url] == 0]
             passate, non_prefiltrati = await prefiltra(
                 s,
-                nuove,
+                [c for c in nuove if soglia[c.url] > 0],
                 prefiltro,
                 prompt.sistema_prefiltro(elenco_interessi, imp.escludi_sponsorizzati),
                 imp.modello_prefiltro,
@@ -207,7 +211,7 @@ class Esecutore:
                 m,
                 self.avanzamento,
             )
-            passate = applica_tetto(s, passate, non_prefiltrati, imp.tetto_arxiv, m)
+            passate = applica_tetto(s, tutte + passate, non_prefiltrati, imp.tetto_arxiv, m)
 
             # Contenuto e valutazione completa (ESE-05): ogni notizia si salva appena valutata.
             self._fase("valutazione", len(passate))
@@ -248,7 +252,7 @@ class Esecutore:
                 finally:
                     self.avanzamento.fatti += 1
                 m.conta_token("elaborazione", risposta)
-                self._salva(s, c, risposta.dati, ids_validi, imp.soglia, m, self.avanzamento.esecuzione_id)
+                self._salva(s, c, risposta.dati, ids_validi, soglia[c.url], m, self.avanzamento.esecuzione_id)
 
             await in_parallelo(elabora(c) for c in passate)
             await self._argomenti(s, elaborazione, imp.modello_elaborazione, m)
@@ -390,7 +394,7 @@ class Esecutore:
             if interesse in ids_validi and isinstance(valore, (int, float)) and math.isfinite(valore):
                 punteggi[interesse] = max(0, min(100, round(valore)))  # 85.5 si arrotonda (scheda 4 b)
         notizie.segna_viste(s, [c.url])
-        if not punteggi or max(punteggi.values()) < soglia:  # ESE-06
+        if max(punteggi.values(), default=0) < soglia:  # ESE-06; con la soglia 0 della fonte si salva sempre
             m.di(c.tipo).scartate_valutazione += 1
             s.commit()
             return

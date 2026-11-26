@@ -1,0 +1,11 @@
+{# ESE-06, decisione 73: soglia propria di un sito, canale o categoria. Vuota = quella generale; 0 = tutte le notizie.
+   Si salva quando il campo cambia (Invio o uscendo dal campo). #}
+{% macro soglia_fonte(indirizzo, valori, fonte, nome, generale) -%}
+<form class="soglia-fonte" hx-post="{{ indirizzo }}" hx-vals='{{ valori|tojson }}' hx-trigger="change" hx-target="#impostazioni"
+      title="Soglia di pertinenza per questa fonte. Vuota: quella generale ({{ generale }}). 0: tutte le notizie, senza pre-filtro.">
+  <label class="nota" for="soglia-{{ nome|replace(' ', '-') }}">Soglia</label>
+  <input class="campo" id="soglia-{{ nome|replace(' ', '-') }}" type="number" name="soglia" min="0" max="100"
+         value="{{ fonte.soglia if fonte.soglia is not none }}" placeholder="{{ generale }}" style="width: 70px"
+         aria-label="Soglia di {{ nome }}">
+</form>
+{%- endmacro %}

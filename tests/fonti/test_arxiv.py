@@ -71,8 +71,14 @@ def _raccogli_con(risposte: list[httpx.Response], monkeypatch) -> tuple[list, li
 
     monkeypatch.setattr(arxiv.asyncio, "sleep", dorme)
 
+    def risponde(request: httpx.Request) -> httpx.Response:
+        risposta = risposte.pop(0)
+        if isinstance(risposta, Exception):
+            raise risposta
+        return risposta
+
     async def prova():
-        trasporto = httpx.MockTransport(lambda _: risposte.pop(0))
+        trasporto = httpx.MockTransport(risponde)
         async with httpx.AsyncClient(transport=trasporto) as client:
             return await arxiv.raccogli(client, ["cs.CL"], dal=datetime(2026, 11, 1))
 
@@ -99,6 +105,19 @@ def test_rispetta_retry_after_ma_con_un_limite(monkeypatch):
 def test_dopo_troppi_429_si_arrende(monkeypatch):
     risposte = [httpx.Response(429)] * (len(arxiv.ATTESE) + 1)
     with pytest.raises(httpx.HTTPStatusError, match="429"):
+        _raccogli_con(risposte, monkeypatch)
+
+
+def test_dopo_un_429_e_un_timeout_riprova_ancora(monkeypatch):  # l'esecuzione del 26 novembre
+    risposte = [httpx.Response(429), httpx.ReadTimeout(""), httpx.Response(200, text=ATOM)]
+    trovate, attese = _raccogli_con(risposte, monkeypatch)
+    assert [c.url for c in trovate] == ["https://arxiv.org/abs/2611.01234"]
+    assert attese == list(arxiv.ATTESE[:2])
+
+
+def test_dopo_troppi_timeout_si_arrende(monkeypatch):
+    risposte = [httpx.ReadTimeout("")] * (len(arxiv.ATTESE) + 1)
+    with pytest.raises(httpx.ReadTimeout):
         _raccogli_con(risposte, monkeypatch)
 
 

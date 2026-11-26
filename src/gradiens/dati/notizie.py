@@ -2,13 +2,25 @@
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from urllib.parse import urlsplit
 
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import and_, case, delete, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from gradiens.dati.modelli import FONTE_DI_TIPO, TIPI_NOTIZIA, Argomento, Notizia, NotiziaVista, Pertinenza
+from gradiens.dati.modelli import (
+    FONTE_DI_TIPO,
+    TIPI_NOTIZIA,
+    Argomento,
+    CanaleYoutube,
+    CategoriaArxiv,
+    Notizia,
+    NotiziaVista,
+    Pertinenza,
+    Sito,
+)
 
 GIORNI_CONSERVAZIONE = 7  # ESE-09
+TIPI_DEL_GRUPPO = {g: [t for t, gruppo in FONTE_DI_TIPO.items() if gruppo == g] for g in set(FONTE_DI_TIPO.values())}
 
 
 def adesso() -> datetime:
@@ -31,6 +43,32 @@ class Filtri:
     crescente: bool = False
 
 
+def soglie_fonti(sessione: Session) -> dict[tuple[str, str], int]:
+    """ESE-06, decisione 73: (gruppo, fonte come la scrive la notizia) -> soglia propria della fonte, per le sole
+    fonti che ne hanno una. I siti si riconoscono dal dominio, come nelle notizie (`Profilo.dominio`)."""
+    soglie = {("arxiv", c.codice): c.soglia for c in sessione.scalars(select(CategoriaArxiv))}
+    soglie |= {("youtube", c.nome): c.soglia for c in sessione.scalars(select(CanaleYoutube))}
+    for sito in sessione.scalars(select(Sito).where(Sito.soglia.is_not(None))):
+        chiave = ("siti", urlsplit(sito.url).netloc.lower().removeprefix("www."))
+        # shortcut: due siti dello stesso dominio (es. /blog e /news) non si distinguono: per entrambi vale la
+        # più bassa tra quelle impostate. Per pochi siti seguiti basta.
+        soglie[chiave] = min(sito.soglia, soglie.get(chiave, sito.soglia))
+    return {chiave: soglia for chiave, soglia in soglie.items() if soglia is not None}
+
+
+def soglia_di(soglie: dict[tuple[str, str], int], generale: int, tipo: str, fonte: str) -> int:
+    return soglie.get((FONTE_DI_TIPO[tipo], fonte), generale)
+
+
+def _soglia_sql(sessione: Session, generale: int):
+    """La soglia di ogni notizia nella query: quella della sua fonte, se ne ha una, altrimenti la generale."""
+    casi = [
+        (and_(Notizia.tipo.in_(TIPI_DEL_GRUPPO[gruppo]), Notizia.fonte == fonte), soglia)
+        for (gruppo, fonte), soglia in soglie_fonti(sessione).items()
+    ]
+    return case(*casi, else_=generale) if casi else generale
+
+
 def elenca(sessione: Session, filtri: Filtri, soglia: int) -> list[Notizia]:
     # UI-07: conta il punteggio più alto, tra i soli interessi filtrati se ce ne sono
     punteggio = select(func.max(Pertinenza.punteggio)).where(Pertinenza.notizia_id == Notizia.id)
@@ -45,10 +83,14 @@ def elenca(sessione: Session, filtri: Filtri, soglia: int) -> list[Notizia]:
         query = query.where(Notizia.cuore)
         if filtri.interessi:
             query = query.where(punteggio.is_not(None))
-    else:  # UI-04: ultimi 7 giorni, almeno un punteggio sopra la soglia (ESE-06)
+    else:  # UI-04: ultimi 7 giorni, almeno un punteggio sopra la soglia della fonte o generale (ESE-06)
+        # Senza pertinenze il punteggio è 0: una fonte con soglia 0 mostra anche le notizie lontane da ogni interesse.
         query = query.where(
-            Notizia.pubblicata_il >= adesso() - timedelta(days=GIORNI_CONSERVAZIONE), punteggio >= soglia
+            Notizia.pubblicata_il >= adesso() - timedelta(days=GIORNI_CONSERVAZIONE),
+            func.coalesce(punteggio, 0) >= _soglia_sql(sessione, soglia),
         )
+        if filtri.interessi:
+            query = query.where(punteggio.is_not(None))
     if filtri.tipi:
         query = query.where(Notizia.tipo.in_([t for t in filtri.tipi if t in TIPI_NOTIZIA]))
     if filtri.fonti:

@@ -191,6 +191,7 @@ textarea.campo { resize: vertical; line-height: 1.5; }
 .riga .titolo { font-weight: 500; }
 .riga .descrizione { color: var(--tenue); font-size: 13.5px; margin-top: 2px; }
 .riga .controllo { flex: none; display: flex; align-items: center; gap: 8px; }
+.soglia-fonte { display: flex; align-items: center; gap: 6px; }
 .riga.evidenziata { background: var(--errore-tenue); margin: 0 -12px; padding: 14px 12px; border-radius: 10px; border-bottom-color: transparent; }
 .interesse.evidenziata, .campo-riga.evidenziata { outline: 2px solid var(--errore-tenue); outline-offset: 4px; border-radius: 10px; }
 .sezione-voce .segnale.novita::before { margin-right: 4px; }

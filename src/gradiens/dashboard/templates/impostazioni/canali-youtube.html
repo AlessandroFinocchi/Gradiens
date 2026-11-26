@@ -1,5 +1,6 @@
+{% from "impostazioni/soglia_fonte.html" import soglia_fonte %}
 <h2>Canali YouTube</h2>
-<p class="intro">Incolla un indirizzo qualsiasi del canale: <code>@nome</code>, <code>/channel/…</code> o il link di un suo video. Si valutano solo i video con una trascrizione, anche automatica; gli short sono un tipo a parte.</p>
+<p class="intro">Incolla un indirizzo qualsiasi del canale: <code>@nome</code>, <code>/channel/…</code> o il link di un suo video. Si valutano solo i video con una trascrizione, anche automatica; gli short sono un tipo a parte. Ogni canale può avere una sua soglia: vuota usa quella generale, 0 mostra tutti i suoi video senza pre-filtro.</p>
 <form class="campo-riga{% if "aggiungi" in voci %} evidenziata{% endif %}" hx-post="/impostazioni/youtube" hx-target="#impostazioni" hx-disabled-elt="find button">
   <input class="campo" name="indirizzo" placeholder="https://www.youtube.com/@…" aria-label="Indirizzo del canale" required>
   <button class="bottone">Aggiungi</button>
@@ -11,6 +12,7 @@
     <div class="titolo"><a href="https://www.youtube.com/channel/{{ c.id }}" target="_blank" rel="noopener noreferrer">{{ c.nome }}</a></div>
   </div>
   <div class="controllo">
+    {{ soglia_fonte("/impostazioni/youtube/soglia", {"id": c.id}, c, c.nome, imp.soglia) }}
     <button type="button" class="bottone secondario piccolo" hx-post="/impostazioni/youtube/rimuovi" hx-vals='{"id": "{{ c.id }}"}'
             hx-target="#impostazioni" hx-confirm="Smettere di seguire «{{ c.nome }}»?"{{ disattiva_fuori(request) }}>Rimuovi</button>
   </div>

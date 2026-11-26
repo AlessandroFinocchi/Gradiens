@@ -3,6 +3,7 @@ from datetime import timedelta
 import pytest
 
 from gradiens.dati import esecuzioni, impostazioni, interessi, notizie
+from gradiens.dati import siti as dati_siti
 from gradiens.dati.database import crea_motore, fabbrica_sessioni, migra
 from gradiens.dati.impostazioni import ImpostazioneNonValida
 from gradiens.dati.modelli import Esecuzione, Notizia, Pertinenza
@@ -46,6 +47,40 @@ def test_notizie_mostrate_solo_sopra_soglia_e_negli_ultimi_7_giorni(s):
     notizia(s, "vecchia", giorni_fa=8, punteggi=[(sic.id, 95)])
     notizia(s, "sulla-soglia", punteggi=[(sic.id, 60)])
     assert titoli(notizie.elenca(s, Filtri(), soglia=60)) == ["alta", "sulla-soglia"]
+
+
+def test_ogni_fonte_puo_avere_la_sua_soglia(s):
+    """ESE-06, decisione 73: la soglia della fonte vale al posto della generale; a 0 si vede anche una notizia
+    senza pertinenze, ma non quando si filtra per interesse."""
+    sic = interessi.aggiungi(s, "Sicurezza", "attacchi")
+    impostazioni.aggiungi_canale(s, "UC" + "a" * 22, "Canale")
+    impostazioni.salva_soglia(s, impostazioni.canali_youtube(s)[0], 0)
+    dati_siti.aggiungi(s, "https://www.nature.com/news", {})
+    impostazioni.salva_soglia(s, dati_siti.elenca(s)[0], 80)
+    notizia(s, "video-senza-pertinenze", tipo="video", fonte="Canale")
+    notizia(s, "short-basso", tipo="short", fonte="Canale", punteggi=[(sic.id, 10)])
+    notizia(s, "nature-70", tipo="sito", fonte="nature.com", punteggi=[(sic.id, 70)])
+    notizia(s, "nature-85", tipo="sito", fonte="nature.com", punteggi=[(sic.id, 85)])
+    notizia(s, "altro-sito-70", tipo="sito", fonte="altro.it", punteggi=[(sic.id, 70)])
+    notizia(s, "paper-con-lo-stesso-nome", fonte="Canale", punteggi=[(sic.id, 10)])  # la soglia è del canale
+    assert set(titoli(notizie.elenca(s, Filtri(), 60))) == {
+        "video-senza-pertinenze",
+        "short-basso",
+        "nature-85",
+        "altro-sito-70",
+    }
+    assert set(titoli(notizie.elenca(s, Filtri(interessi=[sic.id]), 60))) == {
+        "short-basso",
+        "nature-85",
+        "altro-sito-70",
+    }
+
+
+def test_soglia_di_una_fonte_da_0_a_100_o_vuota():
+    assert [impostazioni.soglia_fonte(t) for t in ("", " 0 ", "100")] == [None, 0, 100]
+    for sbagliata in ("101", "-1", "abc", "5.5"):
+        with pytest.raises(ImpostazioneNonValida):
+            impostazioni.soglia_fonte(sbagliata)
 
 
 def test_ordinamento_per_interesse_filtrato_e_per_data(s):

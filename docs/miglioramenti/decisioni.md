@@ -350,3 +350,17 @@ qui nella rilettura finale del 17 novembre 2026, senza cambiarle.
     rimasto, 11.600 token). Il riassunto sostituito non si conserva. *Rischio accettato*: la richiesta tiene
     aperta la pagina fino a un minuto, due clic da due schede fanno due chiamate, e un errore del racconto
     precedente passa a quello nuovo finché una notizia non lo corregge.
+73. **Soglia per fonte** (26 nov 2026, richiesta dell'utente; cambia `ESE-04`, `ESE-06`, `UI-10`): ogni sito, canale
+    YouTube e categoria arXiv può avere una soglia sua (colonna `soglia` facoltativa, migrazione 0017), che vale al
+    posto di quella generale; vuota, vale la generale. Si imposta con un campo nella riga della fonte, nelle sezioni
+    delle Impostazioni, e si salva quando cambia. Con la soglia 0 la fonte salta anche il pre-filtro (scelta
+    dell'utente tra tre proposte: con il solo punteggio, le notizie scartate dal pre-filtro sarebbero restate
+    perse), e una notizia senza nessuna pertinenza si salva e si mostra lo stesso; filtrando per interesse
+    compaiono solo le notizie con un punteggio per quell'interesse. La soglia della fonte vale sia al salvataggio
+    sia nella pagina Notizie, nella Home e nel messaggio Telegram (`notizie.soglie_fonti`), come la soglia generale.
+    Le notizie si collegano alla fonte dal nome che portano: il codice della categoria, il nome del canale, il
+    dominio del sito. *Rischio accettato*: due siti dello stesso dominio non si distinguono e prendono la più bassa
+    tra le soglie impostate. I punteggi mostrati sotto ogni notizia restano quelli sopra la soglia generale. Da
+    fuori casa la soglia 0 non si imposta, come un tetto non si alza (decisione 56): fa valutare tutte le notizie
+    della fonte. Senza pre-filtro salta anche l'esclusione dei contenuti sponsorizzati (`WEB-23`), che il
+    pre-filtro decide; quella dei contenuti a pagamento resta.

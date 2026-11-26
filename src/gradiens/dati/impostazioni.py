@@ -7,7 +7,7 @@ from urllib.parse import urlsplit
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from gradiens.dati.modelli import TEMI, CanaleYoutube, CategoriaArxiv, Impostazioni
+from gradiens.dati.modelli import TEMI, CanaleYoutube, CategoriaArxiv, Impostazioni, Sito
 
 # Codici arXiv: archivio e, facoltativa, sottocategoria (cs.CR, math.PR, hep-th, astro-ph.GA).
 FORMATO_CATEGORIA = re.compile(r"^[a-z][a-z-]*(\.[A-Za-z-]+)?$")
@@ -150,3 +150,17 @@ def rimuovi_canale(sessione: Session, id: str) -> None:
     if canale is not None:
         sessione.delete(canale)
         sessione.commit()
+
+
+def soglia_fonte(testo: str) -> int | None:
+    """ESE-06, decisione 73: soglia propria di un canale, di una categoria o di un sito, dal modulo.
+    Vuota = quella generale; 0 = la fonte salta anche il pre-filtro e arrivano tutte le sue notizie."""
+    testo = testo.strip()
+    if testo and not (testo.isdigit() and int(testo) <= 100):
+        raise ImpostazioneNonValida("La soglia di una fonte va da 0 a 100; lasciala vuota per usare quella generale.")
+    return int(testo) if testo else None
+
+
+def salva_soglia(sessione: Session, fonte: CanaleYoutube | CategoriaArxiv | Sito, soglia: int | None) -> None:
+    fonte.soglia = soglia
+    sessione.commit()

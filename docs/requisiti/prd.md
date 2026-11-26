@@ -161,13 +161,13 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 **Raccolta e filtro**
 
 - `ESE-03` Si raccolgono solo le notizie pubblicate nella **finestra di raccolta**, che si configura nelle Impostazioni da 1 a 7 giorni (valore predefinito 7). Per le notizie con data incerta conta la data di scoperta.
-- `ESE-04` **Pre-filtro**: l'LLM legge a blocchi titolo e sommario delle notizie nuove (dei paper arXiv solo quelli che servono a riempire il tetto, `ARX-02`) e scarta quelle fuori tema e quelle escluse (vedi `WEB-22` e `WEB-23`).
+- `ESE-04` **Pre-filtro**: l'LLM legge a blocchi titolo e sommario delle notizie nuove (dei paper arXiv solo quelli che servono a riempire il tetto, `ARX-02`) e scarta quelle fuori tema e quelle escluse (vedi `WEB-22` e `WEB-23`). Le notizie delle fonti con soglia 0 (`ESE-06`) non passano dal pre-filtro. *(Aggiornato il 26 novembre 2026.)*
 - `ESE-05` **Valutazione completa**: per le notizie che passano il pre-filtro si scarica il testo completo o la trascrizione. L'LLM assegna un punteggio di pertinenza da 0 a 100 per ogni interesse pertinente, quindi una notizia può corrispondere a più interessi. Nella stessa fase l'LLM:
   - scrive il riassunto in italiano. Il riassunto deve essere corretto e completo: riporta solo ciò che c'è nel contenuto, senza aggiunte, e ne copre tutti i punti principali, non solo l'inizio. Se il contenuto è parziale, il riassunto lo dice;
   - traduce il titolo in italiano, se la notizia è in un'altra lingua.
 
   L'argomento si assegna dopo, con un passo unico per tutte le notizie mostrate dall'esecuzione (`ESE-08`).
-- `ESE-06` Una notizia viene mostrata se almeno uno dei suoi punteggi raggiunge o supera la soglia. La soglia si configura nelle Impostazioni e per default vale 60.
+- `ESE-06` Una notizia viene mostrata se almeno uno dei suoi punteggi raggiunge o supera la soglia. La soglia generale si configura nelle Impostazioni e per default vale 60. Ogni fonte (sito, canale YouTube, categoria arXiv) può avere una soglia sua, da 0 a 100, che vale al posto di quella generale; vuota, vale la generale. Con la soglia 0 la fonte salta anche il pre-filtro (`ESE-04`): tutte le sue notizie nuove si valutano, si riassumono e si mostrano, anche quelle lontane da ogni interesse; quando si filtra per interesse compaiono solo quelle con un punteggio per quell'interesse. La soglia 0 consuma più quota, quindi da fuori casa non si imposta (`AMB-02`). La soglia di una fonte vale anche per le notizie già salvate: cambiandola, quelle sopra la nuova soglia compaiono o spariscono (decisione 73). *(Aggiornato il 26 novembre 2026.)*
 - `ESE-07` Delle notizie scartate si conserva solo l'indirizzo, nel registro delle notizie già viste.
 
 **Argomenti**
@@ -286,11 +286,11 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
   - nella pagina dell'argomento, con almeno 2 notizie, il bottone "Riassumi l'evoluzione" chiede all'LLM dell'elaborazione un racconto di 100-250 parole: di cosa si tratta, come si è evoluto con le date dei passaggi, a che punto è oggi, solo con ciò che c'è nelle notizie. Il testo si salva sull'argomento con la data e il numero di notizie; quando le notizie cambiano (nuove, scadute o unite) si mostra "da aggiornare" e il bottone diventa "Aggiorna il riassunto". Aggiornando, l'LLM riceve anche il riassunto precedente e ne tiene i fatti, così l'inizio della storia resta anche quando le prime notizie sono già state cancellate. La chiamata parte solo su richiesta, mai durante le esecuzioni, e consuma quota (decisione 72).
 - `UI-10` **Impostazioni**: si aprono dall'ingranaggio come finestra sopra la pagina corrente, nello stile delle impostazioni delle app Claude, e si chiudono con la X o con Esc. Sul telefono occupano tutto lo schermo. A sinistra c'è l'elenco delle sezioni, ognuna con la sua icona; a destra il contenuto della sezione scelta. Le sezioni sono:
   - **Interessi**: interessi con raffinamenti e proposte da approvare. Ogni interesse è compresso e mostra solo il nome; un clic lo espande per vedere e modificare descrizione e raffinamento;
-  - **Canali YouTube**;
-  - **Siti web**, con il loro profilo;
-  - **arXiv**: categorie e tetto di paper;
+  - **Canali YouTube**, ognuno con la sua soglia (`ESE-06`);
+  - **Siti web**, con il loro profilo e la loro soglia;
+  - **arXiv**: categorie, ognuna con la sua soglia, e tetto di paper;
   - **Modelli LLM**: provider e modello per i due ruoli, stato di Claude Code, chiavi API;
-  - **Esecuzione**: soglia di pertinenza, finestra di raccolta (da 1 a 7 giorni), interruttori di esclusione, orario dell'esecuzione programmata e sua pausa;
+  - **Esecuzione**: soglia di pertinenza generale, finestra di raccolta (da 1 a 7 giorni), interruttori di esclusione, orario dell'esecuzione programmata e sua pausa;
   - **Avvio**: all'accensione o a mano, e l'icona del pannello di controllo (`AMB-05`);
   - **Telegram**;
   - **Aspetto**: tema chiaro, scuro oppure come il sistema operativo, che è il valore predefinito.

@@ -1,6 +1,7 @@
 {% from "icone.html" import icona with context %}
+{% from "impostazioni/soglia_fonte.html" import soglia_fonte %}
 <h2>Siti web</h2>
-<p class="intro">Basta l'indirizzo della home, per seguire tutto il sito, o di una sezione, per seguire solo quella. Gradiens analizza il sito e crea il suo profilo, che puoi modificare: le tue modifiche restano anche quando il profilo viene rigenerato.</p>
+<p class="intro">Basta l'indirizzo della home, per seguire tutto il sito, o di una sezione, per seguire solo quella. Gradiens analizza il sito e crea il suo profilo, che puoi modificare: le tue modifiche restano anche quando il profilo viene rigenerato. Ogni sito può avere una sua soglia: vuota usa quella generale, 0 mostra tutti i suoi articoli senza pre-filtro.</p>
 <form class="campo-riga{% if "aggiungi" in voci %} evidenziata{% endif %}" hx-post="/impostazioni/siti" hx-target="#impostazioni" hx-disabled-elt="find button" hx-indicator="#analisi-sito">
   <input class="campo" name="indirizzo" placeholder="https://…" aria-label="Indirizzo del sito" required>
   <button class="bottone">Aggiungi</button>
@@ -19,6 +20,7 @@
       <div class="titolo"><a href="{{ sito.url }}" target="_blank" rel="noopener noreferrer">{{ p.perimetro or sito.url }}</a></div>
     </div>
     <div class="controllo">
+      {{ soglia_fonte("/impostazioni/siti/" ~ sito.id ~ "/soglia", {}, sito, p.perimetro or sito.url, imp.soglia) }}
       <button type="button" class="bottone secondario piccolo" hx-post="/impostazioni/siti/{{ sito.id }}/rigenera" hx-target="#impostazioni"
               hx-disabled-elt="this" hx-indicator="#analisi-sito">Rigenera profilo</button>
       {# ADR 0012: consuma quota dell'abbonamento, quindi solo su richiesta; le proposte si applicano a mano. #}

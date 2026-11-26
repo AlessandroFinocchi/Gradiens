@@ -11,7 +11,7 @@ from gradiens.dashboard.comune import SOLO_DAL_PC
 from gradiens.dashboard.rotte_impostazioni import ALZARE_SOLO_DAL_PC
 from gradiens.dati import argomenti, impostazioni, interessi
 from gradiens.dati import siti as dati_siti
-from gradiens.dati.modelli import CanaleYoutube, Notizia, Sito
+from gradiens.dati.modelli import CanaleYoutube, CategoriaArxiv, Notizia, Sito
 from gradiens.dati.notizie import adesso
 from gradiens.fonti import siti
 from gradiens.telegram import bot as telegram
@@ -170,6 +170,31 @@ def test_da_fuori_casa_i_tetti_si_abbassano_ma_non_si_alzano(client, remoto, fon
     client.post("/impostazioni/arxiv/tetto", data={"tetto": 500}, headers=HTMX)
     with client.app.state.sessioni() as s:
         assert impostazioni.leggi(s).tetto_arxiv == 500
+
+
+def test_soglia_delle_fonti_e_lo_0_solo_dal_pc(client, remoto, fonti):
+    """ESE-06, decisione 73: ogni fonte ha la sua soglia; a 0 salta il pre-filtro, quindi da fuori casa no."""
+    canale, sito = "UC" + "x" * 22, fonti["sito"]
+    richieste = [
+        ("/impostazioni/youtube/soglia", {"id": canale}),
+        (f"/impostazioni/siti/{sito}/soglia", {}),
+        ("/impostazioni/arxiv/soglia", {"codice": "cs.CR"}),
+    ]
+    for indirizzo, chiave in richieste:
+        assert "dal PC" in remoto.post(indirizzo, data={**chiave, "soglia": "0"}).text
+        assert 'value="35"' in remoto.post(indirizzo, data={**chiave, "soglia": "35"}).text
+    assert "va da 0 a 100" in remoto.post("/impostazioni/arxiv/soglia", data={"codice": "cs.CR", "soglia": "101"}).text
+    with client.app.state.sessioni() as s:
+        fonti_ = (s.get(CanaleYoutube, canale), s.get(Sito, sito), s.get(CategoriaArxiv, "cs.CR"))
+        assert [f.soglia for f in fonti_] == [35, 35, 35]
+    for indirizzo, chiave in richieste:
+        client.post(indirizzo, data={**chiave, "soglia": "0"}, headers=HTMX)
+    client.post("/impostazioni/arxiv/soglia", data={"codice": "cs.CR", "soglia": ""}, headers=HTMX)
+    with client.app.state.sessioni() as s:
+        fonti_ = (s.get(CanaleYoutube, canale), s.get(Sito, sito), s.get(CategoriaArxiv, "cs.CR"))
+        assert [f.soglia for f in fonti_] == [0, 0, None]  # vuota: torna quella generale
+    # Già a 0, da fuori casa si può alzare.
+    assert "dal PC" not in remoto.post("/impostazioni/youtube/soglia", data={"id": canale, "soglia": "50"}).text
 
 
 def test_da_fuori_casa_i_comandi_solo_dal_pc_sono_disattivati(client, remoto, fonti):

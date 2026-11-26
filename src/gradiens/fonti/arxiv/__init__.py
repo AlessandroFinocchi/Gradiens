@@ -56,10 +56,17 @@ def interpreta(atom: str, categorie: list[str]) -> list[Candidata]:
 
 
 async def _scarica(client: httpx.AsyncClient, params: dict) -> httpx.Response:
-    """Una pagina dell'API. Se arXiv chiede di rallentare (429) o ha un guasto (5xx) si aspetta e si
-    riprova: un rifiuto passeggero non deve far perdere i paper di un giorno."""
+    """Una pagina dell'API. Se arXiv chiede di rallentare (429), ha un guasto (5xx) o non risponde in tempo
+    si aspetta e si riprova: un rifiuto passeggero non deve far perdere i paper di un giorno."""
     for attesa in (*ATTESE, None):
-        risposta = await client.get(API, params=params, headers={"User-Agent": USER_AGENT}, timeout=60)
+        try:
+            risposta = await client.get(API, params=params, headers={"User-Agent": USER_AGENT}, timeout=60)
+        except httpx.TransportError as errore:  # es. ReadTimeout dopo un 429 (26 nov): passeggero come un 5xx
+            if attesa is None:
+                raise
+            log.info("arXiv non ha risposto (%s): riprovo tra %.0f s", type(errore).__name__, attesa)
+            await asyncio.sleep(attesa)
+            continue
         if attesa is None or (risposta.status_code != 429 and risposta.status_code < 500):
             break
         try:

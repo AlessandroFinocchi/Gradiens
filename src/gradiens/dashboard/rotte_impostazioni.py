@@ -18,7 +18,7 @@ from gradiens.dashboard.comune import Sessione, SoloDalPc, dal_pc, frammento
 from gradiens.dati import impostazioni, interessi, proposte
 from gradiens.dati import siti as dati_siti
 from gradiens.dati.impostazioni import ImpostazioneNonValida
-from gradiens.dati.modelli import Sito
+from gradiens.dati.modelli import CanaleYoutube, CategoriaArxiv, Sito
 from gradiens.esecuzione import aiuto_profilo
 from gradiens.fonti import siti, youtube
 from gradiens.fonti.siti import Profilo
@@ -121,6 +121,20 @@ def _non_alzare(request: Request, nuovo: int, attuale: int) -> None:
         raise ImpostazioneNonValida(ALZARE_SOLO_DAL_PC)
 
 
+def _soglia(request: Request, s: Session, sezione: str, modello: type, chiave: str | int, testo: str) -> HTMLResponse:
+    """ESE-06, decisione 73: soglia di una fonte. Da fuori casa non si porta a 0: come alzare un tetto, farebbe
+    valutare tutte le notizie della fonte, senza pre-filtro (decisione 56)."""
+
+    def azione():
+        fonte = s.get_one(modello, chiave)
+        soglia = impostazioni.soglia_fonte(testo)
+        if soglia == 0 != fonte.soglia and not dal_pc(request):
+            raise ImpostazioneNonValida("Da fuori casa la soglia di una fonte non si porta a 0: va fatto dal PC.")
+        impostazioni.salva_soglia(s, fonte, soglia)
+
+    return _esegui(request, s, sezione, azione)
+
+
 @router.get("/{sezione}", response_class=HTMLResponse)
 def apri(request: Request, s: Sessione, sezione: str):
     return finestra(request, s, sezione)
@@ -177,6 +191,11 @@ async def aggiungi_canale(request: Request, s: Sessione, indirizzo: Testo):
     return _esegui(request, s, "canali-youtube", lambda: impostazioni.aggiungi_canale(s, canale.id, canale.nome))
 
 
+@router.post("/youtube/soglia", response_class=HTMLResponse)
+def soglia_canale(request: Request, s: Sessione, id: Testo, soglia: Annotated[str, Form()] = ""):
+    return _soglia(request, s, "canali-youtube", CanaleYoutube, id, soglia)
+
+
 @router.post("/youtube/rimuovi", response_class=HTMLResponse, dependencies=[SoloDalPc])
 def rimuovi_canale(request: Request, s: Sessione, id: Testo):
     return _esegui(request, s, "canali-youtube", lambda: impostazioni.rimuovi_canale(s, id))
@@ -220,6 +239,11 @@ async def aggiungi_sito(request: Request, s: Sessione, indirizzo: Testo):
     return _esegui(
         request, s, "siti", lambda: dati_siti.aggiungi(s, profilo.url, profilo.come_dict(), profilo.diagnosi or None)
     )
+
+
+@router.post("/siti/{id}/soglia", response_class=HTMLResponse)
+def soglia_sito(request: Request, s: Sessione, id: int, soglia: Annotated[str, Form()] = ""):
+    return _soglia(request, s, "siti", Sito, id, soglia)
 
 
 @router.post("/siti/{id}/rimuovi", response_class=HTMLResponse, dependencies=[SoloDalPc])
@@ -333,6 +357,11 @@ def aggiungi_categoria(request: Request, s: Sessione, codice: Testo, nome: Annot
 @router.post("/arxiv/categorie/rimuovi", response_class=HTMLResponse, dependencies=[SoloDalPc])
 def rimuovi_categoria(request: Request, s: Sessione, codice: Testo):
     return _esegui(request, s, "arxiv", lambda: impostazioni.rimuovi_categoria(s, codice))
+
+
+@router.post("/arxiv/soglia", response_class=HTMLResponse)
+def soglia_categoria(request: Request, s: Sessione, codice: Testo, soglia: Annotated[str, Form()] = ""):
+    return _soglia(request, s, "arxiv", CategoriaArxiv, codice, soglia)
 
 
 @router.post("/arxiv/tetto", response_class=HTMLResponse)

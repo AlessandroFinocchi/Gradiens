@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt injection nascosta nelle pagine web · Gradiens</title>
+<link rel="stylesheet" href="../src/gradiens/dashboard/static/stile.css">
+<link rel="stylesheet" href="grafi.css">
+<script src="grafi-comune.js"></script>
+</head>
+<body>
+<!-- Preview della pagina della notizia (UI-13) con i grafi in cui compare e "Aggiungi a un grafo" (GRA-07).
+     In fondo, lo stesso bottone in una riga degli elenchi. -->
+<div class="app" id="app">
+  <main class="dettaglio">
+    <a class="indietro" href="#" id="indietro"></a>
+    <div class="n-meta" id="meta"></div>
+    <h1>Prompt injection nascosta nelle pagine web dirotta gli agenti del browser</h1>
+    <p class="titolo-originale">Titolo originale: Hidden prompt injection in web pages hijacks browser agents</p>
+
+    <div class="azioni-dettaglio">
+      <a class="bottone" href="#" id="originale"></a>
+      <button type="button" class="bottone secondario cuore" aria-pressed="false" id="cuore"></button>
+      <details id="aggiungi">
+        <summary class="bottone secondario" id="bottone-aggiungi"></summary>
+        <form class="popover" id="form-aggiungi">
+          <label for="scelta-grafo">Grafo</label>
+          <select class="selettore" id="scelta-grafo"></select>
+          <input class="campo" id="nome-nuovo" placeholder="Nome del nuovo grafo" hidden aria-label="Nome del nuovo grafo">
+          <label for="scelta-sezione">Sezione</label>
+          <select class="selettore" id="scelta-sezione"></select>
+          <button class="bottone piccolo">Aggiungi</button>
+        </form>
+      </details>
+    </div>
+
+    <div class="riassunto-completo">
+      <p>Alcune pagine web contengono istruzioni nascoste, invisibili all'utente, che gli agenti del browser leggono come se fossero richieste legittime. In una dimostrazione l'agente, incaricato di riassumere una pagina, ha invece aperto la casella di posta dell'utente e inviato a un indirizzo esterno gli ultimi messaggi.</p>
+      <p>Gli autori consigliano di separare le istruzioni dell'utente dal contenuto delle pagine e di chiedere una conferma prima di ogni azione che invia dati fuori.</p>
+    </div>
+
+    <section class="riquadro" aria-labelledby="t-grafi">
+      <h2 id="t-grafi">Grafi</h2>
+      <ul class="elenco-grafi" id="grafi-notizia"></ul>
+    </section>
+
+    <section class="riquadro" aria-labelledby="t-pertinenza">
+      <h2 id="t-pertinenza">Pertinenza</h2>
+      <div class="barra-riga"><span>Sicurezza informatica</span><span class="barra"><span style="width: 91%"></span></span><b>91</b></div>
+      <div class="barra-riga"><span>LLM e agenti</span><span class="barra"><span style="width: 84%"></span></span><b>84</b></div>
+    </section>
+
+    <p class="nota" style="margin-top:32px">Preview: lo stesso bottone in una riga di Notizie, Archivio e pagina dell'argomento. Apre la stessa scelta di grafo e sezione.</p>
+    <ul class="elenco riquadro" style="padding:0">
+      <li class="notizia">
+        <div class="n-corpo">
+          <h2 class="n-titolo"><a href="#">Un filtro sulle chiamate agli strumenti blocca l'80% delle iniezioni</a></h2>
+          <div class="n-meta" id="meta-riga"></div>
+          <div class="n-piede"><span class="punteggio alto">LLM e agenti <b>88</b></span></div>
+        </div>
+        <div class="n-azioni" id="azioni-riga"></div>
+      </li>
+    </ul>
+  </main>
+</div>
+
+<script>
+document.getElementById("app").insertAdjacentHTML("afterbegin", sidebar("siti"));
+document.getElementById("indietro").innerHTML = `${ic("indietro")}Siti web`;
+document.getElementById("meta").innerHTML = `${ic("sito")}<span>Articolo</span>·<span>redhotcyber.com</span>·<span>pubblicata il 20 novembre 2026</span>`;
+document.getElementById("originale").innerHTML = `${ic("esterno")}Leggi l'originale`;
+document.getElementById("cuore").innerHTML = `${ic("cuore")}Metti il cuore`;
+document.getElementById("bottone-aggiungi").innerHTML = `${ic("grafi")}Aggiungi a un grafo`;
+document.getElementById("meta-riga").innerHTML = `${ic("arxiv")}<span>Paper arXiv</span>·<span>cs.CL</span>·<span>21 nov</span>`;
+document.getElementById("azioni-riga").innerHTML = `<button type="button" class="bottone-icona" title="Aggiungi a un grafo" aria-label="Aggiungi a un grafo">${ic("grafi")}</button><button type="button" class="bottone-icona cuore" aria-pressed="true" aria-label="Togli il cuore">${ic("cuore")}</button>`;
+
+// Sezioni dei grafi finti, per la scelta della sezione.
+const SEZIONI_DEI_GRAFI = {
+  "Sicurezza degli agenti LLM": ["Attacchi", "— Iniezioni", "Difese"],
+  "Riabilitazione del ginocchio": ["Esercizi", "Studi", "Tendini", "Ritorno allo sport"],
+  "Ransomware nella sanità": [],
+};
+const inGrafi = [{ nome: "Sicurezza degli agenti LLM", sezione: "Iniezioni" }];
+
+const grafo = document.getElementById("scelta-grafo"), sezioneSel = document.getElementById("scelta-sezione"), nomeNuovo = document.getElementById("nome-nuovo");
+function opzioniGrafi() {
+  const liberi = GRAFI.filter((g) => !inGrafi.some((x) => x.nome === g.nome));
+  grafo.innerHTML = liberi.map((g) => `<option>${g.nome}</option>`).join("") + '<option value="">Nuovo grafo…</option>';
+  opzioniSezioni();
+}
+function opzioniSezioni() {
+  const nuovo = grafo.value === "";
+  nomeNuovo.hidden = !nuovo;
+  const sezioni = nuovo ? [] : SEZIONI_DEI_GRAFI[grafo.value];
+  sezioneSel.innerHTML = '<option value="">Nessuna, sotto la radice</option>' + sezioni.map((s) => `<option>${s}</option>`).join("");
+  sezioneSel.disabled = !sezioni.length;
+}
+function elencoGrafi() {
+  document.getElementById("grafi-notizia").innerHTML = inGrafi.map((g) =>
+    `<li><span><a href="grafo.html">${g.nome}</a><br><span class="sottotitolo">${g.sezione ? `nella sezione «${g.sezione}»` : "sotto la radice"}</span></span><a class="bottone secondario piccolo" href="grafo.html">Apri il grafo</a></li>`).join("");
+}
+grafo.onchange = opzioniSezioni;
+document.getElementById("form-aggiungi").onsubmit = (e) => {
+  e.preventDefault();
+  const nome = grafo.value || nomeNuovo.value.trim();
+  if (!nome) { nomeNuovo.focus(); return; }
+  inGrafi.push({ nome, sezione: sezioneSel.value.replace(/^— /, "") });
+  if (!grafo.value) GRAFI.push({ nome });
+  SEZIONI_DEI_GRAFI[nome] ??= [];
+  document.getElementById("aggiungi").open = false;
+  nomeNuovo.value = "";
+  elencoGrafi(); opzioniGrafi();
+};
+opzioniGrafi(); elencoGrafi();
+</script>
+</body>
+</html>

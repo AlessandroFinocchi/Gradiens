@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grafi · Gradiens</title>
+<link rel="stylesheet" href="../src/gradiens/dashboard/static/stile.css">
+<link rel="stylesheet" href="grafi.css">
+<script src="grafi-comune.js"></script>
+</head>
+<body>
+<!-- Preview della pagina Grafi (GRA-10). ?vuoto mostra la pagina senza grafi. -->
+<div class="app" id="app">
+  <main class="pagina">
+    <header class="testata">
+      <div class="testata-riga">
+        <div>
+          <h1>Grafi</h1>
+          <div class="sottotitolo">Notizie collegate a mano, divise in sezioni. Le notizie in un grafo non vengono cancellate dopo 7 giorni. Prima i grafi modificati più di recente.</div>
+        </div>
+        <div class="azioni-testata">
+          <details id="nuovo">
+            <summary class="bottone" id="bottone-nuovo"></summary>
+            <form class="popover" onsubmit="event.preventDefault(); location.href = 'grafo.html?nuovo=' + encodeURIComponent(this.nome.value)">
+              <p>Dai un nome al grafo. Le notizie le aggiungi dopo, dal grafo o da ogni notizia.</p>
+              <input class="campo" name="nome" maxlength="200" required placeholder="Es. Sicurezza degli agenti LLM" aria-label="Nome del grafo">
+              <button class="bottone piccolo">Crea il grafo</button>
+            </form>
+          </details>
+        </div>
+      </div>
+    </header>
+    <ul class="elenco-argomenti" id="grafi"></ul>
+  </main>
+</div>
+
+<script>
+document.getElementById("app").insertAdjacentHTML("afterbegin", sidebar("grafi"));
+document.getElementById("bottone-nuovo").innerHTML = `${ic("aggiungi")}Nuovo grafo`;
+const elenco = document.getElementById("grafi");
+if (new URLSearchParams(location.search).has("vuoto")) {
+  elenco.outerHTML = `<div class="vuoto-pagina">${ic("grafi")}<h2>Ancora nessun grafo</h2><p>Un grafo raccoglie le notizie che vuoi tenere insieme: le dividi in sezioni e le colleghi con frecce. Crealo qui, oppure da una notizia con «Aggiungi a un grafo».</p></div>`;
+} else {
+  elenco.innerHTML = GRAFI.map((g) => `<li class="riga-argomento">
+    <div>
+      <h2><a href="grafo.html">${g.nome}</a></h2>
+      <div class="riga-info"><span>${g.notizie} notizie · ${g.sezioni ? `${g.sezioni} sezioni` : "nessuna sezione"} · ${g.visualizzazione} · modificato ${g.modificato.startsWith("oggi") ? "" : "il "}${g.modificato}</span></div>
+    </div>
+    <div class="azioni-argomento">
+      <details><summary class="bottone-icona" title="Rinomina" aria-label="Rinomina il grafo">${ic("matita")}</summary>
+        <form class="popover" onsubmit="event.preventDefault()"><input class="campo" value="${g.nome}" aria-label="Nuovo nome"><button class="bottone piccolo">Rinomina</button></form></details>
+      <details><summary class="bottone-icona" title="Elimina" aria-label="Elimina il grafo">${ic("cestino")}</summary>
+        <form class="popover" onsubmit="event.preventDefault()"><p>Le notizie restano. Quelle senza cuore e in nessun altro grafo tornano alla regola dei 7 giorni: le più vecchie saranno cancellate alla prossima pulizia.</p>
+          <button class="bottone piccolo">Elimina il grafo</button><p class="solo-pc">Solo dal PC: da fuori casa questo bottone è disattivato.</p></form></details>
+    </div>
+  </li>`).join("");
+}
+</script>
+</body>
+</html>

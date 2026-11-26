@@ -11,7 +11,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 ## 2. Ambiente
 
 - `AMB-01` L'applicazione gira su un computer dell'utente, con Windows 11 o con Linux, con le stesse funzioni. L'installazione usata ogni giorno è oggi un portatile Linux (Debian 13); il PC di casa con Windows 11 e RTX 3070 8 GB resta supportato. Da fuori casa si raggiunge tramite Tailscale. Vedi [ADR 0001](../adr/0001-esecuzione-sul-pc-di-casa.md) e [ADR 0013](../adr/0013-dashboard-da-fuori-casa-con-tailscale-serve.md). *(Aggiornato il 15 novembre 2026.)*
-- `AMB-02` L'applicazione non è esposta su internet. La dashboard ascolta solo sul PC (`127.0.0.1`). Da fuori casa, se l'accesso è attivo nelle Impostazioni, la raggiungono solo i dispositivi della rete Tailscale dell'utente, tramite Tailscale Serve sullo stesso PC, con HTTPS; le richieste senza l'identità di Tailscale (per esempio quelle di Tailscale Funnel) si rifiutano. Serve entra da una seconda porta locale, e vale "dal PC" solo una richiesta arrivata sulla porta principale. Si fanno solo dal PC: spegnere Gradiens, cambiare l'avvio all'accensione, creare o togliere le icone, cambiare il bot o la chat Telegram, togliere i cuori, eliminare interessi e fonti, alzare i tetti (paper arXiv, pagine e articoli dei siti, finestra di raccolta). Da fuori casa si legge, si mette il cuore, si avvia un'esecuzione, si aggiungono fonti e interessi. Vedi [ADR 0013](../adr/0013-dashboard-da-fuori-casa-con-tailscale-serve.md). *(Aggiornato il 17 novembre 2026.)*
+- `AMB-02` L'applicazione non è esposta su internet. La dashboard ascolta solo sul PC (`127.0.0.1`). Da fuori casa, se l'accesso è attivo nelle Impostazioni, la raggiungono solo i dispositivi della rete Tailscale dell'utente, tramite Tailscale Serve sullo stesso PC, con HTTPS; le richieste senza l'identità di Tailscale (per esempio quelle di Tailscale Funnel) si rifiutano. Serve entra da una seconda porta locale, e vale "dal PC" solo una richiesta arrivata sulla porta principale. Si fanno solo dal PC: spegnere Gradiens, cambiare l'avvio all'accensione, creare o togliere le icone, cambiare il bot o la chat Telegram, togliere i cuori, eliminare interessi e fonti, togliere qualcosa da un grafo (`GRA-09`), alzare i tetti (paper arXiv, pagine e articoli dei siti, finestra di raccolta). Da fuori casa si legge, si mette il cuore, si avvia un'esecuzione, si aggiungono fonti e interessi, si costruiscono i grafi. Vedi [ADR 0013](../adr/0013-dashboard-da-fuori-casa-con-tailscale-serve.md). *(Aggiornato il 25 novembre 2026.)*
 - `AMB-03` Il codice funziona su Windows e su Linux e non usa dipendenze specifiche di un sistema operativo, così si può spostare su un server. Fa eccezione solo la registrazione dell'avvio all'accensione (`AMB-04`), che ha un ramo per ciascun sistema. I test automatici girano su entrambi.
 - `AMB-04` Nelle Impostazioni un interruttore decide come si avvia Gradiens:
   - **all'accensione del PC**: parte da solo, senza bisogno di accedere al sistema né di accendere il monitor. Basta accendere il PC e lanciare l'esecuzione dal bot Telegram;
@@ -176,7 +176,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 
 **Cancellazione delle notizie**
 
-- `ESE-09` All'inizio di ogni esecuzione, e comunque almeno una volta al giorno, si cancellano le notizie più vecchie di 7 giorni che non sono in **archivio**. Il limite resta di 7 giorni qualunque sia la finestra di raccolta, quindi fuori dall'archivio non compaiono mai notizie più vecchie di 7 giorni. Per le notizie con data incerta conta la data di scoperta.
+- `ESE-09` All'inizio di ogni esecuzione, e comunque almeno una volta al giorno, si cancellano le notizie più vecchie di 7 giorni che non sono in **archivio** né in un **grafo** (`GRA-08`). Il limite resta di 7 giorni qualunque sia la finestra di raccolta, quindi fuori dall'archivio e dai grafi non compaiono mai notizie più vecchie di 7 giorni. Per le notizie con data incerta conta la data di scoperta. *(Aggiornato il 25 novembre 2026.)*
 - `ESE-10` Un argomento che resta senza notizie viene cancellato.
 
 **Metriche e interruzione**
@@ -240,7 +240,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 
 Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dashboard. Tutta la dashboard segue lo stile delle app Claude, con tema chiaro e scuro e notizie mostrate come elenco compatto (variante 2 di [mockup/00-confronto-stili.html](../../mockup/00-confronto-stili.html)).
 
-- `UI-01` **Sidebar**: mostra sempre le icone di tutte le pagine. Quando ci si passa sopra con il puntatore, o la si raggiunge con la tastiera, si espande e mostra anche i nomi; la pagina si sposta per non finirci sotto (sul telefono la sidebar resta sopra il contenuto). Un clic sul simbolo di Gradiens in alto la fissa espansa, un altro clic la sblocca; la scelta vale per tutte le pagine. Chiusa la finestra delle Impostazioni, la sidebar torna stretta. In alto ci sono, in quest'ordine, la Home, la sezione Notizie con le pagine Siti web, YouTube e arXiv (`UI-04`), poi Timeline e Archivio. Il titolo della sezione Notizie si legge a sidebar espansa; stretta, la sezione è separata da due righe (decisione 69). In basso, separate, ci sono Aiuto e, sotto, l'icona a ingranaggio delle Impostazioni. L'ingranaggio mostra un segnale quando almeno una sezione delle Impostazioni ne ha uno (`UI-10`).
+- `UI-01` **Sidebar**: mostra sempre le icone di tutte le pagine. Quando ci si passa sopra con il puntatore, o la si raggiunge con la tastiera, si espande e mostra anche i nomi; la pagina si sposta per non finirci sotto (sul telefono la sidebar resta sopra il contenuto). Un clic sul simbolo di Gradiens in alto la fissa espansa, un altro clic la sblocca; la scelta vale per tutte le pagine. Chiusa la finestra delle Impostazioni, la sidebar torna stretta. In alto ci sono, in quest'ordine, la Home, la sezione Notizie con le pagine Siti web, YouTube e arXiv (`UI-04`), poi Timeline, Grafi (`GRA-10`) e Archivio. Il titolo della sezione Notizie si legge a sidebar espansa; stretta, la sezione è separata da due righe (decisione 69). In basso, separate, ci sono Aiuto e, sotto, l'icona a ingranaggio delle Impostazioni. L'ingranaggio mostra un segnale quando almeno una sezione delle Impostazioni ne ha uno (`UI-10`). *(Aggiornato il 25 novembre 2026.)*
 - `UI-02` **Home**, organizzata in quattro blocchi:
   1. ultima esecuzione, con ora di avvio, durata, metriche, errori, bottone "Avvia esecuzione" e avanzamento se un'esecuzione è in corso; prossima esecuzione programmata, oppure "programmazione in pausa";
   2. "In evidenza", con le 3 notizie a pertinenza più alta per ogni tipo di fonte (siti web, YouTube, arXiv) tra quelle scoperte nelle ultime 24 ore e mostrate nelle pagine Notizie; il titolo di ogni gruppo porta alla sua pagina;
@@ -320,10 +320,39 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
   - interessi e raffinamento;
   - il cuore;
   - argomenti;
+  - grafi;
   - stati;
   - avvio all'accensione;
   - comandi della CLI e di Telegram.
-- `UI-13` **Pagina della notizia specifica**: ogni notizia ha una pagina sua, con un indirizzo proprio, che si apre da Notizie, Archivio e Timeline, anche in una nuova scheda del browser. Mostra per intero tutto ciò che l'elenco accorcia: titolo originale e traduzione, fonte, tipo, data, stato, riassunto completo, tutti gli interessi con il loro punteggio, argomento con il link alla pagina dell'argomento e cuore. Il testo integrale non viene salvato né mostrato: per leggerlo c'è un link ben visibile all'originale, che si apre in una nuova scheda.
+- `UI-13` **Pagina della notizia specifica**: ogni notizia ha una pagina sua, con un indirizzo proprio, che si apre da Notizie, Archivio e Timeline, anche in una nuova scheda del browser. Mostra per intero tutto ciò che l'elenco accorcia: titolo originale e traduzione, fonte, tipo, data, stato, riassunto completo, tutti gli interessi con il loro punteggio, argomento con il link alla pagina dell'argomento, cuore, i grafi in cui compare con il link a ciascuno e il bottone "Aggiungi a un grafo" (`GRA-07`). Il testo integrale non viene salvato né mostrato: per leggerlo c'è un link ben visibile all'originale, che si apre in una nuova scheda. *(Aggiornato il 25 novembre 2026.)*
+
+### 8.1 Grafi
+
+Aggiunta il 25 novembre 2026. Le decisioni e gli esempi disegnati sono in [grafi.md](grafi.md).
+
+- `GRA-01` Un **grafo** collega a mano delle notizie scelte dall'utente. La sua radice porta il nome del grafo. Si possono creare più grafi. Una notizia può stare in più grafi, ma una sola volta in ciascuno. Il grafo è distinto dall'**argomento**: l'argomento lo assegna l'LLM e segue una storia nel tempo, il grafo lo costruisce l'utente.
+- `GRA-02` Dentro un grafo ci sono **sezioni**, ognuna con un titolo e un colore che l'utente sceglie. Una sezione contiene notizie e altre sezioni. Ogni notizia o sezione ha al più una sezione che la contiene; senza, sta direttamente sotto la radice.
+- `GRA-03` Un **collegamento** è una freccia da una notizia a un'altra dello stesso grafo, con un'etichetta breve facoltativa (es. "approfondisce", "smentisce"). Tra due notizie c'è al più un collegamento per verso.
+- `GRA-04` Sezioni, appartenenze e collegamenti li decide solo l'utente: Gradiens non li propone e non li assegna (nessuna chiamata all'LLM).
+- `GRA-05` Ogni grafo ha una **visualizzazione**, che si sceglie e si cambia in qualsiasi momento; i dati restano gli stessi:
+  - **a riquadri**: la radice è il riquadro esterno con il nome del grafo, ogni sezione è un riquadro che contiene i suoi elementi;
+  - **a nodi**: radice e sezioni sono nodi con il loro titolo e colore, collegati ai loro elementi da frecce tratteggiate di appartenenza.
+
+  In entrambe le notizie sono riquadri con il titolo mostrato negli elenchi, e i collegamenti sono frecce continue con la loro etichetta.
+- `GRA-06` **Disposizione**: all'inizio il grafo si dispone da solo. A ogni aggiunta si ricalcola la posizione dei soli nodi mai spostati; un nodo spostato a mano tiene la sua posizione. Il bottone "Riordina" ricalcola tutto, anche le posizioni manuali, dopo una conferma. Le posizioni si salvano separatamente per ciascuna visualizzazione.
+- `GRA-12` **Frecce spezzate**: un doppio clic su una freccia aggiunge un punto di piega, che si trascina; un doppio clic sul punto lo toglie. I punti si vedono solo con la freccia selezionata. Le pieghe sono salvate in proporzione ai due nodi, quindi seguono la freccia quando un nodo si sposta, e separatamente per ciascuna visualizzazione; "Riordina" le toglie. Un'opzione del grafo disegna tutte le frecce ad angolo retto, passando anche dalle pieghe.
+- `GRA-13` **Aggancio**: nella pagina del grafo si sceglie come si agganciano i nodi spostati, e la scelta si ricorda per ogni grafo: **guide** (predefinito: linee di allineamento con i centri e i bordi degli altri nodi e guide di distribuzione, e il nodo si aggancia alla linea), **griglia** (il nodo si muove a scatti su una griglia) o **libero**. Tenendo premuto Alt l'aggancio si sospende per quel movimento.
+- `GRA-07` Una notizia si aggiunge a un grafo in due modi:
+  - dalla notizia, con "Aggiungi a un grafo" nella pagina della notizia (`UI-13`) e negli elenchi di Notizie, Archivio e pagina dell'argomento: si sceglie il grafo e, se si vuole, la sezione;
+  - dal grafo, con una ricerca tra le notizie che esistono ancora (ultimi 7 giorni, archivio, notizie già in altri grafi).
+- `GRA-08` Una notizia che sta in almeno un grafo non viene cancellata dopo 7 giorni, anche senza cuore (`ESE-09`). Il grafo non mette il cuore e non conta per il raffinamento. Tolta dall'ultimo grafo, la notizia torna alla regola dei 7 giorni.
+- `GRA-09` **Togliere** (solo dal PC, `AMB-02`; da fuori casa si crea, si aggiunge e si modifica):
+  - eliminare un grafo chiede una conferma, che ricorda che le notizie senza cuore e in nessun altro grafo torneranno alla regola dei 7 giorni;
+  - eliminare una sezione non elimina il suo contenuto: notizie e sottosezioni passano alla sezione che la conteneva, o sotto la radice;
+  - togliere una notizia da un grafo toglie anche i suoi collegamenti in quel grafo;
+  - si può togliere un singolo collegamento.
+- `GRA-10` **Pagina Grafi**, nella sidebar tra Timeline e Archivio: elenco compatto dei grafi con nome, numero di notizie e di sezioni, visualizzazione e ultima modifica, prima quelli modificati più di recente. Il bottone "Nuovo grafo" chiede solo il nome.
+- `GRA-11` **Pagina del grafo**, con un indirizzo proprio: il disegno occupa quasi tutta la pagina. In alto ci sono il nome (rinominabile), la scelta della visualizzazione, l'aggancio (`GRA-13`), l'interruttore delle frecce ad angolo retto (`GRA-12`), "Riordina", "Nuova sezione" e la ricerca per aggiungere notizie. Un clic su una notizia apre un riquadro laterale con titolo, fonte, data, link alla pagina della notizia e le azioni sul nodo (sezione, collegamenti, togli dal grafo); un clic su una sezione permette di cambiarne titolo, colore e sezione che la contiene.
 
 ## 9. CLI
 
@@ -341,6 +370,7 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
   - archivio;
   - notizie degli ultimi 7 giorni;
   - argomenti;
+  - grafi, con sezioni, frecce e posizioni dei nodi;
   - registro delle notizie già viste;
   - storico delle esecuzioni.
 - `PER-02` Tutto ciò che l'applicazione salva sta dentro la cartella della repository, in percorsi esclusi da git (`.gitignore`): configurazione, chiavi API e token (in `.env`), database, cache e log.
@@ -371,7 +401,7 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
   - il messaggio Telegram di `TG-03`.
 - `ACC-03` Se si avvia una seconda esecuzione mentre la prima è in corso, la richiesta viene rifiutata da tutti e quattro i canali di avvio (`ESE-02`).
 - `ACC-04` Dopo un riavvio, i dati elencati in `PER-01` sono ancora presenti e invariati.
-- `ACC-05` Una notizia non archiviata più vecchia di 7 giorni viene cancellata alla pulizia successiva. Una notizia archiviata non viene mai cancellata.
+- `ACC-05` Una notizia non archiviata più vecchia di 7 giorni viene cancellata alla pulizia successiva. Una notizia archiviata o in un grafo non viene mai cancellata.
 - `ACC-06` Dopo aver messo il cuore a 3 notizie dello stesso interesse, alla fine dell'esecuzione successiva compare una proposta di raffinamento. La descrizione dell'interesse resta invariata finché l'utente non approva.
 - `ACC-07` Un messaggio al bot da una chat diversa da quella configurata non produce nessun effetto.
 - `ACC-08` Nessuna chiave o token compare nei file tracciati da git.
@@ -385,3 +415,6 @@ Tutta l'interfaccia è in italiano. L'applicazione si usa interamente dalla dash
 - `ACC-13` Dopo `/pausa`, all'orario programmato non parte nessuna esecuzione, anche dopo un riavvio, mentre `/aggiorna` funziona. Dopo `/riprendi` l'esecuzione programmata riparte.
 - `ACC-14` Su un campione di 10 notizie di tipi diversi, confrontando il riassunto con l'originale: il riassunto non contiene affermazioni assenti nell'originale e ne copre i punti principali (verifica manuale).
 - `ACC-15` Con Claude Code come provider, un'esecuzione completa non richiede nessuna chiave API e nel resoconto mostra i token senza costo. Se Claude Code non è collegato a un account, l'esecuzione non parte e la sezione Modelli LLM mostra l'avvertimento.
+- `ACC-16` Una notizia senza cuore aggiunta a un grafo è ancora presente dopo la pulizia, anche se ha più di 7 giorni. Tolta dall'unico grafo in cui stava, viene cancellata alla pulizia successiva.
+- `ACC-17` Lo stesso grafo, passando da una visualizzazione all'altra, mostra le stesse sezioni, appartenenze e frecce. Un nodo spostato a mano resta al suo posto dopo un riavvio e dopo l'aggiunta di altre notizie; "Riordina", dopo la conferma, lo riposiziona.
+- `ACC-18` Da fuori casa si crea un grafo e vi si aggiunge una notizia; togliere la notizia, una freccia, una sezione o il grafo viene rifiutato.

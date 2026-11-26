@@ -1,0 +1,84 @@
+/* Gradiens – stile delle preview dei grafi (fase 3). Si aggiunge a stile.css della dashboard; nella fase 4 confluisce lì. */
+
+/* ---------- Pagina Grafi (GRA-10) ---------- */
+.testata-riga .azioni-testata { flex: none; display: flex; gap: 8px; position: relative; }
+.azioni-testata details { position: relative; }
+.azioni-testata summary { list-style: none; }
+.azioni-testata summary::-webkit-details-marker { display: none; }
+.nota-preview { margin: 18px 24px; padding: 10px 14px; border-radius: 10px; background: var(--hover); color: var(--tenue); font-size: 13px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.nota-preview label { display: inline-flex; gap: 8px; align-items: center; color: var(--testo); cursor: pointer; }
+
+/* ---------- Pagina del grafo (GRA-11) ---------- */
+.pagina-grafo { height: 100vh; display: flex; flex-direction: column; min-width: 0; }
+.pagina-grafo .testata { position: static; }
+.titolo-grafo { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.titolo-grafo h1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.strumenti { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+.strumenti .segmenti button { font-size: 13px; padding: 4px 11px; }
+.cerca-notizie { position: relative; flex: 0 1 320px; margin-left: auto; }
+.cerca-notizie > .icona { position: absolute; left: 9px; top: 8px; width: 15px; height: 15px; color: var(--tenue); }
+.cerca-notizie .campo { padding-left: 30px; }
+.risultati { position: absolute; right: 0; left: 0; top: 38px; z-index: 8; margin: 0; padding: 6px; list-style: none; background: var(--pannello); border: 1px solid var(--bordo); border-radius: 10px; box-shadow: var(--ombra-alta); max-height: 340px; overflow-y: auto; }
+.risultati[hidden] { display: none; }
+.risultati button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 7px 9px; border-radius: 7px; cursor: pointer; }
+.risultati button:hover, .risultati button:focus-visible { background: var(--hover); }
+.risultati strong { display: block; font-family: var(--font-titoli); font-size: 14px; line-height: 1.3; }
+.risultati .n-meta { margin-top: 2px; }
+.risultati .vuoto { padding: 8px 9px; color: var(--tenue); font-size: 13px; }
+
+.area-grafo { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; position: relative; }
+/* isolation: la griglia di grid-guide (z-index -1) resta sopra lo sfondo della tela. Con la griglia vera si
+   tolgono i puntini, che non seguono lo spostamento della vista. */
+#tela { isolation: isolate; min-height: 0; min-width: 0; position: relative; overflow: hidden; background-color: var(--bg); background-image: radial-gradient(var(--bordo) 1px, transparent 1px); background-size: 22px 22px; }
+#tela.con-griglia { background-image: none; }
+.aggancio { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--tenue); }
+.bottone.secondario[aria-pressed="true"] { background: var(--accento-tenue); color: var(--accento-testo); border-color: transparent; font-weight: 600; }
+.avviso-tela { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 4; background: var(--testo); color: var(--bg); padding: 7px 14px; border-radius: 999px; font-size: 13px; display: flex; gap: 10px; align-items: center; box-shadow: var(--ombra-alta); }
+.avviso-tela[hidden] { display: none; }
+.avviso-tela button { border: 0; background: none; color: inherit; text-decoration: underline; cursor: pointer; padding: 0; font-size: 13px; }
+
+/* Riquadro laterale del nodo selezionato */
+.pannello-nodo { width: 320px; border-left: 1px solid var(--bordo); background: var(--pannello); overflow-y: auto; padding: 16px 18px 24px; }
+.pannello-nodo[hidden] { display: none; }
+.pannello-testa { display: flex; align-items: flex-start; gap: 8px; }
+.pannello-testa .tipo { flex: 1; color: var(--tenue); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; padding-top: 7px; }
+.pannello-nodo h2 { margin: 6px 0 4px; font-family: var(--font-titoli); font-size: 18px; line-height: 1.3; }
+.pannello-nodo h3 { margin: 18px 0 6px; font-size: 12.5px; font-weight: 600; color: var(--tenue); }
+.pannello-nodo .n-meta { margin-bottom: 10px; }
+.pannello-nodo .selettore { width: 100%; padding: 6px 8px; }
+.pannello-azioni { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--bordo); }
+.bottone.pericolo { background: var(--pannello); color: var(--errore); border: 1px solid var(--bordo); font-weight: 500; }
+.bottone.pericolo:hover:not(:disabled) { background: var(--errore-tenue); }
+.solo-pc { font-size: 12px; color: var(--tenue); margin: 6px 0 0; }
+.collegamenti { list-style: none; margin: 0; padding: 0; font-size: 13.5px; }
+.collegamenti li { display: flex; align-items: center; gap: 6px; padding: 5px 0; border-bottom: 1px solid var(--bordo); }
+.collegamenti li:last-child { border-bottom: 0; }
+.collegamenti .verso { color: var(--tenue); flex: none; width: 16px; text-align: center; }
+.collegamenti .chi { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.collegamenti .etichetta { color: var(--accento-testo); font-size: 12px; flex: none; }
+.collegamenti .bottone-icona { width: 26px; height: 26px; }
+.collegamenti .bottone-icona .icona { width: 15px; height: 15px; }
+.colori { display: flex; gap: 8px; }
+.colori button { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
+.colori button[aria-pressed="true"] { border-color: var(--testo); box-shadow: inset 0 0 0 2px var(--pannello); }
+.vuota { color: var(--tenue); font-size: 13px; margin: 0; }
+
+@media (max-width: 700px) {
+  .pagina-grafo { height: calc(100vh - 0px); }
+  .cerca-notizie { flex-basis: 100%; margin-left: 0; }
+  .area-grafo { grid-template-columns: 1fr; }
+  .pannello-nodo { position: absolute; left: 0; right: 0; bottom: 0; width: auto; max-height: 55%; border-left: 0; border-top: 1px solid var(--bordo); box-shadow: var(--ombra-alta); z-index: 6; }
+}
+
+/* ---------- Pagina della notizia: grafi in cui compare (UI-13, GRA-07) ---------- */
+.azioni-dettaglio details { position: relative; }
+.azioni-dettaglio summary { list-style: none; }
+.azioni-dettaglio summary::-webkit-details-marker { display: none; }
+.azioni-dettaglio .popover { left: 0; right: auto; top: 46px; }
+.popover label { display: block; font-size: 12.5px; color: var(--tenue); margin-bottom: 4px; }
+.elenco-grafi { list-style: none; margin: 0; padding: 0; }
+.elenco-grafi li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--bordo); }
+.elenco-grafi li:last-child { border-bottom: 0; }
+.elenco-grafi span > a { text-decoration: none; font-family: var(--font-titoli); font-weight: 600; font-size: 15.5px; }
+.elenco-grafi span > a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.n-azioni-demo { display: flex; gap: 2px; }

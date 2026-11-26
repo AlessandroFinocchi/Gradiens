@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sicurezza degli agenti LLM · Gradiens</title>
+<link rel="stylesheet" href="../src/gradiens/dashboard/static/stile.css">
+<link rel="stylesheet" href="grafi.css">
+<style>
+  .app { padding-bottom: 0; }
+  .barra-preview { position: absolute; left: 12px; bottom: 12px; z-index: 4; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 6px 12px; border-radius: 10px; background: var(--pannello); border: 1px solid var(--bordo); font-size: 12.5px; color: var(--tenue); }
+  .barra-preview label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; color: var(--testo); }
+  .barra-preview button { border: 0; background: none; color: var(--accento-testo); cursor: pointer; padding: 0; font-size: 12.5px; }
+</style>
+<!-- Nella fase 4 questi file stanno in dashboard/static (ADR 0014); nella preview vengono dalla CDN, versioni bloccate. -->
+<script src="https://cdn.jsdelivr.net/npm/cytoscape@3.35.0/dist/cytoscape.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/layout-base@2.0.1/layout-base.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cose-base@2.2.0/cose-base.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cytoscape-fcose@2.2.0/cytoscape-fcose.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cytoscape-grid-guide@2.3.3/cytoscape-grid-guide.js"></script>
+<script src="grafi-comune.js"></script>
+</head>
+<body>
+<!-- Preview della pagina del grafo (GRA-05, GRA-06, GRA-07, GRA-09, GRA-11). Le modifiche restano nel browser
+     (localStorage), così si prova che le posizioni sopravvivono a un ricaricamento. ?nuovo=Nome apre un grafo vuoto. -->
+<div class="app" id="app">
+  <main class="pagina-grafo">
+    <header class="testata">
+      <a class="indietro" href="grafi.html" id="indietro"></a>
+      <div class="titolo-grafo"><h1 id="nome"></h1><button class="bottone-icona" id="rinomina" title="Rinomina o elimina il grafo" aria-label="Rinomina o elimina il grafo"></button></div>
+      <div class="strumenti">
+        <div class="segmenti" role="group" aria-label="Visualizzazione">
+          <button type="button" data-vista="riquadri">A riquadri</button><button type="button" data-vista="nodi">A nodi</button>
+        </div>
+        <button type="button" class="bottone secondario piccolo" id="angoli" aria-pressed="false" title="Disegna tutte le frecce ad angolo retto"></button>
+        <label class="aggancio" title="Tieni premuto Alt mentre trascini per non agganciare">Aggancia
+          <select class="selettore" id="aggancio"><option value="guide">alle guide</option><option value="griglia">alla griglia</option><option value="libero">libero</option></select></label>
+        <button type="button" class="bottone secondario piccolo" id="riordina"></button>
+        <button type="button" class="bottone secondario piccolo" id="nuova-sezione"></button>
+        <div class="cerca-notizie">
+          <span id="icona-cerca"></span>
+          <input class="campo" id="cerca" autocomplete="off" placeholder="Aggiungi una notizia: cerca titolo o fonte" aria-label="Cerca una notizia da aggiungere">
+          <ul class="risultati" id="risultati" hidden></ul>
+        </div>
+      </div>
+    </header>
+    <div class="area-grafo">
+      <div id="tela" aria-label="Disegno del grafo"></div>
+      <div class="avviso-tela" id="avviso" hidden><span>Clicca la notizia a cui arriva la freccia</span><button type="button" id="annulla-freccia">Annulla</button></div>
+      <div class="barra-preview">Preview:
+        <label><input type="checkbox" id="fuori-casa">Simula l'accesso da fuori casa</label>
+        <button type="button" id="ripristina">Ripristina l'esempio</button>
+      </div>
+      <aside class="pannello-nodo" id="pannello" hidden></aside>
+    </div>
+  </main>
+</div>
+
+<script>
+document.getElementById("app").insertAdjacentHTML("afterbegin", sidebar("grafi"));
+document.getElementById("indietro").innerHTML = `${ic("indietro")}Grafi`;
+document.getElementById("rinomina").innerHTML = ic("matita");
+document.getElementById("riordina").innerHTML = `${ic("riordina")}Riordina`;
+document.getElementById("angoli").innerHTML = `${ic("angolo")}Angoli retti`;
+document.getElementById("nuova-sezione").innerHTML = `${ic("sezione")}Nuova sezione`;
+document.getElementById("icona-cerca").outerHTML = ic("cerca");
+try { cytoscape.use(cytoscapeFcose); } catch { /* già registrato da solo */ }
+
+/* ---------- Stato ---------- */
+const parametri = new URLSearchParams(location.search);
+const NUOVO = parametri.get("nuovo");
+const CHIAVE = "gradiens-preview-grafo";
+let G = completa(carica());
+let selezione = null;          // { tipo: "notizia" | "sezione" | "radice" | "collegamento", id }
+let sorgenteFreccia = null;    // id della notizia da cui parte una freccia nuova
+let fuoriCasa = false;
+
+function carica() {
+  if (NUOVO) return { nome: NUOVO, visualizzazione: "riquadri", sezioni: [], notizie: [], collegamenti: [], posizioni: { riquadri: {}, nodi: {} } };
+  try { const s = localStorage.getItem(CHIAVE); if (s) return JSON.parse(s); } catch { /* niente archivio del browser */ }
+  return structuredClone(GRAFO_ESEMPIO);
+}
+// Campi aggiunti dopo la prima preview (GRA-12, GRA-13): valori predefiniti anche per i grafi già salvati.
+function completa(g) {
+  g.pieghe ??= { riquadri: {}, nodi: {} };
+  g.angoliRetti ??= false;
+  g.aggancio ??= "guide";
+  return g;
+}
+function salva() { if (!NUOVO) try { localStorage.setItem(CHIAVE, JSON.stringify(G)); } catch { /* idem */ } }
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const sezione = (id) => G.sezioni.find((s) => s.id === id);
+const nomeSezione = (id) => (id ? sezione(id).titolo : "radice");
+const posizioni = () => G.posizioni[G.visualizzazione];
+// Sezioni dentro una sezione, a ogni profondità: non possono diventarne il contenitore.
+function discendenti(id) {
+  const figli = G.sezioni.filter((s) => s.genitore === id).map((s) => s.id);
+  return figli.flatMap((f) => [f, ...discendenti(f)]);
+}
+const profondita = (s) => (s.genitore ? 1 + profondita(sezione(s.genitore)) : 0);
+function sezioniInOrdine(genitore = null) {
+  return G.sezioni.filter((s) => s.genitore === genitore).flatMap((s) => [s, ...sezioniInOrdine(s.id)]);
+}
+
+/* ---------- Disegno con Cytoscape (ADR 0014) ---------- */
+const v = (nome) => getComputedStyle(document.documentElement).getPropertyValue(nome).trim();
+const TITOLI = '"Iowan Old Style", "Palatino Linotype", Georgia, serif';
+const SANS = 'system-ui, "Segoe UI", sans-serif';
+
+function elementi() {
+  const vista = G.visualizzazione, pos = posizioni(), els = [];
+  const nodo = (data, genitore) => {
+    const el = { data };
+    if (vista === "riquadri") { if (genitore) el.data.parent = genitore; }
+    else if (genitore) els.push({ data: { id: `app-${data.id}`, source: genitore, target: data.id, tipo: "appartenenza" } });
+    if (pos[data.id]) el.position = { x: pos[data.id].x, y: pos[data.id].y };
+    els.push(el);
+    return el;
+  };
+  const radice = nodo({ id: "radice", label: G.nome, tipo: "radice", w: Math.max(150, G.nome.length * 8.6 + 40) }, null);
+  if (vista === "riquadri") { radice.grabbable = false; radice.pannable = true; }
+  for (const s of G.sezioni) nodo({ id: s.id, label: s.titolo, tipo: "sezione", colore: s.colore, w: Math.max(110, s.titolo.length * 8 + 36) }, s.genitore || "radice");
+  for (const n of G.notizie) {
+    const t = notizia(n.id).titolo;
+    nodo({ id: n.id, label: t, tipo: "notizia", h: Math.ceil(t.length / 23) * 17 + 22 }, n.sezione || "radice");
+  }
+  for (const c of G.collegamenti) els.push({ data: { id: c.id, source: c.da, target: c.a, label: c.etichetta, tipo: "collegamento" } });
+  return els;
+}
+
+function stile() {
+  const c = { bg: v("--bg"), pannello: v("--pannello"), testo: v("--testo"), tenue: v("--tenue"), bordo: v("--bordo"), accento: v("--accento"), accentoTesto: v("--accento-testo"), su: v("--su-accento") };
+  return [
+    { selector: "node", style: { label: "data(label)", color: c.testo, "font-family": SANS, "font-size": 13, "text-wrap": "wrap", "text-valign": "center", "text-halign": "center", "overlay-opacity": 0 } },
+    { selector: 'node[tipo="notizia"]', style: { shape: "round-rectangle", width: 190, height: "data(h)", "background-color": c.pannello, "border-width": 1, "border-color": c.bordo, "font-family": TITOLI, "font-weight": 600, "text-max-width": 170 } },
+    // Radice e sezioni come riquadri (nodi composti): titolo sopra il bordo.
+    { selector: 'node[tipo="radice"]:parent', style: { shape: "round-rectangle", "background-color": c.accento, "background-opacity": 0.035, "border-width": 1.5, "border-color": c.accento, "border-style": "dashed", "text-valign": "top", "font-family": TITOLI, "font-size": 18, "font-weight": 600, padding: 34, "text-margin-y": -6 } },
+    { selector: 'node[tipo="sezione"]:parent', style: { shape: "round-rectangle", "background-color": "data(colore)", "background-opacity": 0.1, "border-width": 1.5, "border-color": "data(colore)", "text-valign": "top", color: "data(colore)", "font-weight": 700, padding: 22, "text-margin-y": -4 } },
+    // Radice e sezioni come nodi (o riquadri ancora vuoti).
+    { selector: 'node[tipo="radice"]:childless', style: { shape: "round-rectangle", width: "data(w)", height: 46, "background-color": c.accento, "border-width": 0, color: c.su, "font-family": TITOLI, "font-size": 16, "font-weight": 600, "text-max-width": 300 } },
+    { selector: 'node[tipo="sezione"]:childless', style: { shape: "round-rectangle", width: "data(w)", height: 38, "background-color": "data(colore)", "background-opacity": 0.18, "border-width": 1.5, "border-color": "data(colore)", "font-weight": 700 } },
+    { selector: "edge", style: { width: 1.6, "curve-style": "bezier", "line-color": c.accentoTesto, "target-arrow-color": c.accentoTesto, "target-arrow-shape": "triangle", "arrow-scale": 1.1, "overlay-opacity": 0 } },
+    { selector: "edge[?label]", style: { label: "data(label)", "font-family": SANS, "font-size": 11.5, color: c.accentoTesto, "text-background-color": c.bg, "text-background-opacity": 1, "text-background-padding": 3, "text-background-shape": "round-rectangle", "text-rotation": "autorotate" } },
+    { selector: 'edge[tipo="appartenenza"]', style: { width: 1.2, "line-style": "dashed", "line-dash-pattern": [6, 4], "line-color": c.tenue, "target-arrow-color": c.tenue, "target-arrow-shape": "vee", "arrow-scale": 0.9, opacity: 0.65 } },
+    // Frecce spezzate (GRA-12): punti di passaggio calcolati da aggiornaFrecce, relativi ai centri dei nodi.
+    { selector: "edge[?spezzata]", style: { "curve-style": "segments", "segment-weights": (e) => e.data("pw"), "segment-distances": (e) => e.data("pd"), "edge-distances": "node-position", "segment-radius": 6 } },
+    { selector: 'node[tipo="piega"]', style: { width: 11, height: 11, shape: "ellipse", "background-color": c.accentoTesto, "border-width": 2, "border-color": c.bg, label: "" } },
+    { selector: "node:selected", style: { "border-width": 2.5, "border-color": c.accentoTesto } },
+    { selector: "edge:selected", style: { width: 3 } },
+    { selector: "node.sorgente", style: { "border-width": 3, "border-style": "dashed", "border-color": c.accentoTesto } },
+  ];
+}
+
+const cy = cytoscape({ container: document.getElementById("tela"), minZoom: 0.2, maxZoom: 2.5, wheelSensitivity: 0.3, boxSelectionEnabled: false, selectionType: "single" });
+
+function disegna({ adatta = false } = {}) {
+  const vista = { zoom: cy.zoom(), pan: cy.pan() };
+  cy.elements().remove();
+  cy.add(elementi());
+  cy.style(stile());
+  if (selezione && cy.getElementById(selezione.id).length) cy.getElementById(selezione.id).select();
+  if (sorgenteFreccia) cy.getElementById(sorgenteFreccia).addClass("sorgente");
+  aggiornaFrecce(cy.edges());
+  const mancano = nodiDelGrafo().filter((n) => !posizioni()[n.id()]);
+  if (mancano.length) disponi();
+  else { if (adatta) cy.fit(undefined, 40); else cy.viewport(vista); maniglie(); }
+  aggiornaTestata();
+}
+const nodiDelGrafo = () => cy.nodes(":childless").filter((n) => n.data("tipo") !== "piega");
+
+/* ---------- Frecce spezzate e ad angolo retto (GRA-12) ---------- */
+// Una piega è salvata come (w, d) rispetto al segmento S→T tra i centri dei due nodi: P = S + w·v + d·v⊥.
+// Così segue la freccia quando i nodi si spostano.
+const pieghe = () => G.pieghe[G.visualizzazione];
+function assoluto(S, T, q) {
+  const vx = T.x - S.x, vy = T.y - S.y;
+  return { x: S.x + q.w * vx - q.d * vy, y: S.y + q.w * vy + q.d * vx };
+}
+function relativo(S, T, P) {
+  const vx = T.x - S.x, vy = T.y - S.y, l2 = vx * vx + vy * vy || 1, px = P.x - S.x, py = P.y - S.y;
+  return { w: (px * vx + py * vy) / l2, d: (py * vx - px * vy) / l2 };
+}
+// Punti di passaggio di una freccia: le pieghe, più gli angoli quando le frecce sono ad angolo retto
+// (tra due punti consecutivi prima in orizzontale, poi in verticale).
+function percorso(e) {
+  const S = e.source().position(), T = e.target().position();
+  let punti = (pieghe()[e.id()] || []).map((q) => assoluto(S, T, q));
+  if (G.angoliRetti) {
+    const tutti = [S, ...punti, T], fuori = [];
+    for (let i = 1; i < tutti.length; i++) {
+      const A = tutti[i - 1], B = tutti[i];
+      if (Math.abs(A.x - B.x) > 1 && Math.abs(A.y - B.y) > 1) fuori.push({ x: B.x, y: A.y });
+      if (i < tutti.length - 1) fuori.push(B);
+    }
+    punti = fuori;
+  }
+  return punti;
+}
+// Cytoscape vuole i punti come pesi lungo S→T e distanze perpendicolari (stesso verso di v⊥). Però prende il
+// verso della perpendicolare dalla retta tra i bordi dei due nodi (findSegmentsPoints): se i nodi sono così
+// vicini che i bordi si scavalcano, quella retta va al contrario e le distanze cambiano segno.
+function verso(e) {
+  const a = e.source().position(), b = e.target().position(), l = Math.hypot(b.x - a.x, b.y - a.y);
+  const ux = Math.abs(b.x - a.x) / l || 1e-9, uy = Math.abs(b.y - a.y) / l || 1e-9;
+  const uscita = (n) => Math.min(n.outerWidth() / 2 / ux, n.outerHeight() / 2 / uy);
+  return l < uscita(e.source()) + uscita(e.target()) ? -1 : 1;
+}
+function aggiornaFrecce(frecce) {
+  frecce.forEach((e) => {
+    const S = e.source().position(), T = e.target().position(), lung = Math.hypot(T.x - S.x, T.y - S.y);
+    const punti = lung ? percorso(e) : [];
+    if (!punti.length) { e.data("spezzata", false); return; }
+    const rel = punti.map((P) => relativo(S, T, P)), segno = verso(e);
+    e.data({ spezzata: true, pw: rel.map((r) => r.w), pd: rel.map((r) => r.d * lung * segno) });
+  });
+}
+// Punti di piega trascinabili, solo per la freccia selezionata.
+function maniglie() {
+  cy.nodes('[tipo="piega"]').remove();
+  if (selezione?.tipo !== "collegamento") return;
+  const e = cy.getElementById(selezione.id);
+  if (!e.length) return;
+  const S = e.source().position(), T = e.target().position();
+  (pieghe()[e.id()] || []).forEach((q, i) =>
+    cy.add({ group: "nodes", data: { id: `piega-${e.id()}-${i}`, tipo: "piega", freccia: e.id(), i }, position: assoluto(S, T, q) }));
+}
+cy.on("position", "node", (ev) => {
+  const n = ev.target;
+  if (n.data("tipo") === "piega") return;
+  const frecce = n.connectedEdges();
+  aggiornaFrecce(frecce);
+  if (selezione?.tipo === "collegamento" && frecce.some((e) => e.id() === selezione.id)) {
+    const e = cy.getElementById(selezione.id), S = e.source().position(), T = e.target().position();
+    cy.nodes('[tipo="piega"]').forEach((h) => h.position(assoluto(S, T, pieghe()[e.id()][h.data("i")])));
+  }
+});
+cy.on("drag", 'node[tipo="piega"]', (ev) => {
+  const h = ev.target, e = cy.getElementById(h.data("freccia"));
+  pieghe()[e.id()][h.data("i")] = relativo(e.source().position(), e.target().position(), h.position());
+  aggiornaFrecce(e);
+});
+cy.on("dbltap", 'edge[tipo="collegamento"]', (ev) => {
+  const e = ev.target, q = relativo(e.source().position(), e.target().position(), ev.position);
+  const lista = (pieghe()[e.id()] ??= []);
+  const i = lista.findIndex((x) => x.w > q.w);
+  lista.splice(i < 0 ? lista.length : i, 0, q);
+  salva(); aggiornaFrecce(e); seleziona({ tipo: "collegamento", id: e.id() });
+});
+cy.on("dbltap", 'node[tipo="piega"]', (ev) => {
+  const h = ev.target, id = h.data("freccia");
+  pieghe()[id].splice(h.data("i"), 1);
+  if (!pieghe()[id].length) delete pieghe()[id];
+  salva(); aggiornaFrecce(cy.getElementById(id)); maniglie(); pannello();
+});
+function togliPieghe(idFreccia) { delete G.pieghe.riquadri[idFreccia]; delete G.pieghe.nodi[idFreccia]; }
+
+// GRA-06: si ricalcolano solo i nodi mai spostati; quelli spostati a mano restano fermi (fixedNodeConstraint).
+// "Riordina" (tutto = true) ricalcola anche quelli.
+function disponi({ tutto = false } = {}) {
+  const pos = posizioni();
+  cy.nodes('[tipo="piega"]').remove();
+  const foglie = nodiDelGrafo();
+  if (tutto) { for (const k of Object.keys(pos)) delete pos[k]; G.pieghe[G.visualizzazione] = {}; aggiornaFrecce(cy.edges()); }
+  const nessuna = foglie.every((n) => !pos[n.id()]);
+  // I nodi nuovi partono vicino al loro contenitore, così il calcolo non li sposta troppo.
+  foglie.filter((n) => !pos[n.id()]).forEach((n) => {
+    const g = G.visualizzazione === "riquadri" ? n.parent() : cy.edges(`[target="${n.id()}"][tipo="appartenenza"]`).source();
+    const base = g && g.length ? (g.isParent?.() ? g.boundingBox() : null) : null;
+    const p = base ? { x: (base.x1 + base.x2) / 2, y: base.y2 } : g && g.length ? { x: g.position().x, y: g.position().y + 110 } : { x: 0, y: 0 };
+    n.position({ x: p.x + (Math.random() - 0.5) * 60, y: p.y + (Math.random() - 0.5) * 30 });
+  });
+  const fisse = foglie.filter((n) => pos[n.id()]?.fissa).map((n) => ({ nodeId: n.id(), position: { x: pos[n.id()].x, y: pos[n.id()].y } }));
+  const layout = cy.elements().layout({
+    name: "fcose", quality: "proof", randomize: tutto || nessuna, animate: !nessuna, animationDuration: 450,
+    fit: true, padding: 40, nodeDimensionsIncludeLabels: true, idealEdgeLength: 70, nodeRepulsion: 4500,
+    edgeElasticity: 0.45, nestingFactor: 0.1, gravity: 0.6, gravityCompound: 1.5, gravityRangeCompound: 1.2,
+    tilingPaddingVertical: 20, tilingPaddingHorizontal: 20, tile: true, packComponents: true,
+    fixedNodeConstraint: fisse.length ? fisse : undefined,
+  });
+  layout.one("layoutstop", () => {
+    foglie.forEach((n) => { pos[n.id()] = { x: n.position().x, y: n.position().y, fissa: pos[n.id()]?.fissa || false }; });
+    salva();
+    maniglie();
+    cy.animate({ fit: { padding: 40 } }, { duration: 200 });
+  });
+  layout.run();
+}
+
+/* ---------- Interazione sulla tela ---------- */
+cy.on("dragfree", "node", (e) => {
+  const n = e.target, pos = posizioni();
+  if (n.data("tipo") === "piega") { salva(); return; }
+  const foglie = n.isParent() ? n.descendants(":childless") : n;
+  foglie.forEach((f) => { pos[f.id()] = { x: f.position().x, y: f.position().y, fissa: true }; });
+  salva();
+});
+cy.on("tap", "node", (e) => {
+  const n = e.target, tipo = n.data("tipo");
+  if (tipo === "piega") return;
+  if (sorgenteFreccia) { if (tipo === "notizia") creaFreccia(sorgenteFreccia, n.id()); return; }
+  seleziona({ tipo, id: n.id() });
+});
+cy.on("tap", 'edge[tipo="collegamento"]', (e) => { if (!sorgenteFreccia) seleziona({ tipo: "collegamento", id: e.target.id() }); });
+cy.on("tap", (e) => { if (e.target === cy) { if (sorgenteFreccia) annullaFreccia(); else seleziona(null); } });
+
+function seleziona(s) {
+  selezione = s;
+  cy.elements().unselect();
+  if (s) cy.getElementById(s.id).select();
+  maniglie();
+  pannello();
+}
+
+/* ---------- Frecce (GRA-03) ---------- */
+function iniziaFreccia(id) {
+  sorgenteFreccia = id;
+  cy.getElementById(id).addClass("sorgente");
+  document.getElementById("avviso").hidden = false;
+}
+function annullaFreccia() {
+  if (sorgenteFreccia) cy.getElementById(sorgenteFreccia).removeClass("sorgente");
+  sorgenteFreccia = null;
+  document.getElementById("avviso").hidden = true;
+}
+function creaFreccia(da, a) {
+  annullaFreccia();
+  if (da === a) return;
+  const gia = G.collegamenti.find((c) => c.da === da && c.a === a);
+  if (gia) { seleziona({ tipo: "collegamento", id: gia.id }); return; }
+  const c = { id: `c${Date.now()}`, da, a, etichetta: "" };
+  G.collegamenti.push(c);
+  salva();
+  disegna();
+  seleziona({ tipo: "collegamento", id: c.id });
+  document.querySelector('[data-campo="etichetta"]')?.focus();
+}
+document.getElementById("annulla-freccia").onclick = annullaFreccia;
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { annullaFreccia(); chiudiRisultati(); } });
+
+/* ---------- Riquadro laterale ---------- */
+const solo = () => (fuoriCasa ? ' disabled title="Si fa solo dal PC"' : "");
+const notaSolo = () => (fuoriCasa ? '<p class="solo-pc">Da fuori casa si aggiunge e si modifica; togliere si fa solo dal PC.</p>' : "");
+const testa = (tipo) => `<div class="pannello-testa"><span class="tipo">${tipo}</span><button type="button" class="bottone-icona" data-azione="chiudi" aria-label="Chiudi">${ic("chiudi")}</button></div>`;
+const opzioniSezioni = (scelta, escluse = []) =>
+  sezioniInOrdine().filter((s) => !escluse.includes(s.id))
+    .map((s) => `<option value="${s.id}"${s.id === scelta ? " selected" : ""}>${"  ".repeat(profondita(s))}${esc(s.titolo)}</option>`).join("");
+
+function pannello() {
+  const p = document.getElementById("pannello");
+  const prima = p.hidden;
+  p.hidden = !selezione;
+  if (prima !== p.hidden) cy.resize();  // la tela si allarga o si stringe con il riquadro
+  if (!selezione) return;
+  const s = selezione;
+  if (s.tipo === "notizia") {
+    const n = notizia(s.id), nel = G.notizie.find((x) => x.id === s.id);
+    const frecce = G.collegamenti.filter((c) => c.da === s.id || c.a === s.id);
+    p.innerHTML = `${testa("Notizia")}
+      <h2>${esc(n.titolo)}</h2>
+      <div class="n-meta">${ic(TIPI[n.tipo][0])}<span>${TIPI[n.tipo][1]}</span>·<span>${esc(n.fonte)}</span>·<span>${n.data}</span></div>
+      ${n.vecchia ? '<p class="nota">Ha più di 7 giorni e non ha il cuore: resta perché è in questo grafo.</p>' : ""}
+      <a class="link" href="notizia-grafi.html">Apri la notizia</a>
+      <h3>Sezione</h3>
+      <select class="selettore" data-campo="sezione" aria-label="Sezione della notizia"><option value="">Nessuna, sotto la radice</option>${opzioniSezioni(nel.sezione)}</select>
+      <h3>Frecce</h3>
+      ${frecce.length ? `<ul class="collegamenti">${frecce.map((c) => {
+        const esce = c.da === s.id, altra = notizia(esce ? c.a : c.da);
+        return `<li><span class="verso" title="${esce ? "esce verso" : "arriva da"}">${esce ? "→" : "←"}</span><span class="chi" title="${esc(altra.titolo)}">${esc(altra.titolo)}</span>${c.etichetta ? `<span class="etichetta">${esc(c.etichetta)}</span>` : ""}<button type="button" class="bottone-icona" data-azione="togli-freccia" data-id="${c.id}" aria-label="Togli la freccia"${solo()}>${ic("chiudi")}</button></li>`;
+      }).join("")}</ul>` : '<p class="vuota">Nessuna freccia.</p>'}
+      <p style="margin:10px 0 0"><button type="button" class="bottone secondario piccolo" data-azione="nuova-freccia">${ic("freccia")}Nuova freccia da qui</button></p>
+      <div class="pannello-azioni"><button type="button" class="bottone pericolo piccolo" data-azione="togli-notizia"${solo()}>${ic("cestino")}Togli dal grafo</button></div>${notaSolo()}`;
+  } else if (s.tipo === "sezione") {
+    const x = sezione(s.id);
+    const notizie = G.notizie.filter((n) => n.sezione === s.id).length, sotto = G.sezioni.filter((y) => y.genitore === s.id).length;
+    p.innerHTML = `${testa("Sezione")}
+      <h3>Titolo</h3><input class="campo" data-campo="titolo" maxlength="80" value="${esc(x.titolo)}" aria-label="Titolo della sezione">
+      <h3>Colore</h3><div class="colori">${COLORI.map((c) => `<button type="button" data-colore="${c}" style="background:${c}" aria-label="Colore ${c}" aria-pressed="${c === x.colore}"></button>`).join("")}</div>
+      <h3>Contenuta in</h3>
+      <select class="selettore" data-campo="genitore" aria-label="Sezione che la contiene"><option value="">La radice del grafo</option>${opzioniSezioni(x.genitore, [s.id, ...discendenti(s.id)])}</select>
+      <p class="vuota" style="margin-top:10px">${notizie} ${notizie === 1 ? "notizia" : "notizie"}, ${sotto} ${sotto === 1 ? "sottosezione" : "sottosezioni"}. Per aggiungerne una, tieni selezionata la sezione e cerca la notizia in alto.</p>
+      <div class="pannello-azioni"><button type="button" class="bottone pericolo piccolo" data-azione="elimina-sezione"${solo()}>${ic("cestino")}Elimina la sezione</button></div>
+      <p class="solo-pc">Il contenuto passa a «${esc(nomeSezione(x.genitore))}», le frecce restano.</p>${notaSolo()}`;
+  } else if (s.tipo === "radice") {
+    p.innerHTML = `${testa("Grafo")}
+      <h3>Nome</h3><input class="campo" data-campo="nome" maxlength="200" value="${esc(G.nome)}" aria-label="Nome del grafo">
+      <p class="vuota" style="margin-top:10px">${G.notizie.length} notizie, ${G.sezioni.length} sezioni, ${G.collegamenti.length} frecce.</p>
+      <div class="pannello-azioni"><button type="button" class="bottone pericolo piccolo" data-azione="elimina-grafo"${solo()}>${ic("cestino")}Elimina il grafo</button></div>${notaSolo()}`;
+  } else {
+    const c = G.collegamenti.find((x) => x.id === s.id);
+    p.innerHTML = `${testa("Freccia")}
+      <h3>Da</h3><p class="vuota">${esc(notizia(c.da).titolo)}</p>
+      <h3>A</h3><p class="vuota">${esc(notizia(c.a).titolo)}</p>
+      <h3>Etichetta</h3><input class="campo" data-campo="etichetta" maxlength="40" value="${esc(c.etichetta)}" placeholder="Facoltativa, es. approfondisce" aria-label="Etichetta della freccia">
+      <h3>Pieghe</h3>
+      <p class="vuota">Doppio clic sulla freccia per aggiungere una piega, poi trascinala. Doppio clic su una piega per toglierla.</p>
+      ${pieghe()[c.id]?.length ? `<p style="margin:8px 0 0"><button type="button" class="bottone secondario piccolo" data-azione="raddrizza">Togli le pieghe</button></p>` : ""}
+      <div class="pannello-azioni"><button type="button" class="bottone pericolo piccolo" data-azione="togli-freccia" data-id="${c.id}"${solo()}>${ic("cestino")}Togli la freccia</button></div>${notaSolo()}`;
+  }
+}
+
+const pannelloEl = document.getElementById("pannello");
+pannelloEl.addEventListener("input", (e) => {
+  const campo = e.target.dataset.campo, val = e.target.value, s = selezione;
+  if (campo === "titolo") { sezione(s.id).titolo = val; cy.getElementById(s.id).data({ label: val, w: Math.max(110, val.length * 8 + 36) }); }
+  else if (campo === "etichetta") { G.collegamenti.find((c) => c.id === s.id).etichetta = val; cy.getElementById(s.id).data("label", val); }
+  else if (campo === "nome") { G.nome = val; cy.getElementById("radice").data({ label: val, w: Math.max(150, val.length * 8.6 + 40) }); aggiornaTestata(); }
+  else return;
+  salva();
+});
+pannelloEl.addEventListener("change", (e) => {
+  const campo = e.target.dataset.campo, val = e.target.value || null, s = selezione;
+  // Cambiando contenitore il nodo va spostato nel riquadro nuovo: nella vista a riquadri lo si ridispone.
+  if (campo === "sezione") { G.notizie.find((n) => n.id === s.id).sezione = val; delete G.posizioni.riquadri[s.id]; }
+  else if (campo === "genitore") { sezione(s.id).genitore = val; for (const f of [s.id, ...discendenti(s.id)]) delete G.posizioni.riquadri[f]; }
+  else return;
+  salva(); disegna(); pannello();
+});
+pannelloEl.addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  const s = selezione;
+  if (b.dataset.colore) { sezione(s.id).colore = b.dataset.colore; cy.getElementById(s.id).data("colore", b.dataset.colore); salva(); pannello(); return; }
+  switch (b.dataset.azione) {
+    case "chiudi": seleziona(null); break;
+    case "nuova-freccia": iniziaFreccia(s.id); break;
+    case "raddrizza":
+      delete pieghe()[s.id]; salva(); aggiornaFrecce(cy.getElementById(s.id)); maniglie(); pannello(); break;
+    case "togli-freccia":
+      G.collegamenti = G.collegamenti.filter((c) => c.id !== b.dataset.id);
+      togliPieghe(b.dataset.id);
+      if (s.tipo === "collegamento") selezione = null;
+      salva(); disegna(); pannello(); break;
+    case "togli-notizia": {
+      const n = notizia(s.id);
+      if (n.vecchia && !confirm("Questa notizia ha più di 7 giorni, non ha il cuore e non è in altri grafi: sarà cancellata alla prossima pulizia. Toglierla dal grafo?")) return;
+      G.notizie = G.notizie.filter((x) => x.id !== s.id);
+      G.collegamenti.filter((c) => c.da === s.id || c.a === s.id).forEach((c) => togliPieghe(c.id));
+      G.collegamenti = G.collegamenti.filter((c) => c.da !== s.id && c.a !== s.id);
+      delete G.posizioni.riquadri[s.id]; delete G.posizioni.nodi[s.id];
+      selezione = null; salva(); disegna(); pannello(); break;
+    }
+    case "elimina-sezione": {
+      const x = sezione(s.id);
+      G.sezioni.forEach((y) => { if (y.genitore === s.id) y.genitore = x.genitore; });
+      G.notizie.forEach((n) => { if (n.sezione === s.id) n.sezione = x.genitore; });
+      G.sezioni = G.sezioni.filter((y) => y.id !== s.id);
+      delete G.posizioni.riquadri[s.id]; delete G.posizioni.nodi[s.id];
+      selezione = null; salva(); disegna(); pannello(); break;
+    }
+    case "elimina-grafo":
+      if (confirm(`Eliminare il grafo «${G.nome}»? Le notizie restano; quelle senza cuore e in nessun altro grafo tornano alla regola dei 7 giorni e le più vecchie saranno cancellate alla prossima pulizia.`)) {
+        try { localStorage.removeItem(CHIAVE); } catch { /* niente */ }
+        location.href = "grafi.html";
+      }
+      break;
+  }
+});
+
+/* ---------- Testata: visualizzazione, Riordina, Nuova sezione, ricerca ---------- */
+function aggiornaTestata() {
+  document.getElementById("nome").textContent = G.nome;
+  document.title = `${G.nome} · Gradiens`;
+  document.querySelectorAll("[data-vista]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.vista === G.visualizzazione));
+  document.getElementById("angoli").setAttribute("aria-pressed", G.angoliRetti);
+  document.getElementById("aggancio").value = G.aggancio;
+}
+document.getElementById("angoli").onclick = () => {
+  G.angoliRetti = !G.angoliRetti; salva(); aggiornaFrecce(cy.edges()); aggiornaTestata();
+};
+
+/* ---------- Aggancio (GRA-13) con cytoscape-grid-guide ---------- */
+function applicaAggancio(sospeso = false) {
+  const a = sospeso ? "libero" : G.aggancio;
+  cy.gridGuide({
+    drawGrid: a === "griglia", panGrid: true, gridSpacing: 20, snapToGridCenter: false, gridColor: v("--bordo"), lineWidth: 1,
+    snapToGridDuringDrag: a === "griglia", snapToGridOnRelease: false,
+    snapToAlignmentLocationDuringDrag: a === "guide", snapToAlignmentLocationOnRelease: false,
+    geometricGuideline: a === "guide", distributionGuidelines: a === "guide", centerToEdgeAlignment: false, initPosAlignment: false,
+    resize: false, parentPadding: false, guidelinesTolerance: 4,
+    guidelinesStyle: {
+      strokeStyle: v("--accento-testo"), lineDash: [5, 4], geometricGuidelineRange: 600,
+      horizontalDistColor: v("--accento"), verticalDistColor: v("--accento"), horizontalDistLine: [0, 0], verticalDistLine: [0, 0],
+      range: 300, minDistRange: 10, distGuidelineOffset: 10, initPosAlignmentColor: v("--tenue"), initPosAlignmentLine: [0, 0],
+    },
+  });
+  document.getElementById("tela").classList.toggle("con-griglia", a === "griglia");
+}
+document.getElementById("aggancio").onchange = (e) => { G.aggancio = e.target.value; salva(); applicaAggancio(); };
+// Alt tenuto premuto: niente aggancio per quel movimento, come in draw.io.
+document.addEventListener("keydown", (e) => { if (e.key === "Alt" && !e.repeat) applicaAggancio(true); });
+document.addEventListener("keyup", (e) => { if (e.key === "Alt") applicaAggancio(); });
+window.addEventListener("blur", () => applicaAggancio());
+document.querySelectorAll("[data-vista]").forEach((b) => b.onclick = () => {
+  if (G.visualizzazione === b.dataset.vista) return;
+  G.visualizzazione = b.dataset.vista; salva(); disegna({ adatta: true });
+});
+document.getElementById("riordina").onclick = () => {
+  const manuali = Object.values(posizioni()).filter((p) => p.fissa).length;
+  const vista = G.visualizzazione === "riquadri" ? "a riquadri" : "a nodi";
+  if (manuali && !confirm(`Riordinare tutto il grafo? Le posizioni scelte a mano nella visualizzazione ${vista} (${manuali} ${manuali === 1 ? "nodo" : "nodi"}) si perdono.`)) return;
+  disponi({ tutto: true });
+};
+document.getElementById("rinomina").onclick = () => { seleziona({ tipo: "radice", id: "radice" }); document.querySelector('[data-campo="nome"]').select(); };
+document.getElementById("nuova-sezione").onclick = () => {
+  const genitore = selezione?.tipo === "sezione" ? selezione.id : null;
+  const s = { id: `s${Date.now()}`, titolo: "Nuova sezione", colore: COLORI[G.sezioni.length % COLORI.length], genitore };
+  G.sezioni.push(s); salva(); disegna();
+  seleziona({ tipo: "sezione", id: s.id });
+  document.querySelector('[data-campo="titolo"]').select();
+};
+
+// GRA-07: ricerca tra le notizie che esistono ancora e non sono già in questo grafo.
+const cerca = document.getElementById("cerca"), risultati = document.getElementById("risultati");
+function mostraRisultati() {
+  const q = cerca.value.trim().toLowerCase();
+  const presenti = new Set(G.notizie.map((n) => n.id));
+  const trovate = NOTIZIE.filter((n) => !presenti.has(n.id) && (!q || `${n.titolo} ${n.fonte}`.toLowerCase().includes(q))).slice(0, 8);
+  const dove = selezione?.tipo === "sezione" ? `nella sezione «${esc(sezione(selezione.id).titolo)}»` : "sotto la radice";
+  risultati.innerHTML = `<li class="vuoto">Si aggiunge ${dove}</li>` + (trovate.length
+    ? trovate.map((n) => `<li><button type="button" data-id="${n.id}"><strong>${esc(n.titolo)}</strong><span class="n-meta">${ic(TIPI[n.tipo][0])}<span>${esc(n.fonte)}</span>·<span>${n.data}</span></span></button></li>`).join("")
+    : '<li class="vuoto">Nessuna notizia trovata tra gli ultimi 7 giorni, l\'archivio e gli altri grafi.</li>');
+  risultati.hidden = false;
+}
+function chiudiRisultati() { risultati.hidden = true; }
+cerca.addEventListener("focus", mostraRisultati);
+cerca.addEventListener("input", mostraRisultati);
+document.addEventListener("click", (e) => { if (!e.target.closest(".cerca-notizie")) chiudiRisultati(); });
+risultati.addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-id]"); if (!b) return;
+  const sez = selezione?.tipo === "sezione" ? selezione.id : null;
+  G.notizie.push({ id: b.dataset.id, sezione: sez });
+  salva(); cerca.value = ""; chiudiRisultati(); disegna();
+  seleziona({ tipo: "notizia", id: b.dataset.id });
+});
+
+/* ---------- Comandi della sola preview ---------- */
+document.getElementById("fuori-casa").onchange = (e) => { fuoriCasa = e.target.checked; pannello(); };
+document.getElementById("ripristina").onclick = () => {
+  try { localStorage.removeItem(CHIAVE); } catch { /* niente */ }
+  G = completa(structuredClone(GRAFO_ESEMPIO)); selezione = null; annullaFreccia(); pannello(); disegna({ adatta: true }); applicaAggancio();
+};
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { cy.style(stile()); applicaAggancio(); });
+
+disegna({ adatta: true });
+applicaAggancio();
+</script>
+</body>
+</html>

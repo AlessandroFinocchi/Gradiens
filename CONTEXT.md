@@ -39,12 +39,24 @@ Un nuovo testo di Raffinamento, oppure un nuovo Interesse, generato dall'LLM agg
 Una storia precisa che si sviluppa nel tempo, come un singolo evento e la sua evoluzione (es. "Attacco ransomware alla ASL X", non "attacchi ransomware"). Raggruppa le notizie che ne seguono gli sviluppi e appare come timeline.
 _Evitare_: tema, interesse, cluster, storia
 
+**Grafo**:
+Insieme di notizie che l'utente collega a mano, con una radice che porta il nome del grafo, Sezioni e Collegamenti. A differenza dell'Argomento non lo assegna l'LLM e non segue un ordine di tempo. Una notizia in un grafo non viene cancellata dopo 7 giorni. Si mostra a riquadri o a nodi, a scelta per ogni grafo.
+_Evitare_: mappa, rete, diagramma, mappa mentale
+
+**Sezione**:
+Parte di un Grafo con un titolo e un colore, che contiene notizie e altre sezioni. Ogni notizia o sezione sta in al più una sezione dello stesso grafo. Da non confondere con le sezioni delle Impostazioni o con la sezione Notizie della sidebar.
+_Evitare_: gruppo, cartella, nodo intermedio
+
+**Collegamento**:
+Freccia che l'utente traccia da una notizia a un'altra dello stesso Grafo, con un'etichetta breve facoltativa. È distinta dall'appartenenza a una Sezione, che nella visualizzazione a nodi si disegna come freccia tratteggiata.
+_Evitare_: arco, relazione, link
+
 **Cuore**:
 Segno che l'utente mette su una notizia che gli è interessata. Una notizia con il cuore entra nell'Archivio e contribuisce al Raffinamento degli Interessi.
 _Evitare_: preferito, stella, mi piace, like
 
 **Archivio**:
-L'insieme delle notizie con il Cuore, conservate senza limite di tempo. Le notizie fuori dall'archivio vengono cancellate 7 giorni dopo la pubblicazione.
+L'insieme delle notizie con il Cuore, conservate senza limite di tempo. Le notizie fuori dall'archivio e da ogni Grafo vengono cancellate 7 giorni dopo la pubblicazione.
 _Evitare_: preferiti, salvate, storico
 
 **Finestra di raccolta**:

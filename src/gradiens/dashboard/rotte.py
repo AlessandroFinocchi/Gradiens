@@ -95,17 +95,37 @@ def _ultima_id(s) -> int | None:
 
 
 @router.get("/timeline", response_class=HTMLResponse)
-def timeline(request: Request, s: Sessione):
+def timeline(request: Request, s: Sessione, cuore: str = ""):
+    """Temi in cima e argomenti sotto (UI-09). Filtro sul cuore: "si" quelli con almeno una notizia con il
+    cuore, "no" quelli senza."""
+    completo = argomenti.timeline(s, _ultima_id(s))
+    filtro = cuore in ("si", "no")
+    elenco = [r for r in completo if not filtro or (r.in_archivio > 0) == (cuore == "si")]
     return pagina(
-        request, s, "timeline", "timeline", elenco=argomenti.timeline(s, _ultima_id(s)), tutti=argomenti.tutti(s)
+        request,
+        s,
+        "timeline",
+        "timeline",
+        temi=[r for r in elenco if r.argomento.tema],
+        elenco=[r for r in elenco if not r.argomento.tema],
+        ci_sono_argomenti=any(not r.argomento.tema for r in completo),
+        filtro=filtro,
+        cuore=cuore,
+        tutti=argomenti.tutti(s),
     )
+
+
+@router.post("/temi")
+def crea_tema(s: Sessione, nome: Annotated[str, Form()], descrizione: Annotated[str, Form()] = ""):
+    _azione(s, lambda: argomenti.crea_tema(s, nome, descrizione))
+    return _dopo()
 
 
 @router.get("/argomenti/{id}", response_class=HTMLResponse)
 def pagina_argomento(request: Request, s: Sessione, id: int):
     r = argomenti.riassunto(s, id, _ultima_id(s))
     if r is None:
-        raise HTTPException(404, "Argomento inesistente o senza notizie")
+        raise HTTPException(404, "Argomento inesistente o senza notizie")  # un tema si apre anche vuoto
     return pagina(
         request,
         s,
@@ -123,9 +143,9 @@ def _dopo(indirizzo: str | None = None) -> Response:
     return Response(status_code=204, headers={"HX-Redirect": indirizzo} if indirizzo else {"HX-Refresh": "true"})
 
 
-def _azione(s, azione) -> None:
+def _azione(s, azione):
     try:
-        azione()
+        return azione()
     except ImpostazioneNonValida as errore:
         s.rollback()
         raise HTTPException(422, str(errore)) from None
@@ -136,6 +156,19 @@ def _azione(s, azione) -> None:
 @router.post("/argomenti/{id}/rinomina")
 def rinomina_argomento(s: Sessione, id: int, nome: Annotated[str, Form()]):
     _azione(s, lambda: argomenti.rinomina(s, id, nome))
+    return _dopo()
+
+
+@router.post("/argomenti/{id}/tema")
+def tema_argomento(s: Sessione, id: int, tema: Annotated[bool, Form()] = False):
+    """UI-09: l'interruttore "Raccogli tutto il tema". Senza tema e senza notizie l'argomento non c'è più (ESE-10)."""
+    rimasto = _azione(s, lambda: argomenti.imposta_tema(s, id, tema))
+    return _dopo(None if rimasto else "/timeline")
+
+
+@router.post("/argomenti/{id}/descrizione")
+def descrizione_tema(s: Sessione, id: int, descrizione: Annotated[str, Form()] = ""):
+    _azione(s, lambda: argomenti.salva_descrizione(s, id, descrizione))
     return _dopo()
 
 

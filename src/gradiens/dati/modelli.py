@@ -134,13 +134,16 @@ class Notizia(Base):
 
 
 class Argomento(Base):
-    """Un singolo evento e la sua evoluzione (ESE-08), non un tema generale."""
+    """Un singolo evento e la sua evoluzione (ESE-08), oppure un tema scelto dall'utente (ESE-08b)."""
 
     __tablename__ = "argomenti"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     nome: Mapped[str] = mapped_column(String(200))
     creato_il: Mapped[datetime]
+    # ESE-08b: raccoglie ogni notizia sul soggetto, resta anche vuoto; la descrizione la legge l'LLM.
+    tema: Mapped[bool] = mapped_column(default=False)
+    descrizione: Mapped[str | None] = mapped_column(Text)
     # Riassunto dell'evoluzione, chiesto dall'utente (decisione 72): quando e su quante notizie è stato scritto.
     evoluzione: Mapped[str | None] = mapped_column(Text)
     evoluzione_il: Mapped[datetime | None]

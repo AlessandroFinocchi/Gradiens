@@ -82,4 +82,48 @@ def test_argomenti_per_il_prompt_solo_recenti(s):
     recente, antico = argomenti.crea(s, "Recente"), argomenti.crea(s, "Antico")
     notizia(s, "r", recente)
     notizia(s, "a", antico, giorni_fa=40, cuore=True)
-    assert [a.nome for a in argomenti.per_prompt(s)] == ["Recente"]
+    assert argomenti.per_prompt(s) == ([], [recente])
+
+
+def test_temi_sempre_nel_prompt_in_un_elenco_a_parte(s):
+    """ESE-08b, ADR 0015: un tema va all'LLM anche vuoto o fermo da più di 30 giorni."""
+    evento = argomenti.crea(s, "Evento")
+    notizia(s, "e", evento)
+    vuoto = s.get(Argomento, argomenti.crea_tema(s, "GTA 6", "  Uscita e patch.  "))
+    fermo = s.get(Argomento, argomenti.crea_tema(s, "Antico"))
+    notizia(s, "a", fermo, giorni_fa=40, cuore=True)
+    assert argomenti.per_prompt(s) == ([fermo, vuoto], [evento])
+    assert (vuoto.descrizione, fermo.descrizione) == ("Uscita e patch.", None)
+    with pytest.raises(ImpostazioneNonValida):
+        argomenti.crea_tema(s, " ")
+    with pytest.raises(ImpostazioneNonValida):
+        argomenti.salva_descrizione(s, vuoto.id, "x" * 1001)
+
+
+def test_temi_in_timeline_anche_vuoti_e_mai_cancellati(s):
+    """UI-09, ESE-10: un tema compare con 0 o 1 notizie, per ultimo se vuoto, e la pulizia non lo cancella."""
+    evento = argomenti.crea(s, "Evento")
+    notizia(s, "e1", evento, giorni_fa=3)
+    notizia(s, "e2", evento, giorni_fa=2)
+    vuoto = argomenti.crea_tema(s, "Vuoto")
+    uno = argomenti.crea_tema(s, "Uno")
+    notizia(s, "u1", s.get(Argomento, uno))
+    scaduto = argomenti.crea_tema(s, "Scaduto")
+    notizia(s, "s1", s.get(Argomento, scaduto), giorni_fa=9)
+    notizie.cancella_scadute(s)
+    elenco = argomenti.timeline(s, None)
+    assert [r.argomento.nome for r in elenco][:2] == ["Uno", "Evento"]
+    assert {r.argomento.nome for r in elenco[2:]} == {"Vuoto", "Scaduto"}  # vuoti per ultimi
+    assert elenco[-1].dal is None and argomenti.riassunto(s, vuoto, None).notizie == 0
+
+
+def test_togliere_il_tema_e_unire(s):
+    """UI-09: unendo, la destinazione diventa tema e prende la descrizione; senza tema e senza notizie si cancella."""
+    tema = argomenti.crea_tema(s, "GTA 6", "Tutto su GTA 6.")
+    evento = argomenti.crea(s, "Patch di GTA 6")
+    notizia(s, "p1", evento)
+    argomenti.unisci(s, tema, evento.id)
+    assert (evento.tema, evento.descrizione) == (True, "Tutto su GTA 6.")
+    assert argomenti.imposta_tema(s, evento.id, False) is True  # ha una notizia: resta
+    vuoto = argomenti.crea_tema(s, "Vuoto")
+    assert argomenti.imposta_tema(s, vuoto, False) is False and s.get(Argomento, vuoto) is None

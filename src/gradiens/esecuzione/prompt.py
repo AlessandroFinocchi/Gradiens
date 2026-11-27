@@ -95,21 +95,32 @@ def messaggio_valutazione(c: Candidata) -> str:
     return json.dumps({"tipo": c.tipo, "fonte": c.fonte, "titolo": c.titolo, "testo": c.contenuto}, ensure_ascii=False)
 
 
-def sistema_argomenti(argomenti: list[Argomento]) -> str:
-    """ESE-08, ADR 0008: un passo unico per tutte le notizie mostrate dall'esecuzione."""
+def sistema_argomenti(argomenti: list[Argomento], temi: list[Argomento]) -> str:
+    """ESE-08, ADR 0008: un passo unico per tutte le notizie mostrate dall'esecuzione. I temi scelti
+    dall'utente (ESE-08b, ADR 0015) vincono sugli eventi."""
     elenco = "\n".join(f"[{a.id}] {a.nome}" for a in argomenti) or "(nessuno)"
+    sezione_temi = ""
+    if temi:
+        righe = "\n".join(f"[{a.id}] {a.nome}" + (f": {a.descrizione}" if a.descrizione else "") for a in temi)
+        sezione_temi = f"""
+Temi scelti dall'utente, con il loro id e la descrizione se c'è. Un tema raccoglie tutte le notizie su un
+soggetto ampio: una notizia che riguarda un tema va nel tema, anche se è un evento preciso e anche se c'è un
+argomento per quell'evento.
+{righe}
+"""
     return f"""Sei il passo degli argomenti di Gradiens. Un argomento è un singolo evento preciso e la sua
 evoluzione nel tempo (es. "Attacco ransomware all'ASL Valle Verde"), non un tema generale
 (non "attacchi ransomware", non "intelligenza artificiale").
-
+{sezione_temi}
 Argomenti esistenti, con il loro id:
 {elenco}
 
 Ricevi notizie in JSON con id, titolo e riassunto. Per ogni notizia restituisci il suo id e:
-- argomento: l'id di un argomento esistente, se la notizia segue proprio quell'evento;
+- argomento: l'id di un tema, se la notizia lo riguarda; altrimenti l'id di un argomento esistente, se la
+  notizia segue proprio quell'evento;
 - oppure nuovo: il nome di un argomento nuovo, breve e in italiano, se la notizia riguarda un evento
   preciso che può avere sviluppi. Dai lo stesso nome alle notizie dello stesso evento;
-- oppure nessuno dei due, se la notizia non riguarda un evento preciso (guide, paper, opinioni)."""
+- oppure nessuno dei due, se la notizia non riguarda né un tema né un evento preciso (guide, paper, opinioni)."""
 
 
 SCHEMA_ARGOMENTI = {

@@ -341,7 +341,24 @@ tbody tr.cliccabile a { text-decoration: none; }
 .riga-argomento h2 a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .riga-argomento .riga-info { font-size: 13px; margin-top: 2px; }
 .riga-argomento .azioni-argomento { position: relative; z-index: 1; }
+/* Il box aperto sta sopra le azioni delle righe dopo, che hanno lo stesso z-index. */
+.riga-argomento .azioni-argomento:has(details[open]) { z-index: 2; }
 .pagina-argomento { max-width: 820px; padding: 20px 32px 56px; }
+/* Temi (ESE-08b): sezioni della Timeline, Nuovo tema, riquadro con l'interruttore nella pagina. */
+.sezione-timeline + .sezione-timeline { margin-top: 18px; }
+.titolo-sezione-timeline { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 24px 6px; border-bottom: 1px solid var(--bordo); }
+.titolo-sezione-timeline h2 { margin: 0; font-family: var(--font-titoli); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--tenue); }
+.vuoto-sezione { margin: 0; padding: 12px 24px; }
+.nuovo-tema { position: relative; }
+.nuovo-tema > summary { list-style: none; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.nuovo-tema > summary::-webkit-details-marker { display: none; }
+.nuovo-tema > summary .icona { width: 14px; height: 14px; }
+.nuovo-tema textarea.campo { margin-bottom: 8px; }
+.descrizione-tema { font-size: 13px; color: var(--tenue); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.etichetta-tema { vertical-align: middle; margin-left: 6px; }
+.blocco-tema { margin: 6px 0 14px; padding: 12px 16px; border: 1px solid var(--bordo); border-radius: 10px; display: grid; gap: 10px; }
+.riga-interruttore { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; }
+.descrizione-modifica { display: grid; gap: 6px; justify-items: start; }
 .pagina-argomento .argomento-testa { padding: 14px 0 6px; }
 .pagina-argomento h1 { font-size: 26px; line-height: 1.25; }
 .pagina-argomento .linea-tempo { padding: 10px 0 0; }

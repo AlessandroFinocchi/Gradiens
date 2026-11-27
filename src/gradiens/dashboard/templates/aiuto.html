@@ -10,7 +10,7 @@
     <a href="#siti">Siti web e profili</a>
     <a href="#interessi">Interessi e raffinamento</a>
     <a href="#cuore">Il cuore e l'archivio</a>
-    <a href="#argomenti">Argomenti e timeline</a>
+    <a href="#argomenti">Argomenti, temi e timeline</a>
     <a href="#stati">Stati</a>
     <a href="#impostazioni-e-segnali">Impostazioni e segnali</a>
     <a href="#avvio">Avvio all'accensione</a>
@@ -28,7 +28,7 @@
       <li><strong>Raccolta</strong>: si prendono le notizie pubblicate nella finestra di raccolta, da 1 a 7 giorni. Una notizia già vista non si elabora di nuovo.</li>
       <li><strong>Pre-filtro</strong>: l'LLM legge titolo e sommario e scarta ciò che è fuori tema e, se lo chiedi, ciò che è sponsorizzato. I paper arXiv si leggono dal più recente e ci si ferma quando quelli rimasti riempiono il tetto: gli altri non si elaborano. Le fonti con soglia 0 saltano questo passo.</li>
       <li><strong>Valutazione</strong>: per le notizie rimaste l'LLM legge il testo completo, la trascrizione o, per i paper arXiv, l'abstract, dà un punteggio di pertinenza da 0 a 100 per ogni interesse e scrive il riassunto. Si mostrano le notizie con almeno un punteggio che raggiunge la soglia: quella generale, nella sezione Esecuzione, o quella della fonte, se le hai dato una soglia sua nelle sezioni Canali YouTube, Siti web e arXiv. Con la soglia 0 vedi tutte le notizie di quella fonte.</li>
-      <li><strong>Argomenti e proposte</strong>: alla fine l'LLM assegna le notizie nuove agli argomenti e, se hai messo abbastanza cuori, propone come raffinare i tuoi interessi.</li>
+      <li><strong>Argomenti e proposte</strong>: alla fine l'LLM assegna le notizie nuove ai temi e agli argomenti e, se hai messo abbastanza cuori, propone come raffinare i tuoi interessi.</li>
     </ul>
     <p>Gradiens usa Claude Code con il tuo abbonamento Claude, senza costi in più. Le notizie senza cuore si cancellano 7 giorni dopo la pubblicazione. Ogni esecuzione ha un resoconto con metriche, problemi e token usati: lo apri dallo storico nella Home.</p>
 
@@ -36,7 +36,7 @@
     <ul>
       <li><strong>Home</strong>: la prossima esecuzione, l'ultima con il suo riepilogo, le notizie più pertinenti delle ultime 24 ore, gli avvisi e lo storico.</li>
       <li><strong>Notizie</strong>: tre pagine, Siti web, YouTube e arXiv, con le notizie degli ultimi 7 giorni di quella sorgente, ordinate per pertinenza o per data. Sopra l'elenco filtri per data e cuore (su YouTube anche video o short); nel pannello a destra spunti le fonti e gli interessi che vuoi vedere.</li>
-      <li><strong>Timeline</strong>: gli argomenti e i loro sviluppi.</li>
+      <li><strong>Timeline</strong>: in cima i temi che segui, sotto gli argomenti e i loro sviluppi, con un filtro per vedere solo quelli con o senza cuori.</li>
       <li><strong>Archivio</strong>: le notizie con il cuore di tutte le sorgenti, senza limite di tempo, con gli stessi filtri.</li>
     </ul>
     <p>Nelle pagine Notizie e nell'Archivio il campo <strong>Cerca</strong> trova le notizie che contengono tutte le parole scritte, nel titolo, nella traduzione, nel riassunto o nella fonte. Ogni notizia ha una sua pagina, con il riassunto completo, i punteggi per ogni interesse e il link all'originale.</p>
@@ -68,8 +68,9 @@
     <h2 id="cuore">Il cuore e l'archivio</h2>
     <p>Metti il <strong>cuore</strong> a una notizia che ti è piaciuta. La notizia entra nell'<strong>archivio</strong>, dove resta senza limite di tempo, e aiuta a raffinare i tuoi interessi. Puoi mettere il cuore anche dal messaggio Telegram. Se lo togli, la notizia torna alla regola dei 7 giorni. Il cuore di un argomento, nella Timeline, vale per tutte le sue notizie.</p>
 
-    <h2 id="argomenti">Argomenti e timeline</h2>
-    <p>Un <strong>argomento</strong> è un singolo evento e i suoi sviluppi, per esempio "Attacco ransomware all'ASL X", non "ransomware" in generale. Alla fine di ogni esecuzione l'LLM assegna ogni notizia nuova a un argomento, oppure a nessuno. La Timeline mostra gli argomenti con almeno 2 notizie, in ordine di tempo. Dalla Timeline o dalla pagina di un argomento puoi rinominarlo, unirlo a un altro o eliminarlo, e con il cuore conservare tutte le sue notizie nell'archivio: se lo hanno già tutte, il cuore lo toglie a tutte. Nella pagina dell'argomento il bottone <strong>Riassumi l'evoluzione</strong> chiede all'LLM di raccontare come si è evoluto l'evento, con le date dei passaggi importanti. Il riassunto resta salvato; quando arrivano notizie nuove compare "da aggiornare". Aggiornandolo, l'LLM rilegge anche il riassunto precedente, così l'inizio della storia resta anche dopo che le prime notizie sono state cancellate. Ogni richiesta consuma quota.</p>
+    <h2 id="argomenti">Argomenti, temi e timeline</h2>
+    <p>Un <strong>argomento</strong> è un singolo evento e i suoi sviluppi, per esempio "Attacco ransomware all'ASL X", non "ransomware" in generale. Alla fine di ogni esecuzione l'LLM assegna ogni notizia nuova a un argomento, oppure a nessuno. La Timeline mostra gli argomenti con almeno 2 notizie, in ordine di tempo; il filtro in alto mostra solo quelli con almeno una notizia con il cuore, oppure solo quelli senza. Dalla Timeline o dalla pagina di un argomento puoi rinominarlo, unirlo a un altro o eliminarlo, e con il cuore conservare tutte le sue notizie nell'archivio: se lo hanno già tutte, il cuore lo toglie a tutte. Nella pagina dell'argomento il bottone <strong>Riassumi l'evoluzione</strong> chiede all'LLM di raccontare come si è evoluto l'evento, con le date dei passaggi importanti. Il riassunto resta salvato; quando arrivano notizie nuove compare "da aggiornare". Aggiornandolo, l'LLM rilegge anche il riassunto precedente, così l'inizio della storia resta anche dopo che le prime notizie sono state cancellate. Ogni richiesta consuma quota.</p>
+    <p>Un <strong>tema</strong> è un argomento che scegli tu per raccogliere tutte le notizie su un soggetto ampio, per esempio "GTA 6": uscita, trailer, patch e versione PC finiscono tutte lì, invece che in tanti argomenti diversi. Crealo con <strong>Nuovo tema</strong> nella Timeline, oppure accendi <strong>Raccogli tutto il tema</strong> nella pagina di un argomento che hai già. Puoi scrivere una descrizione facoltativa di cosa entra e cosa no, per esempio "Non le altre notizie su Rockstar": l'LLM la legge quando assegna le notizie. Un tema riceve le notizie dalla prossima esecuzione; quelle che hai già le porti dentro con <strong>Unisci</strong>, e se unisci un argomento a un tema (o un tema a un argomento) il risultato è un tema. I temi stanno in cima alla Timeline anche quando sono vuoti e non vengono mai cancellati da soli, ma le loro notizie senza cuore si cancellano dopo 7 giorni come le altre. Il riassunto dell'evoluzione di un tema legge le 40 notizie più recenti.</p>
 
     <h2 id="stati">Stati</h2>
     <p>Gli stati compaiono sulle notizie, sui siti nelle Impostazioni e nel resoconto di un'esecuzione.</p>

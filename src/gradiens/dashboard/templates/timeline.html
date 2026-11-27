@@ -1,32 +1,69 @@
 {% extends "base.html" %}
 {% from "icone.html" import icona with context %}
 {% from "argomento_azioni.html" import azioni_argomento, metadati with context %}
-{# Timeline (UI-09): elenco compatto degli argomenti con almeno 2 notizie. #}
+{# Timeline (UI-09): in cima i temi (ESE-08b), anche vuoti; sotto gli argomenti con almeno 2 notizie. #}
 {% block titolo %}Timeline{% endblock %}
-{% block contenuto %}
-<main class="pagina">
-  <header class="testata">
-    <h1>Timeline</h1>
-    <div class="sottotitolo">Argomenti con almeno 2 notizie, dagli ultimi 7 giorni e dall'archivio. Prima quelli aggiornati più di recente. Apri un argomento per scorrere la sua timeline.</div>
-  </header>
-  {% if elenco %}
-  <ul class="elenco-argomenti">
-    {% for r in elenco %}
+{% macro riga(r) -%}
     <li class="riga-argomento">
       <div>
         <h2><a href="/argomenti/{{ r.argomento.id }}">{{ r.argomento.nome }}</a></h2>
+        {% if r.argomento.descrizione %}<div class="descrizione-tema">{{ r.argomento.descrizione }}</div>{% endif %}
         <div class="riga-info"><span>{{ metadati(r) }}</span>{% if r.nuove %}<span class="stato">{{ r.nuove }} {{ "nuova" if r.nuove == 1 else "nuove" }}</span>{% endif %}</div>
       </div>
       {{ azioni_argomento(r, tutti) }}
     </li>
-    {% endfor %}
-  </ul>
-  {% else %}
-  <div class="vuoto-pagina">
-    {{ icona("timeline") }}
-    <h2>Ancora nessun argomento</h2>
-    <p>Un argomento compare qui quando almeno 2 notizie seguono lo stesso evento, per esempio lo stesso attacco o la stessa vulnerabilità.</p>
+{%- endmacro %}
+{% block contenuto %}
+<main class="pagina">
+  <header class="testata">
+    <h1>Timeline</h1>
+    <div class="sottotitolo">In cima i temi che segui. Sotto gli argomenti con almeno 2 notizie, dagli ultimi 7 giorni e dall'archivio. Prima quelli aggiornati più di recente. Apri un argomento per scorrere la sua timeline.</div>
+    <form class="filtri" aria-label="Filtri" hx-get="/timeline" hx-trigger="change"
+          hx-target="#argomenti" hx-select="#argomenti" hx-swap="outerHTML" hx-push-url="true">
+      <select class="selettore" name="cuore" aria-label="Cuore">
+        {% for valore, nome in [("", "Tutti gli argomenti"), ("si", "Con almeno un cuore"), ("no", "Senza cuori")] %}
+        <option value="{{ valore }}"{% if cuore == valore %} selected{% endif %}>{{ nome }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </header>
+  <div id="argomenti">
+  <section class="sezione-timeline">
+    <div class="titolo-sezione-timeline"><h2>Temi</h2>
+      <details class="nuovo-tema"><summary class="bottone piccolo">{{ icona("aggiungi") }}Nuovo tema</summary>
+        <form class="popover" hx-post="/temi">
+          <p>Un tema raccoglie tutte le notizie su un soggetto ampio. L'LLM ci mette le notizie dalla prossima esecuzione; quelle che hai già le porti dentro con "Unisci".</p>
+          <input class="campo" name="nome" placeholder="Nome, es. GTA 6" maxlength="200" required aria-label="Nome del tema">
+          <textarea class="campo" name="descrizione" rows="3" maxlength="1000" placeholder="Descrizione facoltativa: cosa entra e cosa no" aria-label="Descrizione"></textarea>
+          <button class="bottone piccolo">Crea il tema</button></form></details></div>
+    {% if temi %}
+    <ul class="elenco-argomenti">
+      {% for r in temi %}{{ riga(r) }}{% endfor %}
+    </ul>
+    {% else %}
+    <p class="nota vuoto-sezione">{{ "Nessun tema con questo filtro." if filtro else "Nessun tema. Un tema raccoglie tutte le notizie su un soggetto ampio, per esempio un videogioco o un'elezione, anche quando parlano di eventi diversi." }}</p>
+    {% endif %}
+  </section>
+  <section class="sezione-timeline">
+    <div class="titolo-sezione-timeline"><h2>Argomenti</h2></div>
+    {% if elenco %}
+    <ul class="elenco-argomenti">
+      {% for r in elenco %}{{ riga(r) }}{% endfor %}
+    </ul>
+    {% elif filtro and ci_sono_argomenti %}
+    <div class="vuoto-pagina">
+      {{ icona("timeline") }}
+      <h2>Nessun argomento con questo filtro</h2>
+      <p>{{ "Nessun argomento ha una notizia con il cuore." if cuore == "si" else "Tutti gli argomenti hanno almeno una notizia con il cuore." }}</p>
+    </div>
+    {% else %}
+    <div class="vuoto-pagina">
+      {{ icona("timeline") }}
+      <h2>Ancora nessun argomento</h2>
+      <p>Un argomento compare qui quando almeno 2 notizie seguono lo stesso evento, per esempio lo stesso attacco o la stessa vulnerabilità.</p>
+    </div>
+    {% endif %}
+  </section>
   </div>
-  {% endif %}
 </main>
 {% endblock %}

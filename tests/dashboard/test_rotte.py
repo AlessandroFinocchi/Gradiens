@@ -5,7 +5,7 @@ import pytest
 from gradiens.app import avvio_sistema
 from gradiens.dati import argomenti, esecuzioni, impostazioni, interessi, proposte
 from gradiens.dati import siti as dati_siti
-from gradiens.dati.modelli import Notizia, Pertinenza
+from gradiens.dati.modelli import Argomento, Notizia, Pertinenza
 from gradiens.dati.notizie import adesso
 from gradiens.esecuzione.metriche import Avanzamento
 
@@ -319,6 +319,9 @@ def test_timeline_argomento_e_azioni(dati):
     assert "Attacco &lt;b&gt;ASL&lt;/b&gt;" in timeline
     assert f'href="/argomenti/{id_b}"' not in timeline  # 1 sola notizia: niente riga, ma resta destinazione dell'unione
     assert "2 notizie" in timeline and "1 in archivio" in timeline
+    assert f'href="/argomenti/{id_a}"' in dati.get("/timeline?cuore=si").text  # una notizia con il cuore
+    senza = dati.get("/timeline?cuore=no").text
+    assert f'href="/argomenti/{id_a}"' not in senza and "Nessun argomento con questo filtro" in senza
     pagina = dati.get(f"/argomenti/{id_a}").text
     assert pagina.index("Paper &lt;script") < pagina.index("Paper vecchio")  # dalla più recente
     assert f'href="/argomenti/{id_a}"' in dati.get("/notizie/arxiv").text  # argomento sulla notizia (UI-04)
@@ -336,6 +339,29 @@ def test_timeline_argomento_e_azioni(dati):
     assert "3 notizie" in dati.get(f"/argomenti/{id_a}").text
     elimina = dati.post(f"/argomenti/{id_a}/elimina", headers={**HTMX, "HX-Current-URL": "http://127.0.0.1/timeline"})
     assert elimina.headers["HX-Refresh"] == "true" and "Ancora nessun argomento" in dati.get("/timeline").text
+
+
+def test_temi_nella_timeline(dati):
+    """UI-09, ESE-08b: Nuovo tema, sezione in cima anche vuoto, interruttore, descrizione, smarcare un tema vuoto."""
+    assert "Nessun tema." in dati.get("/timeline").text
+    assert dati.post("/temi", data={"nome": " "}, headers=HTMX).status_code == 422
+    nuovo = dati.post("/temi", data={"nome": "GTA 6", "descrizione": "Uscita e patch."}, headers=HTMX)
+    assert nuovo.status_code == 204 and nuovo.headers["HX-Refresh"] == "true"
+    with dati.app.state.sessioni() as s:
+        id_tema = s.query(Argomento).filter_by(nome="GTA 6").one().id
+    timeline = dati.get("/timeline").text
+    assert timeline.index("GTA 6") < timeline.index("Argomenti") and "Uscita e patch." in timeline
+    assert "ancora nessuna notizia" in timeline
+    pagina = dati.get(f"/argomenti/{id_tema}").text  # un tema si apre anche vuoto
+    assert 'class="stato etichetta-tema"' in pagina and "Salva la descrizione" in pagina
+    assert f'hx-post="/argomenti/{id_tema}/cuore"' not in pagina  # vuoto: niente cuore
+    dati.post(f"/argomenti/{id_tema}/descrizione", data={"descrizione": "  "}, headers=HTMX)
+    with dati.app.state.sessioni() as s:
+        assert s.get(Argomento, id_tema).descrizione is None
+    smarcato = dati.post(f"/argomenti/{id_tema}/tema", headers=HTMX)  # casella spenta: nessun valore
+    assert smarcato.headers["HX-Redirect"] == "/timeline"  # vuoto e non più tema: cancellato (ESE-10)
+    assert dati.get(f"/argomenti/{id_tema}").status_code == 404
+    assert dati.post("/argomenti/9999/tema", data={"tema": "true"}, headers=HTMX).status_code == 404
 
 
 def test_cuore_a_tutto_l_argomento(dati):

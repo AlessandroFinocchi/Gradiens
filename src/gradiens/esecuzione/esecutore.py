@@ -302,11 +302,11 @@ class Esecutore:
         blocchi = [mostrate[i : i + BLOCCO_ARGOMENTI] for i in range(0, len(mostrate), BLOCCO_ARGOMENTI)]
         self._fase("argomenti", len(blocchi))
         for blocco in blocchi:
-            esistenti = argomenti.per_prompt(s)
+            temi, esistenti = argomenti.per_prompt(s)
             try:
                 risposta = await chiedi(
                     elaborazione,
-                    sistema=prompt.sistema_argomenti(esistenti),
+                    sistema=prompt.sistema_argomenti(esistenti, temi),
                     messaggio=prompt.messaggio_argomenti(blocco),
                     schema=prompt.SCHEMA_ARGOMENTI,
                     modello=modello,
@@ -317,8 +317,8 @@ class Esecutore:
                 log.warning("Passo degli argomenti non riuscito: %s", errore)
                 return
             m.conta_token("elaborazione", risposta)
-            # Un "nuovo" con il nome di un argomento esistente non deve creare un doppione.
-            validi, nuovi = {a.id for a in esistenti}, {a.nome.casefold(): a for a in esistenti}
+            # Un "nuovo" con il nome di un argomento esistente o di un tema non deve creare un doppione.
+            validi, nuovi = {a.id for a in esistenti + temi}, {a.nome.casefold(): a for a in esistenti + temi}
             for voce in risposta.dati.get("assegnazioni", []):  # dato esterno: si controlla tutto
                 i = voce.get("notizia") if isinstance(voce, dict) else None
                 if not isinstance(i, int) or not 0 <= i < len(blocco):

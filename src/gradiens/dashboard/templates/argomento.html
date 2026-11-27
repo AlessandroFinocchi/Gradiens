@@ -1,16 +1,30 @@
 {% extends "base.html" %}
 {% from "icone.html" import icona with context %}
 {% from "argomento_azioni.html" import azioni_argomento, metadati with context %}
-{# Pagina dell'argomento (UI-09): le sue notizie in ordine di tempo, dalla più recente. #}
+{# Pagina dell'argomento (UI-09): le sue notizie in ordine di tempo, dalla più recente, e l'interruttore del tema
+   (ESE-08b) con la descrizione per l'LLM. #}
 {% block titolo %}{{ r.argomento.nome }}{% endblock %}
 {% block contenuto %}
 <main class="pagina-argomento">
   <a class="indietro" href="/timeline">{{ icona("indietro") }}Timeline</a>
   <div class="argomento-testa">
-    <div><h1>{{ r.argomento.nome }}</h1>
+    <div><h1>{{ r.argomento.nome }}{% if r.argomento.tema %} <span class="stato etichetta-tema">tema</span>{% endif %}</h1>
       <div class="riga-info" style="margin-top: 4px"><span>{{ metadati(r) }}</span>{% if r.nuove %}<span class="stato">{{ r.nuove }} {{ "nuova" if r.nuove == 1 else "nuove" }}</span>{% endif %}</div></div>
     {{ azioni_argomento(r, tutti) }}
   </div>
+  <section class="blocco-tema">
+    <form hx-post="/argomenti/{{ r.argomento.id }}/tema" hx-trigger="change">
+      <label class="riga-interruttore"><input type="checkbox" class="interruttore" name="tema" value="true"{% if r.argomento.tema %} checked{% endif %}>
+        <span><strong>Raccogli tutto il tema</strong><br><span class="nota">L'LLM mette qui ogni notizia che riguarda «{{ r.argomento.nome }}», anche quelle su un evento preciso.</span></span></label>
+    </form>
+    {% if r.argomento.tema %}
+    <form class="descrizione-modifica" hx-post="/argomenti/{{ r.argomento.id }}/descrizione">
+      <label class="nota" for="descrizione">Descrizione per l'LLM (facoltativa)</label>
+      <textarea class="campo" id="descrizione" name="descrizione" rows="2" maxlength="1000" placeholder="Cosa entra nel tema e cosa no">{{ r.argomento.descrizione or "" }}</textarea>
+      <button class="bottone piccolo secondario">Salva la descrizione</button>
+    </form>
+    {% endif %}
+  </section>
   {% include "argomento_evoluzione.html" %}
   <ol class="linea-tempo">
     {% for n in r.argomento.notizie %}

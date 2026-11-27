@@ -36,8 +36,12 @@ _Evitare_: descrizione appresa, profilo
 Un nuovo testo di Raffinamento, oppure un nuovo Interesse, generato dall'LLM aggregando le notizie con il Cuore. Entra in vigore solo se l'utente lo approva.
 
 **Argomento**:
-Una storia precisa che si sviluppa nel tempo, come un singolo evento e la sua evoluzione (es. "Attacco ransomware alla ASL X", non "attacchi ransomware"). Raggruppa le notizie che ne seguono gli sviluppi e appare come timeline.
-_Evitare_: tema, interesse, cluster, storia
+Una storia precisa che si sviluppa nel tempo, come un singolo evento e la sua evoluzione (es. "Attacco ransomware alla ASL X", non "attacchi ransomware"). Raggruppa le notizie che ne seguono gli sviluppi e appare come timeline. Lo assegna l'LLM; fa eccezione il Tema.
+_Evitare_: interesse, cluster, storia
+
+**Tema**:
+Argomento che l'utente crea o marca perché raccolga tutte le notizie su un soggetto ampio (es. "GTA 6"), con una descrizione facoltativa per l'LLM. L'LLM vi assegna ogni notizia che lo riguarda, anche se è un evento preciso. Non viene cancellato quando resta senza notizie, ma le sue notizie seguono la regola dei 7 giorni. A differenza dell'Interesse non filtra le notizie: le raggruppa.
+_Evitare_: categoria, argomento generale
 
 **Cuore**:
 Segno che l'utente mette su una notizia che gli è interessata. Una notizia con il cuore entra nell'Archivio e contribuisce al Raffinamento degli Interessi.

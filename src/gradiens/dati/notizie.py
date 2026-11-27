@@ -153,7 +153,8 @@ def cancella_scadute(sessione: Session) -> int:
     è già la data di scoperta. Gli indirizzi restano nel registro delle viste, così non tornano."""
     limite = adesso() - timedelta(days=GIORNI_CONSERVAZIONE)
     risultato = sessione.execute(delete(Notizia).where(Notizia.cuore.is_(False), Notizia.pubblicata_il < limite))
-    sessione.execute(delete(Argomento).where(~Argomento.notizie.any()))  # ESE-10: argomenti rimasti vuoti
+    # ESE-10: argomenti rimasti vuoti; un tema resta (ESE-08b)
+    sessione.execute(delete(Argomento).where(~Argomento.notizie.any(), Argomento.tema.is_(False)))
     sessione.commit()
     return risultato.rowcount
 

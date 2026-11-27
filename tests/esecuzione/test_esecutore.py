@@ -9,7 +9,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from gradiens.dati import impostazioni, interessi, notizie
+from gradiens.dati import argomenti, impostazioni, interessi, notizie
 from gradiens.dati.database import crea_motore, fabbrica_sessioni, migra
 from gradiens.dati.modelli import Argomento, CategoriaArxiv, Esecuzione, Notizia, Pertinenza, Proposta
 from gradiens.esecuzione import prompt
@@ -539,6 +539,33 @@ def test_argomenti_a_fine_esecuzione(sessioni):
     # Un'esecuzione dopo: l'argomento esistente compare nel prompt con il suo id.
     sistema = next(sis for sis, _ in finto.chiamate if "passo degli argomenti" in sis)
     assert "(nessuno)" in sistema
+
+
+def test_le_notizie_vanno_nel_tema(sessioni):
+    """ESE-08b: l'LLM vede il tema con la descrizione; un "nuovo" con il nome del tema non crea un doppione."""
+    with sessioni() as s:
+        id_tema = argomenti.crea_tema(s, "Tema ASL", "Tutto sulla ASL.")
+
+    def nel_tema(sistema, messaggio, schema):
+        if schema is prompt.SCHEMA_ARGOMENTI:
+            voci = json.loads(messaggio)
+            return {
+                "assegnazioni": [
+                    {"notizia": voci[0]["id"], "argomento": id_tema},
+                    {"notizia": voci[1]["id"], "nuovo": "tema asl"},
+                ]
+            }
+        return risponditore(sistema, messaggio, schema)
+
+    _, _, _, finto = esegui(
+        sessioni,
+        raccolta(candidata("sicurezza-alta-attacco-1"), candidata("sicurezza-alta-attacco-2")),
+        provider=Finto(nel_tema),
+    )
+    sistema = next(sis for sis, _ in finto.chiamate if "passo degli argomenti" in sis)
+    assert f"[{id_tema}] Tema ASL: Tutto sulla ASL." in sistema
+    with sessioni() as s:
+        assert [len(a.notizie) for a in s.scalars(select(Argomento))] == [2]
 
 
 def test_passo_degli_argomenti_fallito_non_ferma_l_esecuzione(sessioni):

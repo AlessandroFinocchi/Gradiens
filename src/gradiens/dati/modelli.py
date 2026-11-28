@@ -186,3 +186,17 @@ class NotiziaVista(Base):
 
     url: Mapped[str] = mapped_column(String(1000), primary_key=True)
     vista_il: Mapped[datetime]
+
+
+class NotiziaDaRiprovare(Base):
+    """Notizie rimandate perché la fonte ha limitato le richieste (es. YouTube che blocca l'IP): si riprovano
+    alle esecuzioni successive anche se sono uscite dal feed, finché restano nella finestra di raccolta."""
+
+    __tablename__ = "notizie_da_riprovare"
+
+    url: Mapped[str] = mapped_column(String(1000), primary_key=True)
+    tipo: Mapped[str] = mapped_column(String(6))
+    fonte: Mapped[str] = mapped_column(String(200))
+    titolo: Mapped[str] = mapped_column(Text)
+    sommario: Mapped[str] = mapped_column(Text)
+    pubblicata_il: Mapped[datetime]

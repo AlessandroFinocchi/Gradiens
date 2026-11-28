@@ -359,6 +359,15 @@ def test_fonti_con_problemi_nel_messaggio_di_fine_esecuzione(ambiente):
     assert "… e altre 2: le trovi nel resoconto, nella dashboard." in testo
 
 
+def test_youtube_che_limita_le_richieste_nel_messaggio_di_fine_esecuzione(ambiente):
+    client, id = ambiente
+    with client.app.state.sessioni() as s:
+        esecuzioni.termina(s, id, "completata", {"fonti": {"youtube": {"esaminate": 12, "bloccate": 10}}})
+    b, inviati = bot_di(client)
+    asyncio.run(b.invia_esecuzione(id))
+    assert "⚠️ YouTube ha limitato le richieste: 10 notizie si riprovano alla prossima esecuzione." in inviati[0][1]
+
+
 class ApplicazioneFinta:
     """Finta `Application` di Telegram: ogni passo dell'avvio cede il ciclo di eventi, come le chiamate di rete vere."""
 

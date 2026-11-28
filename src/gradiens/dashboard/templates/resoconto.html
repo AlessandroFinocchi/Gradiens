@@ -41,6 +41,9 @@
           </tbody>
         </table>
       </div>
+      {% for avviso in avvisi_limiti %}
+      <div class="errore-riquadro">{{ icona("avvertimento") }}<div><strong>{{ avviso }}</strong></div></div>
+      {% endfor %}
       {% set oltre = r.fonti.get("arxiv", {}).get("oltre_tetto", 0) %}
       {% if oltre %}
       <div class="errore-riquadro" style="background: var(--accento-tenue)"><span class="segnale novita" style="margin-top: 7px"></span>

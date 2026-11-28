@@ -22,14 +22,14 @@ from sqlalchemy.orm import Session, sessionmaker
 from gradiens.dati import argomenti, esecuzioni, impostazioni, interessi, notizie, proposte
 from gradiens.dati import siti as dati_siti
 from gradiens.dati.esecuzioni import NESSUNA_RETE, SPENTO
-from gradiens.dati.modelli import FONTE_DI_TIPO, Notizia, Pertinenza
+from gradiens.dati.modelli import FONTE_DI_TIPO, Notizia, NotiziaDaRiprovare, Pertinenza
 from gradiens.esecuzione import prompt
 from gradiens.esecuzione.chiamata import chiedi
 from gradiens.esecuzione.metriche import Avanzamento, Metriche
 from gradiens.esecuzione.parallelo import foglie, in_parallelo
 from gradiens.esecuzione.prefiltro import applica_tetto, prefiltra
 from gradiens.esecuzione.raccolta import raccogli
-from gradiens.fonti import Candidata, ContenutoAssente, NonAncoraDisponibile, arxiv, siti, youtube
+from gradiens.fonti import Candidata, ContenutoAssente, FonteBloccata, NonAncoraDisponibile, arxiv, siti, youtube
 from gradiens.llm import crea_provider, nome_provider
 from gradiens.llm.base import ErroreBloccante, ErroreLLM, Provider, QuotaEsaurita
 
@@ -186,6 +186,11 @@ class Esecutore:
         async with httpx.AsyncClient(follow_redirects=True) as client:
             # Raccolta (ESE-03): solo la finestra, senza le notizie già viste (ESE-07) né i doppioni.
             trovate = await raccogli(client, s, self._fonti, dal, imp.finestra_giorni, m, coperture)
+            # Le notizie rimandate da un blocco della fonte, anche se nel frattempo sono uscite dal feed.
+            trovate = [
+                Candidata(r.tipo, r.url, r.fonte, r.titolo, r.sommario, "", r.pubblicata_il)
+                for r in notizie.da_riprovare(s, dal)
+            ] + trovate
             viste = notizie.gia_viste(s, [c.url for c in trovate])
             nuove = list({c.url: c for c in trovate if c.url not in viste}.values())
             for c in nuove:
@@ -244,6 +249,24 @@ class Esecutore:
                     )
                     return
                 except NonAncoraDisponibile:  # YT-04: si riprende alla prossima esecuzione
+                    return
+                except FonteBloccata as blocco:  # non è un errore della notizia: si riprova alle prossime esecuzioni
+                    conta = m.di(c.tipo)
+                    if not conta.bloccate:
+                        log.warning("%s: le notizie rimaste si riprovano alla prossima esecuzione", blocco)
+                    conta.bloccate += 1
+                    notizie.rimanda(
+                        s,
+                        NotiziaDaRiprovare(
+                            url=c.url,
+                            tipo=c.tipo,
+                            fonte=c.fonte,
+                            titolo=c.titolo,
+                            sommario=c.sommario,
+                            pubblicata_il=c.pubblicata_il,
+                        ),
+                    )
+                    s.commit()
                     return
                 except Exception as errore:  # rete o LLM: non si segna come vista, si riprova la volta dopo
                     log.warning("Elaborazione fallita per %s: %s", c.url, errore)

@@ -50,13 +50,18 @@
 
       <section class="blocco" aria-labelledby="t-avvisi">
         <h2 id="t-avvisi">Avvisi</h2>
-        {% if avviso_login or avviso_versione or proposte or siti_in_errore or argomenti_nuovi %}
+        {% if avviso_login or avviso_versione or avvisi_limiti or proposte or siti_in_errore or argomenti_nuovi %}
         <ul class="avvisi scorre">
           {% if avviso_login %}
           <li><div class="fisso">
             <span class="segnale avvertimento">{{ icona("avvertimento") }}</span>
             <span><strong>Login di Claude Code</strong><br><span class="descrizione">{{ avviso_login }}</span></span></div></li>
           {% endif %}
+          {% for avviso in avvisi_limiti %}
+          <li><div class="fisso">
+            <span class="segnale avvertimento">{{ icona("avvertimento") }}</span>
+            <span><strong>Richieste limitate</strong><br><span class="descrizione">{{ avviso }}</span></span></div></li>
+          {% endfor %}
           {% if avviso_versione %}
           <li><div class="fisso">
             <span class="segnale novita"></span>

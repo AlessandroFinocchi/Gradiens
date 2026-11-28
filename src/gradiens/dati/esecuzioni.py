@@ -63,6 +63,7 @@ CONTATORI = (
     "oltre_tetto",
     "mostrate",
     "errori",
+    "bloccate",
 )
 
 

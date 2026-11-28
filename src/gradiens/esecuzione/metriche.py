@@ -36,6 +36,7 @@ class Contatori:
     scartate_valutazione: int = 0
     mostrate: int = 0
     errori: int = 0
+    bloccate: int = 0  # rimandate perché la fonte ha limitato le richieste (es. YouTube): non sono errori
     stati: list[dict] = field(default_factory=list)
     problemi: list[dict] = field(default_factory=list)
     notizie_escluse: list[dict] = field(default_factory=list)

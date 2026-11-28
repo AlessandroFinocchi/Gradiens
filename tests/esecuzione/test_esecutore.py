@@ -327,6 +327,59 @@ def test_youtube_short_trascrizione_assente_diretta_e_canale_irraggiungibile(ses
     assert all(len(m) < 70_000 for _, m in finto.chiamate)  # contenuto troncato prima di Claude
 
 
+def test_video_bloccati_da_youtube_si_riprovano_anche_fuori_dal_feed(sessioni):
+    """Il blocco non è un errore: il video resta da riprovare e torna anche quando il feed non lo ha più
+    (il feed ha solo gli ultimi 15 video). Un video di un canale tolto dalle fonti non torna."""
+    from gradiens.dati.modelli import NotiziaDaRiprovare
+    from gradiens.fonti import FonteBloccata
+
+    with sessioni() as s:
+        impostazioni.aggiungi_canale(s, "UC" + "a" * 22, "Lab di Sicurezza")
+        s.add(
+            NotiziaDaRiprovare(
+                url="https://www.youtube.com/watch?v=tolto",
+                tipo="video",
+                fonte="Canale tolto",
+                titolo="sicurezza-alta-tolto",
+                sommario="",
+                pubblicata_il=notizie.adesso(),
+            )
+        )
+        s.commit()
+    video = candidata("sicurezza-alta-video")
+    video.tipo, video.url, video.fonte = "video", "https://www.youtube.com/watch?v=abc", "Lab di Sicurezza"
+    feed, bloccata = [video], True
+
+    async def raccogli_yt(client, canale, dal):
+        return [replace(c) for c in feed]
+
+    async def completa(client, c):
+        if bloccata:
+            raise FonteBloccata("YouTube ha limitato le richieste")
+        c.contenuto = "trascrizione"
+        return c
+
+    fonti = {**raccolta(), "youtube": SimpleNamespace(raccogli=raccogli_yt, completa=completa)}
+
+    async def esegui_una():
+        esecutore = Esecutore(sessioni, fabbrica_provider=lambda n: Finto(risponditore), fonti=fonti)
+        esecutore.avvia("cli")
+        await esecutore.attendi()
+
+    asyncio.run(esegui_una())
+    with sessioni() as s:
+        yt = json.loads(s.scalars(select(Esecuzione)).one().metriche)["fonti"]["youtube"]
+        assert (yt["bloccate"], yt["errori"], yt["mostrate"]) == (1, 0, 0)
+        assert not notizie.gia_viste(s, [video.url])
+        assert [r.url for r in s.scalars(select(NotiziaDaRiprovare))] == [video.url]  # il canale tolto non c'è più
+
+    feed, bloccata = [], False  # il giorno dopo: uscito dal feed, YouTube non blocca più
+    asyncio.run(esegui_una())
+    with sessioni() as s:
+        assert [n.url for n in s.scalars(select(Notizia))] == [video.url]
+        assert notizie.da_riprovare(s, notizie.adesso() - timedelta(days=7)) == []
+
+
 def test_siti_stato_guasti_e_rigenerazione_dopo_tre(sessioni):
     from gradiens.dati import siti as dati_siti
     from gradiens.dati.modelli import Sito

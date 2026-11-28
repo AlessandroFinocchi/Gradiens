@@ -17,6 +17,7 @@ from gradiens.dashboard.comune import (
     SOLO_DAL_PC,
     TIPI,
     Sessione,
+    avvisi_limiti,
     cambio_versione,
     dal_pc,
     frammento,
@@ -73,6 +74,7 @@ def home(request: Request, s: Sessione):
         proposte=proposte.pendenti(s),
         avviso_login=claude_code.avviso_login(),
         avviso_versione=riepilogo and cambio_versione(riepilogo),
+        avvisi_limiti=avvisi_limiti(riepilogo) if riepilogo else [],
         argomenti_nuovi=[r for r in argomenti.timeline(s, ultima and ultima.id) if r.nuove],  # UI-02, avvisi
         storico=[(e, esecuzioni.riepilogo(e)) for e in esecuzioni.storico(s)],
     )
@@ -83,7 +85,10 @@ def resoconto(request: Request, s: Sessione, id: int):
     esecuzione = s.get(Esecuzione, id)
     if esecuzione is None:
         raise HTTPException(404, "Esecuzione inesistente")
-    return pagina(request, s, "resoconto", "home", e=esecuzione, riepilogo=esecuzioni.riepilogo(esecuzione))
+    riepilogo = esecuzioni.riepilogo(esecuzione)
+    return pagina(
+        request, s, "resoconto", "home", e=esecuzione, riepilogo=riepilogo, avvisi_limiti=avvisi_limiti(riepilogo)
+    )
 
 
 # ---------- Timeline e argomenti (UI-09, ESE-08) ----------

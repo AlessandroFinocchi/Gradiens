@@ -35,6 +35,7 @@ def test_le_chiavi_delle_metriche_e_chi_le_legge():
         "scartate_valutazione",
         "mostrate",
         "errori",
+        "bloccate",
         "stati",
         "problemi",
         "notizie_escluse",

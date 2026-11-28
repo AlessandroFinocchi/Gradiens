@@ -3,7 +3,7 @@ from datetime import datetime
 
 import pytest
 
-from gradiens.fonti import Candidata, ContenutoAssente, NonAncoraDisponibile, youtube
+from gradiens.fonti import Candidata, ContenutoAssente, FonteBloccata, NonAncoraDisponibile, youtube
 
 CANALE = youtube.Canale(id="UCYO_jab_esuFRV4b17AJtAw", nome="3Blue1Brown")
 RSS = """<?xml version="1.0" encoding="UTF-8"?>
@@ -109,3 +109,66 @@ def test_al_massimo_due_video_completati_alla_volta(monkeypatch):
     asyncio.run(prova())
     asyncio.run(prova())  # un secondo ciclo asyncio, come in un altro test o dopo un riavvio
     assert massimo == 2
+
+
+def test_al_primo_blocco_niente_altre_richieste_nella_stessa_esecuzione(monkeypatch):
+    """YouTube che blocca l'IP: insistere allunga il blocco. Il client httpx è uno per esecuzione."""
+    richieste = []
+
+    def bloccata(id):
+        richieste.append(id)
+        raise youtube.RequestBlocked(id)
+
+    monkeypatch.setattr(youtube, "_info", lambda url, piatta=False: {"live_status": "not_live"})
+    monkeypatch.setattr(youtube, "_trascrizione", bloccata)
+
+    class Client:  # come httpx.AsyncClient: si può tenere con un riferimento debole
+        pass
+
+    esecuzione, successiva = Client(), Client()
+
+    async def prova(client, quanti):
+        return await asyncio.gather(
+            *(youtube.completa(client, candidata()) for _ in range(quanti)), return_exceptions=True
+        )
+
+    risultati = asyncio.run(prova(esecuzione, 5))
+    assert all(isinstance(r, FonteBloccata) for r in risultati)
+    assert len(richieste) == 2  # i due già partiti insieme; gli altri in coda non chiedono niente
+    asyncio.run(prova(successiva, 1))
+    assert len(richieste) == 3  # l'esecuzione dopo riprova
+
+
+@pytest.mark.parametrize(
+    "errore",
+    [
+        "ERROR: Unable to download video subtitles for 'it': HTTP Error 429: Too Many Requests",
+        "ERROR: [youtube] V_uq3v6xK-4: Sign in to confirm you’re not a bot",
+    ],
+)
+def test_i_blocchi_di_yt_dlp_sono_blocchi(monkeypatch, errore):
+    def info(url, piatta=False):
+        raise youtube.yt_dlp.utils.DownloadError(errore)
+
+    monkeypatch.setattr(youtube, "_info", info)
+
+    class Client:
+        pass
+
+    with pytest.raises(FonteBloccata, match="YouTube ha limitato le richieste"):
+        asyncio.run(youtube.completa(Client(), candidata()))
+
+
+def test_un_429_nell_id_del_video_non_e_un_blocco(monkeypatch):
+    """Il testo degli errori contiene l'id del video: "429" da solo non vuol dire "Too Many Requests"."""
+
+    def info(url, piatta=False):
+        raise youtube.yt_dlp.utils.DownloadError("ERROR: [youtube] a429bcdEFgh: Video unavailable")
+
+    monkeypatch.setattr(youtube, "_info", info)
+
+    class Client:
+        pass
+
+    with pytest.raises(youtube.yt_dlp.utils.DownloadError):
+        asyncio.run(youtube.completa(Client(), candidata()))

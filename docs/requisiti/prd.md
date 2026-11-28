@@ -48,6 +48,7 @@ Gradiens è un'applicazione personale, con un solo utente. Raccoglie contenuti d
 - `YT-05` I video senza trascrizione:
   - non vengono valutati e non diventano notizie;
   - compaiono solo nel resoconto dell'esecuzione, canale per canale, con lo stato "trascrizione assente" (o un altro problema, se è diverso) e il link al video.
+- `YT-06` Se YouTube limita le richieste (blocca l'IP per qualche ora), l'esecuzione smette di chiedergli trascrizioni al primo blocco. I video rimasti non sono errori né si perdono: si riprovano alle esecuzioni successive, anche se nel frattempo sono usciti dal feed del canale, finché restano nella finestra di raccolta. Resoconto, Home, messaggio Telegram e CLI dicono quanti sono (aggiunto il 28 nov).
 
 ### 4.2 arXiv
 

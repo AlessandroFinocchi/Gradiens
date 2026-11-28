@@ -112,6 +112,8 @@ def _riepilogo(ultima: dict) -> str:
             f"{c['senza_contenuto']} senza contenuto, "
             f"{c['scartate_valutazione']} scartate dalla valutazione, {c['mostrate']} mostrate, {c['errori']} errori."
         )
+        if c.get("bloccate"):
+            righe.append(f"  - {c['bloccate']} rimandate: la fonte ha limitato le richieste, si riprovano dopo")
         righe += [f"  - {st['fonte']}: {st['stato']}" for st in c.get("stati", []) if st["stato"] not in STATI_BUONI]
         righe += [f"  - {p.get('titolo') or p['fonte']}: {p['stato']}" for p in c.get("problemi", [])]
         righe += [f"  - {n['titolo']}: escluso ({n['motivo']})" for n in c.get("notizie_escluse", [])]

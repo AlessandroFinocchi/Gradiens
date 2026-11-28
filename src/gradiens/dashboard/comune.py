@@ -110,6 +110,16 @@ def cambio_versione(riepilogo: dict) -> str | None:
     )
 
 
+def avvisi_limiti(riepilogo: dict) -> list[str]:
+    """Fonti che hanno limitato le richieste (es. YouTube che blocca l'IP): le notizie rimandate non sono perse."""
+    return [
+        f"{FONTI[nome][1] if nome in FONTI else nome} ha limitato le richieste: "
+        f"{n} {'notizia si riprova' if n == 1 else 'notizie si riprovano'} alla prossima esecuzione."
+        for nome, f in riepilogo.get("fonti", {}).items()
+        if (n := f.get("bloccate", 0))
+    ]
+
+
 def migliaia(n: int) -> str:
     return f"{n:,}".replace(",", ".")
 

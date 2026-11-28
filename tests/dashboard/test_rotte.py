@@ -306,6 +306,15 @@ def test_resoconto_di_un_esecuzione_registrata_prima_della_fetta_4b(client):
     assert resoconto.status_code == 200 and "—" in resoconto.text and "non raggiungibile: x" in resoconto.text
 
 
+def test_youtube_che_limita_le_richieste_in_home_e_nel_resoconto(client):
+    with client.app.state.sessioni() as s:
+        e = esecuzioni.inizia(s, "cli")
+        esecuzioni.termina(s, e.id, "completata", {"fonti": {"youtube": {"esaminate": 2, "bloccate": 1}}})
+    avviso = "YouTube ha limitato le richieste: 1 notizia si riprova alla prossima esecuzione."
+    assert avviso in client.get("/").text
+    assert avviso in client.get(f"/esecuzioni/{e.id}").text
+
+
 def test_timeline_argomento_e_azioni(dati):
     with dati.app.state.sessioni() as s:
         a = argomenti.crea(s, "Attacco <b>ASL</b>")

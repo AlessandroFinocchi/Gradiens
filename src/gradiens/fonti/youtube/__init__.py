@@ -1,9 +1,11 @@
-"""Fonte YouTube (PRD YT-01..05).
+"""Fonte YouTube (PRD YT-01..06).
 
 - I video nuovi si leggono dal feed RSS del canale: ha date e descrizioni, ed è una sola richiesta.
 - Il resto si scopre in `completa`, solo per i video che passano il pre-filtro:
   `yt-dlp` dice se è uno short o una diretta, `youtube-transcript-api` dà la trascrizione.
   (Il controllo con l'indirizzo /shorts/ non funziona dall'Europa: YouTube reindirizza al consenso cookie.)
+- A volte YouTube limita per qualche ora le richieste dall'IP, soprattutto quelle dei sottotitoli: al primo
+  blocco l'esecuzione non chiede altro a YouTube (insistere allunga il blocco) e i video restano da riprovare.
 """
 
 import asyncio
@@ -20,13 +22,15 @@ import yt_dlp
 from youtube_transcript_api import (
     AgeRestricted,
     NoTranscriptFound,
+    RequestBlocked,
     TranscriptsDisabled,
     VideoUnavailable,
     VideoUnplayable,
+    YouTubeRequestFailed,
     YouTubeTranscriptApi,
 )
 
-from gradiens.fonti import USER_AGENT, Candidata, ContenutoAssente, NonAncoraDisponibile
+from gradiens.fonti import USER_AGENT, Candidata, ContenutoAssente, FonteBloccata, NonAncoraDisponibile
 
 FEED = "https://www.youtube.com/feeds/videos.xml"
 ID_CANALE = re.compile(r"^UC[\w-]{22}$")
@@ -38,6 +42,9 @@ OPZIONI_YTDLP = {"quiet": True, "no_warnings": True, "skip_download": True, "cac
 # YouTube blocca gli IP che fanno molte richieste ravvicinate: al massimo 2 video completati alla volta.
 # Un semaforo per ciclo asyncio: un semaforo resta legato al primo ciclo che lo usa.
 _limiti: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
+BLOCCATA = "YouTube ha limitato le richieste"
+# Il client httpx è uno per esecuzione: qui si segnano quelle in cui YouTube ha già bloccato le richieste.
+_bloccati: weakref.WeakSet = weakref.WeakSet()
 
 
 def _limite() -> asyncio.Semaphore:
@@ -113,6 +120,12 @@ async def raccogli(client: httpx.AsyncClient, canale: Canale, dal: datetime) -> 
     return [c for c in interpreta(risposta.text, canale) if c.pubblicata_il >= dal]
 
 
+def _bloccata(errore: Exception) -> bool:
+    """Errore di yt-dlp o di youtube-transcript-api dovuto al limite di richieste (testi visti nei log). Non si
+    cerca "429" da solo: compare anche negli id dei video, che sono nel testo dell'errore."""
+    return isinstance(errore, RequestBlocked) or "Too Many Requests" in str(errore) or "not a bot" in str(errore)
+
+
 def _trascrizione(id_video: str) -> str:
     try:
         elenco = YouTubeTranscriptApi().list(id_video)
@@ -133,9 +146,17 @@ def _trascrizione(id_video: str) -> str:
 async def completa(client: httpx.AsyncClient, c: Candidata) -> Candidata:
     """Tipo (video o short), dirette non ancora concluse (YT-04) e trascrizione (YT-03, YT-05)."""
     async with _limite():
-        info = await asyncio.to_thread(_info, c.url)
-        if info.get("live_status") in ("is_upcoming", "is_live", "post_live"):
-            raise NonAncoraDisponibile("diretta non ancora disponibile")
-        c.tipo = "short" if info.get("media_type") == "short" else "video"
-        c.contenuto = await asyncio.to_thread(_trascrizione, c.url.rsplit("v=", 1)[1])
+        if client in _bloccati:  # i video in coda dopo il primo blocco non fanno richieste
+            raise FonteBloccata(BLOCCATA)
+        try:
+            info = await asyncio.to_thread(_info, c.url)
+            if info.get("live_status") in ("is_upcoming", "is_live", "post_live"):
+                raise NonAncoraDisponibile("diretta non ancora disponibile")
+            c.tipo = "short" if info.get("media_type") == "short" else "video"
+            c.contenuto = await asyncio.to_thread(_trascrizione, c.url.rsplit("v=", 1)[1])
+        except (yt_dlp.utils.DownloadError, YouTubeRequestFailed, RequestBlocked) as errore:
+            if not _bloccata(errore):
+                raise
+            _bloccati.add(client)
+            raise FonteBloccata(BLOCCATA) from None
     return c

@@ -14,6 +14,7 @@ from gradiens.dati.modelli import (
     CanaleYoutube,
     CategoriaArxiv,
     Notizia,
+    NotiziaDaRiprovare,
     NotiziaVista,
     Pertinenza,
     Sito,
@@ -185,3 +186,24 @@ def segna_viste(sessione: Session, urls: list[str]) -> None:
     quando = adesso()
     for url in set(urls) - gia_viste(sessione, urls):
         sessione.add(NotiziaVista(url=url, vista_il=quando))
+
+
+def rimanda(sessione: Session, notizia: NotiziaDaRiprovare) -> None:
+    """La fonte ha limitato le richieste: la notizia si riprova alle prossime esecuzioni."""
+    sessione.merge(notizia)
+
+
+def da_riprovare(sessione: Session, dal: datetime) -> list[NotiziaDaRiprovare]:
+    """Le notizie rimandate ancora da valutare (oggi solo video di YouTube). Si tolgono quelle già viste, uscite
+    dalla finestra di raccolta o di un canale tolto dalle fonti."""
+    righe = list(sessione.scalars(select(NotiziaDaRiprovare)))
+    viste = gia_viste(sessione, [r.url for r in righe])
+    canali = set(sessione.scalars(select(CanaleYoutube.nome)))
+    restano = []
+    for r in righe:
+        if r.url in viste or r.pubblicata_il < dal or r.fonte not in canali:
+            sessione.delete(r)
+        else:
+            restano.append(r)
+    sessione.commit()
+    return restano

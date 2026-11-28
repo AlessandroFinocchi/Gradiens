@@ -5,7 +5,8 @@ Ogni fonte espone:
   per il pre-filtro ma, se costa richieste in più, senza il contenuto completo;
 - `async completa(client, candidata) -> Candidata`, se serve: scarica il contenuto completo.
   L'esecuzione la chiama solo per le notizie che passano il pre-filtro e il tetto.
-  Se il contenuto non c'è (es. video senza trascrizione) solleva `ContenutoAssente`.
+  Se il contenuto non c'è (es. video senza trascrizione) solleva `ContenutoAssente`; se la fonte ha
+  limitato le richieste solleva `FonteBloccata`.
 """
 
 from dataclasses import dataclass
@@ -35,3 +36,7 @@ class ContenutoAssente(Exception):
 
 class NonAncoraDisponibile(Exception):
     """La notizia non si può ancora valutare (es. diretta non conclusa, YT-04): si riprova la volta dopo."""
+
+
+class FonteBloccata(Exception):
+    """La fonte ha limitato le richieste (es. YouTube blocca l'IP per qualche ora): la notizia resta da riprovare."""

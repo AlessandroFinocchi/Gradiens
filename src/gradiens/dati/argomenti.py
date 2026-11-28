@@ -119,8 +119,14 @@ def riassunto(sessione: Session, id: int, ultima_esecuzione_id: int | None) -> R
 
 
 def tutti(sessione: Session) -> list[Argomento]:
-    """Per la scelta della destinazione di un'unione."""
-    query = select(Argomento).where(or_(Argomento.notizie.any(), Argomento.tema)).order_by(Argomento.nome)
+    """Per la scelta della destinazione di un'unione: gli stessi argomenti della Timeline (UI-09)."""
+    query = (
+        select(Argomento)
+        .outerjoin(Notizia)
+        .group_by(Argomento.id)
+        .having(or_(Argomento.tema, func.count(Notizia.id) >= MINIMO_TIMELINE))
+        .order_by(Argomento.nome)
+    )
     return list(sessione.scalars(query))
 
 

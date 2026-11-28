@@ -50,6 +50,7 @@ def test_timeline_solo_con_almeno_2_notizie_le_piu_recenti_prima(s):
     assert [r.argomento.nome for r in elenco] == ["Recente", "Vecchio"]  # "Solo" ha una notizia (UI-09)
     assert (elenco[0].notizie, elenco[0].nuove, elenco[1].in_archivio) == (2, 1, 1)
     assert argomenti.riassunto(s, solo.id, e.id).notizie == 1  # la sua pagina si apre comunque
+    assert [x.nome for x in argomenti.tutti(s)] == ["Recente", "Vecchio"]  # l'unione offre gli stessi della Timeline
 
 
 def test_rinomina_unisci_elimina(s):
@@ -115,6 +116,7 @@ def test_temi_in_timeline_anche_vuoti_e_mai_cancellati(s):
     assert [r.argomento.nome for r in elenco][:2] == ["Uno", "Evento"]
     assert {r.argomento.nome for r in elenco[2:]} == {"Vuoto", "Scaduto"}  # vuoti per ultimi
     assert elenco[-1].dal is None and argomenti.riassunto(s, vuoto, None).notizie == 0
+    assert [x.nome for x in argomenti.tutti(s)] == ["Evento", "Scaduto", "Uno", "Vuoto"]  # temi anche vuoti
 
 
 def test_togliere_il_tema_e_unire(s):

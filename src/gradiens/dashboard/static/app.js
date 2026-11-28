@@ -15,6 +15,22 @@ document.addEventListener("click", (e) => {
   if (finestra?.tagName === "DIALOG" && (e.target.closest("[data-chiudi]") || e.target === finestra)) finestra.close();
 });
 
+// Box delle azioni (Timeline, pagina dell'argomento, Nuovo tema): uno alla volta. Un clic o il fuoco fuori dal box
+// lo chiude, Esc anche. Il clic sul suo bottone lo chiude da solo, perché <details> è nativo.
+const POPOVER = "details:has(> .popover)[open]";
+for (const evento of ["click", "focusin"]) {
+  document.addEventListener(evento, (e) => {
+    for (const d of document.querySelectorAll(POPOVER)) if (!d.contains(e.target)) d.open = false;
+  });
+}
+document.addEventListener("keydown", (e) => {
+  const d = e.key === "Escape" && document.activeElement?.closest(POPOVER);
+  if (d) {
+    d.open = false;
+    d.querySelector("summary").focus();
+  }
+});
+
 // Clic sul simbolo di Gradiens: la sidebar resta espansa o torna a espandersi solo al passaggio (decisione 68).
 document.addEventListener("sidebar-cambiata", (e) => {
   const fissa = e.detail.value;
